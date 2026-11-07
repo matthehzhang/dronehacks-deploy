@@ -84,9 +84,9 @@ class LiveMissionNode(Node):
         course_file = str(dp('course_file', '').value) or None
         self.mission = LiveMission(mp, NavParams(), ReplanParams(), fp, course_file=course_file)
         # --- sensors ---
-        self.depth_topic = str(dp('depth_topic', '/oak/stereo/image_raw').value)
-        self.depth_info_topic = str(dp('depth_info_topic', '/oak/stereo/camera_info').value)
-        self.mono_topic = str(dp('mono_topic', '/oak/left/image_raw').value)
+        self.depth_topic = str(dp('depth_topic', '/kestrel_nav/depth').value)
+        self.depth_info_topic = str(dp('depth_info_topic', '/kestrel_nav/depth/camera_info').value)
+        self.mono_topic = str(dp('mono_topic', '/oak/left/image_mono').value)
         self.mono_info_topic = str(dp('mono_info_topic', '/oak/left/camera_info').value)
         self.base_frame = str(dp('base_frame', 'base_link').value)
         self.use_tf = bool(dp('camera_from_tf', True).value)

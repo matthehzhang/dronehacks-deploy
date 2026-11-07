@@ -29,6 +29,7 @@ setup(
             'plan_course = kestrel_nav.plan_course:main',
             'localizer = kestrel_nav.coursenav.loc_node:main',
             'live_mission = kestrel_nav.live_mission:main',
+            'host_depth = kestrel_nav.host_depth:main',
         ],
     },
 )

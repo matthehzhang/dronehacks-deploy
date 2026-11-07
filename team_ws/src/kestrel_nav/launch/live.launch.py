@@ -40,9 +40,11 @@ ARGUMENTS = [
     ('v_gate', '0.25', 'speed through the tunnel and the window, m/s'),
     ('stop_m', '0.55', 'reactive stop distance along the path, m'),
     ('time_limit_s', '170.0', 'stop driving after this long in Offboard'),
-    ('depth_topic', '/oak/stereo/image_raw', 'depth image (16UC1 mm or 32FC1 m)'),
-    ('depth_info_topic', '/oak/stereo/camera_info', ''),
-    ('mono_topic', '/oak/left/image_raw', 'image for the pad ring detector'),
+    ('host_depth', 'true', 'run kestrel_nav host_depth (CPU stereo from the mono pair; on-device depth added 190 ms to VIO)'),
+    ('depth_topic', '/kestrel_nav/depth', 'depth image (16UC1 mm or 32FC1 m)'),
+    ('depth_info_topic', '/kestrel_nav/depth/camera_info', ''),
+    ('depth_max_hz', '8.0', 'host_depth rate cap'),
+    ('mono_topic', '/oak/left/image_mono', 'image for the pad ring detector'),
     ('mono_info_topic', '/oak/left/camera_info', ''),
     ('camera_from_tf', 'true', 'camera extrinsics from TF (skybeta publishes base_link <- oak_*); else camera_* params'),
     ('camera_x', '0.116', 'fallback camera position in body FLU, metres'),
@@ -73,4 +75,12 @@ def generate_launch_description():
             'mono_info_topic', 'camera_from_tf', 'camera_x', 'camera_y', 'camera_z', 'camera_pitch', 'min_altitude_m')}],
     )
 
-    return LaunchDescription(declared + [flight_interface, mission])
+    host_depth = Node(
+        package='kestrel_nav', executable='host_depth', name='host_depth',
+        output='screen', emulate_tty=True,
+        condition=IfCondition(LaunchConfiguration('host_depth')),
+        prefix='nice -n 5',
+        parameters=[{'depth_topic': LaunchConfiguration('depth_topic'), 'max_hz': LaunchConfiguration('depth_max_hz')}],
+    )
+
+    return LaunchDescription(declared + [flight_interface, host_depth, mission])
