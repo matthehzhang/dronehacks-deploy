@@ -1,0 +1,33 @@
+{
+  "start_course": [
+    -2.5146,
+    1.1144,
+    90.0
+  ],
+  "speeds_mps": [
+    0.1
+  ],
+  "time_limit_s": 170.0,
+  "candidates": [
+    {
+      "name": "published_tube_axis",
+      "kind": "tube",
+      "start_xy": [
+        2.3114,
+        1.6192000000000002
+      ],
+      "end_xy": [
+        2.3114,
+        -0.7048000000000001
+      ],
+      "height_m": 0.8,
+      "half_width_m": 0.5885693757728855,
+      "start_turn_radius_m": 0.6782682311792126,
+      "end_turn_radius_m": 0.6785305061568393,
+      "start_open": true,
+      "end_open": true
+    }
+  ],
+  "map_only": true,
+  "_note": "Published map and training spawn only. Not a physical survey; the ROS diagnostic adapter rejects map_only configurations."
+}

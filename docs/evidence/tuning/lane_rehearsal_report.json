@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "accepted": true,
+  "errors": [],
+  "rejected_trials": [],
+  "candidates": {
+    "published_tube_axis": {
+      "accepted": true,
+      "reasons": [],
+      "model": {
+        "tau_s": 0.4500083998756834,
+        "delay_s": 0.15022223618398117,
+        "gain": 1.0000055011560216,
+        "bias_mps": -2.4533176882787454e-07
+      },
+      "nominal_model": {
+        "tau_s": 0.45,
+        "delay_s": 0.0,
+        "gain": 1.0,
+        "bias_mps": 0.0
+      },
+      "search": {
+        "tau_bounds_s": [
+          0.025000000000000355,
+          1.7750000000000004
+        ],
+        "delay_bounds_s": [
+          0.0,
+          1.0
+        ]
+      },
+      "training_velocity_rmse_mps": 4.8018850780262e-07,
+      "trials": [
+        {
+          "trial": "0",
+          "split": "train",
+          "fitted": {
+            "velocity_rmse_mps": 4.8018850780262e-07,
+            "position_rmse_m": 2.8430484584039373e-05,
+            "position_max_error_m": 6.69146235305729e-05,
+            "position_end_error_m": 2.1227114938848768e-06
+          },
+          "nominal": {
+            "velocity_rmse_mps": 0.011062250116964741,
+            "position_rmse_m": 0.009686315735706018,
+            "position_max_error_m": 0.014751672020740875,
+            "position_end_error_m": 0.0005334244994408266
+          },
+          "instantaneous": {
+            "velocity_rmse_mps": 0.04529585959784642,
+            "position_rmse_m": 0.03875603849538463,
+            "position_max_error_m": 0.059127366421427074,
+            "position_end_error_m": 0.0018744731513580526
+          }
+        },
+        {
+          "trial": "1",
+          "split": "validation",
+          "fitted": {
+            "velocity_rmse_mps": 4.855754021689774e-07,
+            "position_rmse_m": 2.8952010724582497e-05,
+            "position_max_error_m": 6.749812767035317e-05,
+            "position_end_error_m": 5.205729996238251e-07
+          },
+          "nominal": {
+            "velocity_rmse_mps": 0.011062250116964604,
+            "position_rmse_m": 0.009685082150659271,
+            "position_max_error_m": 0.014750061168936096,
+            "position_end_error_m": 0.0005317928380398906
+          },
+          "instantaneous": {
+            "velocity_rmse_mps": 0.044719373792096145,
+            "position_rmse_m": 0.037579495429282,
+            "position_max_error_m": 0.057559685472600125,
+            "position_end_error_m": 0.0002865403040480108
+          }
+        }
+      ]
+    }
+  },
+  "meaning": "Accepted means held-out response prediction improved; NOT controller or flight approval.",
+  "limitations": [
+    "Effective command-to-odometry response includes estimator delay/error.",
+    "Only the commanded horizontal straight-line axis is identified.",
+    "Pose secants are timestamped at interval centers; estimator noise remains in velocity.",
+    "No gain/configuration writes. No simulator truth used by fitting.",
+    "No absolute tracking-error acceptance budget or physical uncertainty bound established.",
+    "First-order model omits saturation, cross-axis coupling and changing dynamics."
+  ],
+  "synthetic_only": true,
+  "controller_summary": {
+    "schema": 1,
+    "kind": "summary",
+    "dropped_count": 0,
+    "synthetic": true,
+    "terminal_phase": "DONE",
+    "reason": "diagnostic complete; pilot lands",
+    "elapsed_s": 71.65,
+    "completed": [
+      {
+        "candidate": "published_tube_axis",
+        "trial": 0,
+        "speed": 0.1,
+        "peak_speed": 0.0981684361111267,
+        "stopping_distance": 0.057591534460905036
+      },
+      {
+        "candidate": "published_tube_axis",
+        "trial": 1,
+        "speed": 0.1,
+        "peak_speed": 0.09821219259042686,
+        "stopping_distance": 0.05761072155937563
+      }
+    ]
+  },
+  "course_check": {
+    "passed": true,
+    "transit_length_m": 8.729,
+    "transit_min_clearance_m": 0.4,
+    "estimated_total_s": 136.2397039476925,
+    "meaning": "Prior-map and constructor checks only; no maze transit was simulated.",
+    "time_limitation": "Distance/cruise arithmetic is not a guaranteed upper time bound."
+  }
+}

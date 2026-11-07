@@ -1,6 +1,16 @@
 # kestrel_nav: team wide-kestrel course code, packaged for skybeta
 
-## Current branch: `matthew559am`
+## Current branch: `two`
+
+This experimental branch adds `tune.launch.py`: slow map-guided transit, bounded
+straight-line response measurements, forward-facing slow return, raw sensor and
+command logging, and an offline fitter with held-out validation. It requires
+measured lane geometry and never changes PX4 gains. See
+[the diagnostic instructions](../../../docs/TUNING.md) for limits and evidence.
+It has not flown; the synthetic rehearsal does not validate maze transit or the
+cloud simulator's PX4 interface.
+
+## Inherited mission from `matthew559am`
 
 The entry point for this branch is **`live.launch.py`**. It keeps the hardware velocity follower
 and organizer flight interface, adds the timestamp/tracking/depth watchdogs described below, and

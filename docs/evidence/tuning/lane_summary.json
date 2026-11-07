@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "kind": "summary",
+  "dropped_count": 0,
+  "synthetic": true,
+  "terminal_phase": "DONE",
+  "reason": "diagnostic complete; pilot lands",
+  "elapsed_s": 71.65,
+  "completed": [
+    {
+      "candidate": "published_tube_axis",
+      "trial": 0,
+      "speed": 0.1,
+      "peak_speed": 0.0981684361111267,
+      "stopping_distance": 0.057591534460905036
+    },
+    {
+      "candidate": "published_tube_axis",
+      "trial": 1,
+      "speed": 0.1,
+      "peak_speed": 0.09821219259042686,
+      "stopping_distance": 0.05761072155937563
+    }
+  ],
+  "model_assumptions": {
+    "tau_s": 0.45,
+    "delay_s": 0.15,
+    "ideal_sensors": true
+  },
+  "maze_transit_simulated": false,
+  "native_px4_simulated": false,
+  "pulse_positions": {
+    "0": {
+      "start": [
+        2.3114,
+        1.6192000000000002,
+        0.8
+      ],
+      "end": [
+        2.3114,
+        1.4882789365928513,
+        0.8
+      ]
+    },
+    "1": {
+      "start": [
+        2.3114,
+        0.47618778137194473,
+        0.8
+      ],
+      "end": [
+        2.3114,
+        0.3436120331216894,
+        0.8
+      ]
+    }
+  },
+  "raw_recording_sha256": "c52eaccf631ec8e90c257a1f3e67c3f1b3a74bd72b2d7a875c4ff3a40d916cdb"
+}

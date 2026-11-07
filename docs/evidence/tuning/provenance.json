@@ -1,0 +1,15 @@
+{
+  "base_commit": "8019336",
+  "command": "python3 team_ws/src/kestrel_nav/tools/rehearse_tuning.py --config docs/evidence/tuning/course_map_only.json --check-course --out /tmp/tuning-final-course.jsonl --report /tmp/tuning-final-course-report.json",
+  "source_sha256": {
+    "team_ws/src/kestrel_nav/kestrel_nav/livenav/tuning.py": "f7aa0cc255ecbdcdafd44aff7366bcb511c28bcc43abeaaf6c177fa9204ef96c",
+    "team_ws/src/kestrel_nav/kestrel_nav/tune_mission.py": "26ecaa03e8a0ff081fabcefe9cdd29ebc341a1761299cb26bba185b431a5ce3b",
+    "team_ws/src/kestrel_nav/kestrel_nav/live_mission.py": "fc1a730f8ec1c6962605393b84051657ed1bf5a91623129c2c05c6ddb4c8fbf0",
+    "team_ws/src/kestrel_nav/tools/fit_tuning.py": "9e1de322985baf5539cea3641f432089d9e93e20d2620668c4ac5d7229e3a037",
+    "team_ws/src/kestrel_nav/tools/rehearse_tuning.py": "b82129c222fa242470da964c9a5be993d42ace79b79286c7650a1abc0ced106a",
+    "docs/evidence/tuning/course_map_only.json": "1c3acb773774f8f613639522be98f3fac2a9d8f2001223cb84d943c356306ef1"
+  },
+  "tests": "203 passed in 49.82s; python3 -m pytest -q tests from team_ws/src/kestrel_nav",
+  "scope": "Pure map construction, ideal lane sensor model and first-order velocity plant. No full maze, ROS/PX4 or hardware execution.",
+  "formatting_note": "A trailing blank line was removed after validation; executable statements unchanged."
+}

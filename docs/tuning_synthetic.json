@@ -1,0 +1,17 @@
+{
+  "synthetic": true,
+  "_purpose": "Generic offline plant/controller fixture only; physical adapter rejects it.",
+  "start_course": [0.0, 0.0, 0.0],
+  "speeds_mps": [0.10],
+  "time_limit_s": 160.0,
+  "candidates": [{
+    "name": "synthetic_open_lane",
+    "kind": "open",
+    "start_xy": [0.0, 0.0],
+    "end_xy": [2.0, 0.0],
+    "height_m": 0.8,
+    "half_width_m": 0.7,
+    "start_turn_radius_m": 0.7,
+    "end_turn_radius_m": 0.7
+  }]
+}

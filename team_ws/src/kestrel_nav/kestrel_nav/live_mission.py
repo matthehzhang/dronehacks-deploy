@@ -61,8 +61,8 @@ def rpy_from_body_mount(roll, pitch, yaw):
 
 
 class LiveMissionNode(Node):
-    def __init__(self, **kwargs):
-        super().__init__('live_mission', **kwargs)
+    def __init__(self, node_name='live_mission', **kwargs):
+        super().__init__(node_name, **kwargs)
         dp = self.declare_parameter
         defaults = SafetyParams()
         self.safety = InputSafety(SafetyParams(**{
@@ -91,7 +91,7 @@ class LiveMissionNode(Node):
         fp = FollowParams(v_cruise=float(dp('v_cruise', 0.4).value), v_gate=float(dp('v_gate', 0.25).value),
                           stop_m=float(dp('stop_m', 0.55).value))
         course_file = str(dp('course_file', '').value) or None
-        self.mission = LiveMission(mp, NavParams(), ReplanParams(), fp, course_file=course_file)
+        self.mission = self.make_mission(mp, fp, course_file)
         # --- sensors ---
         self.depth_topic = str(dp('depth_topic', '/kestrel_nav/depth').value)
         self.depth_info_topic = str(dp('depth_info_topic', '/kestrel_nav/depth/camera_info').value)
@@ -171,6 +171,12 @@ class LiveMissionNode(Node):
         self.log_once = set()
         self.create_timer(1.0 / rate_hz, self.tick)
         self.create_timer(0.5, self.publish_status)
+        self.announce_mission(mp, fp)
+
+    def make_mission(self, mp, fp, course_file):
+        return LiveMission(mp, NavParams(), ReplanParams(), fp, course_file=course_file)
+
+    def announce_mission(self, mp, fp):
         plan = self.mission.plan
         self.get_logger().info(
             f"livenav ready: chicane {plan.get('chicane')} ({plan.get('reason', '')[:60]}), {len(self.mission.goals)} goals, "
@@ -323,6 +329,8 @@ class LiveMissionNode(Node):
         self.counts['depth'] += 1
 
     def mono_cb(self, m):
+        if not getattr(self.mission, 'use_pad_detector', True):
+            return
         self.counts['mono'] += 1
         if self.pad_detector is None or self.mission.state not in ('FLY', 'PAD', 'DESCEND'):
             return
@@ -370,6 +378,7 @@ class LiveMissionNode(Node):
         t.twist.linear.x, t.twist.linear.y, t.twist.linear.z = float(vx), float(vy), float(vz)
         t.twist.angular.z = float(yaw_rate)
         self.twist_pub.publish(t)
+        return t.header.stamp
 
     def clear_depth(self):
         self.pts = self.depth_frame = None
