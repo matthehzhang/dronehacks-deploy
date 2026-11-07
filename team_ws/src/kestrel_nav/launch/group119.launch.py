@@ -62,7 +62,7 @@ def generate_launch_description():
     localizer = ExecuteProcess(
         cmd=['python3', '-m', 'coursenav.loc_node', '--ros-args', '--params-file', str(ROOT / 'onboard/config/common.yaml'),
              '-p', ['depth_topic:=', L('depth_topic')], '-p', ['depth_info_topic:=', L('depth_info_topic')],
-             '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'height_source:=local_position',
+             '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'height_source:=local_position', '-p', 'publish_zero_drift:=true',
              '-p', ['landed_z_m:=', L('landed_z')]],
         cwd=str(ROOT), additional_env=env, output='screen', name='localizer')
     fly_env = dict(env)

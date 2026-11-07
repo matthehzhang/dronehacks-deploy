@@ -134,6 +134,7 @@ class LocNode(Node):
                                  math.radians(float(dp("nominal_yaw_deg", float(st["yaw_deg"])).value))])
         self.pub_corr = self.create_publisher(Vector3Stamped, dp("correction_topic", "/coursenav/px4_correction").value, 10)
         self.min_updates_for_corr = int(dp("min_updates_for_correction", 30).value)
+        self.publish_zero_drift = bool(dp("publish_zero_drift", False).value)   # skybeta launch: true
         # the odometry -> course correction as an EKF state (coursenav.drift): published for the navigator
         # (coursenav.nav_node), which converts its course-frame paths into PX4's frame with it every tick
         self.ekf = DriftEKF()
@@ -295,6 +296,15 @@ class LocNode(Node):
                 "stamp": t, "delta": [float(v) for v in self.ekf.x], "nominal": [float(v) for v in nominal_body],
                 "fixture": [float(v) for v in self.nominal], "sigma_xy": self.ekf.sigma_xy(),
                 "accepted": self.ekf.accepted, "rejected": self.ekf.rejected, "resets": self.ekf.resets})))
+        elif self.publish_zero_drift:
+            # kestral_nav934am (skybeta): no correction yet (the EKF starts after min_updates_for_correction PF
+            # updates; on the ground the fit gate can refuse every scan). Publish ZERO drift: VIO + the start
+            # fixture is the estimate, as the flight already uses. The navigator plans nothing without a drift
+            # message (Gazebo: no leg-1 path for > 40 s on a Jetson-sized CPU budget).
+            self.pub_drift.publish(String(data=json.dumps({
+                "stamp": t, "delta": [0.0, 0.0, 0.0], "nominal": [float(v) for v in nominal_body],
+                "fixture": [float(v) for v in self.nominal], "sigma_xy": None,
+                "accepted": 0, "rejected": 0, "resets": 0, "uncorrected": True})))
         if self.counts["updates"] >= self.min_updates_for_corr:
             nominal = compose(self.nominal, pose)                     # where VIO + fixture put the body
             raw = np.array([mean[0] - nominal[0], mean[1] - nominal[1]])   # course ENU drift of that belief

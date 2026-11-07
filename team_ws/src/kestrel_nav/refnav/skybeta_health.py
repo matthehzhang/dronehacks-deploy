@@ -39,6 +39,9 @@ class SkybetaHealth(Node):
 
     def _odom(self, m):
         t = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9
+        if t - getattr(self, "_t_eval", -1e9) < 0.1:      # <= 10 Hz: the 30 Hz stream cost ~11 % of a Jetson-sized budget
+            return
+        self._t_eval = t
         p = m.pose.pose.position
         ok, self.reason = self.health.update(t, (p.x, p.y, p.z))
         if ok:

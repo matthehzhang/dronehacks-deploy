@@ -100,6 +100,32 @@ class NavNode(Node):
         self.create_timer(1.0 / float(dp("rate_hz", 10.0).value), self._tick)
         self.get_logger().info(f"navigator: {len(self.nav_legs)} legs ({sum(L['path'] for L in self.nav_legs)} "
                                f"path legs), cruise {sp.cruise_mps:.2f} m/s, buffer {need:.2f} m")
+        self.cache = self._preplan(rd, route_file)
+
+    def _preplan(self, rd, route_file):
+        """kestral_nav934am (skybeta): plan every path leg BEFORE take-off, each from its leg's start (the start
+        pose, then the previous stop), and write <run>/navigator_ready. On a Jetson-sized CPU budget (Gazebo,
+        cgroup 1.4 cores) the in-flight leg-1 plan never arrived in 40 s; unbudgeted it took 14-24 s."""
+        from pathlib import Path
+        cache = {}
+        start = rd.get("start_xy")
+        if start is not None:
+            t0 = time.monotonic()
+            prev = np.asarray(start, float)
+            for j, L in enumerate(self.nav_legs):
+                if L["path"]:
+                    goals = [np.array(g, float) for g in L["goals"]]
+                    try:
+                        P = self.nav.plan(prev, goals, t=time.monotonic())
+                        cache[j] = (prev.copy(), goals, P)
+                        self.get_logger().info(f"pre-planned leg {j + 1}: {P.length:.2f} m, {len(P.stops)} stop corners")
+                    except PlanError as e:
+                        self.get_logger().warning(f"pre-plan leg {j + 1} failed ({e}); it will be planned in flight")
+                prev = np.asarray(L["stop"], float)
+            self.nav.path = None
+            self.get_logger().info(f"pre-planned {len(cache)} path legs in {time.monotonic() - t0:.1f} s")
+        Path(route_file).with_name("navigator_ready").write_text(json.dumps({"legs": sorted(cache)}))
+        return cache
 
     def _on_drift(self, m):
         try:
@@ -137,6 +163,13 @@ class NavNode(Node):
             want = self.nav_leg != leg
             if not want and self.nav.path is not None:
                 want = self.nav.needs_replan(time.monotonic(), 0.0)
+            c = self.cache.pop(leg, None) if self.nav_leg != leg else None
+            if want and c is not None and np.hypot(*(c[0] - believed[:2])) <= 0.5:
+                self.nav.path, self.nav.goals, self.nav.t_plan = c[2], c[1], time.monotonic()
+                self.pid += 1
+                self.nav_leg = leg
+                want = False
+                self.get_logger().info(f"leg {leg + 1}: pre-planned path {self.nav.path.length:.2f} m")
             if want:
                 goals = [np.array(g, float) for g in L["goals"]]
                 goals = [g for g in goals[:-1] if np.hypot(*(g - believed[:2])) > 0.3] + [goals[-1]]
