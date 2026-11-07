@@ -30,6 +30,7 @@ from .livenav import square_pad
 
 class SafeMissionNode(LiveMissionNode):
     def __init__(self):
+        self._corridor_wait = None
         super().__init__(node_name='safe_mission')
 
     def make_mission(self, mp, fp, course_file):
@@ -58,10 +59,28 @@ class SafeMissionNode(LiveMissionNode):
             f"in place; prop reach {REACH_M:.3f} m; gates {'measured or refused' if sp.gate_requires_measurement else 'map fallback'}; "
             f"lands on the pad. Waiting for Offboard.")
 
+    CORRIDOR_WAIT_S = 5.0   # as 930am's depth-loss tolerance: stop and wait, latch only after this long
+
     def motion_corridor_error(self, cmd):
+        """Bounded corrective motion needs no observed corridor. Faster motion into an unobserved
+        corridor is STOPPED (horizontal command zeroed, the vehicle holds) and waits for coverage;
+        only 5 s of continuous low coverage latches the fault. Gazebo @ 90021ff: rays past see-through
+        nets into far background read as unobserved and a latched fault ended the run 13 s in."""
         if math.hypot(cmd.vx, cmd.vy) <= self.sp.creep_mps + 1e-6:
             return None
-        return super().motion_corridor_error(cmd)
+        reason = super().motion_corridor_error(cmd)
+        if reason is None:
+            self._corridor_wait = None
+            return None
+        now = self.now_s()
+        if self._corridor_wait is None:
+            self._corridor_wait = now
+            self.get_logger().warning(f'stopping until the motion corridor is observed: {reason}')
+        if now - self._corridor_wait >= self.CORRIDOR_WAIT_S:
+            return f'{reason} for {self.CORRIDOR_WAIT_S:.0f} s'
+        cmd.vx = cmd.vy = 0.0
+        cmd.note = f'waiting for corridor depth: {reason}'
+        return None
 
     # ------------------------------------------------------------------ venue pad (blue square, colour)
     def mono_info_cb(self, m):

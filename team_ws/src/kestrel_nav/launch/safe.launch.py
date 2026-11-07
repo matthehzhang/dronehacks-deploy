@@ -48,7 +48,7 @@ ARGUMENTS = [
     ('future_tolerance_s', '0.05', 'maximum future sensor timestamp tolerance'),
     ('qualify_s', '1.0', 'continuous healthy input interval before preflight zero twists'),
     ('min_depth_valid_fraction', '0.3', 'sampled depth validity floor; not hardware qualified'),
-    ('min_corridor_coverage', '0.6', 'valid fraction of sampled motion-corridor rays'),
+    ('min_corridor_coverage', '0.45', 'valid fraction of sampled motion-corridor rays (team-approved 0.45, course file profile note; 930am); below it the vehicle stops and waits, latching only after 5 s'),
     ('min_corridor_rays', '12', 'minimum sampled rays viewing commanded motion corridor'),
     ('host_depth', 'true', 'run kestrel_nav host_depth (CPU stereo from the mono pair; on-device depth added 190 ms to VIO)'),
     ('depth_topic', '/kestrel_nav/depth', 'depth image (16UC1 mm or 32FC1 m)'),
