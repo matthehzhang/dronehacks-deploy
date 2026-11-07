@@ -157,6 +157,20 @@ class LocNode(Node):
         self.create_subscription(VehicleAttitude, "/fmu/out/vehicle_attitude",
                                  lambda m: setattr(self, "att", tuple(float(c) for c in m.q)), PX4_QOS)
         self.create_subscription(DistanceSensor, "/fmu/out/distance_sensor", self._on_rangefinder, PX4_QOS)
+        # kestral_nav934am (skybeta): the drone publishes no distance_sensor; its rangefinder reaches ROS only
+        # as vehicle_local_position.dist_bottom. height_source "local_position" uses that (default unchanged).
+        self.height_source = str(dp("height_source", "rangefinder").value)
+        self.landed_z = float(dp("landed_z_m", 0.10).value)
+        if self.height_source == "local_position":
+            from px4_msgs.msg import VehicleLocalPosition
+            topic = "/fmu/out/vehicle_local_position_v1"
+            try:
+                from skybeta_flight_interface.topics import resolve_endpoints
+                topic = resolve_endpoints()["vehicle_local_position"]
+            except Exception:                               # noqa: BLE001
+                pass
+            self.create_subscription(VehicleLocalPosition, topic, self._on_lpos_height, PX4_QOS)
+            self.get_logger().info(f"height from {topic} dist_bottom (fallback landed_z_m - z)")
 
         logdir = Path(dp("log_dir", str(PROJECT / "logs")).value)
         logdir.mkdir(parents=True, exist_ok=True)
@@ -183,6 +197,18 @@ class LocNode(Node):
         tf = self.tf_buffer.lookup_transform(self.base_frame, frame, Time())
         r, t = tf.transform.rotation, tf.transform.translation
         return quat_to_mat(r.w, r.x, r.y, r.z), np.array([t.x, t.y, t.z])
+
+    def _on_lpos_height(self, m):
+        """dist_bottom while plausible (0.02-3 m; PX4 1.16 with range as the height reference may leave
+        dist_bottom_valid false although it carries the range), else landed_z_m minus NED z."""
+        d = float(m.dist_bottom)
+        if math.isfinite(d) and 0.02 < d < 3.0:
+            h = d                    # PX4's height of the body above the ground (sim: 0.0999 landed = landed_z)
+        elif m.z_valid and math.isfinite(m.z):
+            h = self.landed_z - float(m.z)
+        else:
+            return
+        self.height = (time.monotonic(), h)
 
     def _on_rangefinder(self, m):
         if m.current_distance <= 0 or m.current_distance > m.max_distance:
