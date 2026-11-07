@@ -114,12 +114,26 @@ class Navigator:
             pts.append(s0)
         poly, keep = [pts[0]] if len(pts) == 1 else [pts[0], pts[1]], []
         cur = poly[-1]
+        if len(pts) == 2 and np.linalg.norm(s0 - pts[0]) < 0.15:
+            # kestral_nav934am (skybeta): a few-cm hop out of the margin (the venue mark is 1.4 cm inside it) set
+            # the path's first heading, which refnav turns to face: 65-99 deg from the mark depending on cm of
+            # position (Gazebo e313281: turned 73 deg into M1). Route from s0 without a vertex there.
+            poly, cur = [pts[0]], np.asarray(s0, float)
         for g in goals:
             seg = astar(blocked, clear, cur, g, prefer_m=self.p.prefer_m, weight=self.p.crowd_weight)
             poly.extend(list(seg[1:]))
             keep.append(len(poly) - 1)
             cur = np.asarray(g, float)
         poly = np.asarray(poly, float)
+        if len(poly) > 2:
+            # kestral_nav934am: the first segment must be long enough to give the leg's heading (merge vertices within 0.30 m: offline the first heading then stays within 83-99 deg of the 86 deg corridor)
+            near = [i for i in range(1, len(poly) - 1)
+                    if np.linalg.norm(poly[i] - poly[0]) < 0.30 and i not in keep]
+            if near:
+                drop = set(near)
+                idx = [i for i in range(len(poly)) if i not in drop]
+                keep = [idx.index(k) for k in keep if k in idx]
+                poly = poly[idx]
         path = build(poly, obst, clear, self.sp, keep=keep, v_start=v_start, v_end=0.0)
         self.path, self.goals, self.t_plan = path, [np.asarray(g, float) for g in goals], t
         self.replans += 1
