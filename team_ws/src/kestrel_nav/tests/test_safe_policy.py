@@ -67,7 +67,10 @@ def fly(slip=0.0, seed=0, **params):
         trace.append((m.state, math.hypot(cmd.vx, cmd.vy), cmd.yaw_rate))
         return cmd
     m.step = recording
-    res = OfflineFlight(m, SimConfig(seed=seed, spawn=tuple(m.doc['start']['xy']), prop_radius_m=REACH_M, yaw_slip_s=slip, max_time_s=185.0)).run()
+    fl = OfflineFlight(m, SimConfig(seed=seed, spawn=tuple(m.doc['start']['xy']), prop_radius_m=REACH_M, yaw_slip_s=slip,
+                                    max_time_s=185.0, pad_style='square', pad_truth_offset=(0.06, -0.04), pad_yaw_deg=20.0))
+    res = fl.run()
+    res.land_pose = getattr(fl, 'land_pose', None)
     return m, res, trace
 
 
@@ -82,8 +85,12 @@ def test_course_completes_without_contact_under_run010_yaw_slip(slip_flight):
     assert res.result == 'landed', (res.result, res.states[-3:])
     assert res.min_clearance_m >= REACH_M + 0.03
     assert res.t_end < 175.0
-    # whole drone inside the pad's outer ring (0.762 m): centre within 0.762 - reach
-    assert res.land_err_m < 0.762 - REACH_M
+    # venue pad (0.64 m blue square, 6 cm / 20 deg off the course file): all four prop discs inside it
+    from kestrel_nav.livenav.square_pad import footprint_inside
+    x, y, yaw, pad = res.land_pose
+    inside, margin = footprint_inside(x, y, yaw, pad, 0.64, math.radians(20.0))
+    assert inside, (margin, m.pad_source)
+    assert m.pad_source.startswith('detected')
 
 
 def test_never_translates_while_turning(slip_flight):

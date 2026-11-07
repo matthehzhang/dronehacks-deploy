@@ -38,6 +38,7 @@ from .follower import FollowParams, scan_ahead, wrap
 from .mission import Command, LiveMission, Observation
 from .navgrid import NavParams
 from .opening import combine, find_opening_flu, to_leg_frame
+from .square_pad import FOOTPRINT_CENTRE_X_M, PadFuser
 from .replanner import ReplanParams
 
 
@@ -105,7 +106,9 @@ class SafeParams(FollowParams):
     gate_requires_measurement: bool = True
     # landing
     land_vz: float = 0.15         # PX4 LNDMC_Z_VEL_MAX 0.25: descend below it so the land detector fires
-    pad_over_m: float = 0.10
+    pad_over_m: float = 0.03      # venue pad ~0.64 m square: the 0.50 x 0.41 m footprint has 7 / 11.5 cm per side
+    pad_settle_s: float = 1.0     # centred and still this long before descending
+    pad_yaw_tol: float = math.radians(3)
     landed_z_odom_m: float = 0.04
 
 
@@ -136,6 +139,10 @@ class SafeMission(LiveMission):
         self.pf_hold_k = None         # goal index whose crossing froze the PF (the opening is the fix)
         self.align_meta = self._align_meta()
         self.events = []
+        self.pad_fuser = PadFuser(self.goals[-1].xy.copy())
+        self.pad_source = "CAD"
+        self.land_yaw = None
+        self.pad_ok_since = None
 
     # ------------------------------------------------------------------ gate geometry from the plan
     def load_doc(self, course_file=None):
@@ -228,6 +235,26 @@ class SafeMission(LiveMission):
             self.pf.init(pose, 0.05, math.radians(2.0), np.array([obs.odom_xyz[0], obs.odom_xyz[1], obs.odom_yaw]))
             self._pf_last_t = now
         self.events.append((now, "PF", "PF", "re-seeded at the gate-corrected pose"))
+
+    def _update_pad(self, obs, pose_c):
+        """Fuse square-pad fixes (node: square_pad.fix_from_detection, level body frame) into the pad goal."""
+        f = obs.pad_fix
+        if not isinstance(f, dict) or obs.now - obs.pad_fix_t > self.p.pad_fix_max_age_s or obs.pad_fix_t <= getattr(self, "_pad_t", -math.inf):
+            return
+        self._pad_t = obs.pad_fix_t
+        # the fix is relative to the body WHEN THE FRAME WAS TAKEN: use that odometry pose, not the current one
+        x, y, yaw = self.odom_to_course(f["odom"][:2], f["odom"][2]) if "odom" in f else pose_c
+        c, s = math.cos(yaw), math.sin(yaw)
+        Rb = np.array([[c, -s], [s, c]])
+        xy = np.array([x, y]) + Rb @ np.asarray(f["xy"], float)
+        if np.linalg.norm(xy - self.pad_fuser.prior) > self.p.pad_shift_max_m:
+            return
+        self.pad_fuser.add(xy, Rb @ np.asarray(f["cov"], float) @ Rb.T, None if f.get("yaw") is None else f["yaw"] + yaw)
+        self.pad_n = self.pad_fuser.n
+        self.pad_est = self.pad_fuser.xy
+        if self.pad_fuser.n >= self.p.pad_min_fixes:
+            self.goals[-1].xy = self.pad_est.copy()
+            self.pad_source = f"detected ({self.pad_fuser.n} fixes, sigma {self.pad_fuser.sigma:.3f} m)"
 
     # ------------------------------------------------------------------ small helpers
     def _phase(self, name, now, note=""):
@@ -675,7 +702,7 @@ class SafeMission(LiveMission):
             last = self.goals[-1]
             if rp.goal is last and self.state == "FLY":
                 self._set("PAD", now)
-            if self.state == "PAD":
+            if rp.k >= len(self.goals) - 2:      # window crossing onward: the pad can be in view
                 self._update_pad(obs, pose_c)
             at_pad = rp.done or (rp.goal is last and math.dist(xy, last.xy) <= sp.pad_enter_m
                                  and self.phase in ("SETTLE", "BRAKE", "IDLE"))
@@ -701,20 +728,41 @@ class SafeMission(LiveMission):
                 else:
                     self.t_state = now
         if self.state == "DESCEND":
-            goal_xy = self.goals[-1].xy
-            self.anchor = np.asarray(goal_xy, float)
+            if self.land_yaw is None:
+                if self.pad_fuser.n < self.p.pad_min_fixes:
+                    self.pad_source = "CAD FALLBACK (pad not detected)"
+                    self.events.append((now, "PAD", "FALLBACK", "landing on the course-file pad coordinates"))
+                # face a pad side (the nearest of the four) so the 0.41 x 0.50 m footprint is square to it
+                py = self.pad_fuser.yaw
+                self.land_yaw = pose_c[2] if py is None else py + round(wrap(pose_c[2] - py) / (math.pi / 2)) * (math.pi / 2)
+                self.events.append((now, "PAD", "TARGET", dict(source=self.pad_source,
+                                    xy=[round(float(v), 3) for v in self.goals[-1].xy],
+                                    yaw_deg=round(math.degrees(self.land_yaw), 1))))
+            # footprint centre (0.035 m behind the body origin) over the pad centre
+            cl, sl = math.cos(self.land_yaw), math.sin(self.land_yaw)
+            goal_xy = np.asarray(self.goals[-1].xy, float) - FOOTPRINT_CENTRE_X_M * np.array([cl, sl])
+            self.anchor = goal_xy
             off = math.dist(xy, goal_xy)
-            note = "descending onto the pad" if off <= sp.pad_over_m else f"centring over the pad ({off:.2f} m)"
-            self._cmd(cmd, self._hold_vel(xy), 0.0, note)
-            cmd.vz = -sp.land_vz if off <= sp.pad_over_m else 0.0
-            cmd.land = off <= sp.pad_over_m and z <= sp.landed_z_odom_m
+            yerr = wrap(self.land_yaw - pose_c[2])
+            speed = float(np.linalg.norm(self.vel_course))
+            ready = off <= sp.pad_over_m and abs(yerr) <= sp.pad_yaw_tol and speed < 0.03
+            self.pad_ok_since = (self.pad_ok_since or now) if ready else (self.pad_ok_since if z < self.z_odom_cruise - 0.1 else None)
+            descending = self.pad_ok_since is not None and now - self.pad_ok_since >= sp.pad_settle_s
+            yr = 0.0 if descending else float(np.clip(sp.turn_kp * yerr, -sp.turn_rate, sp.turn_rate))
+            note = ("descending onto the pad" if descending else
+                    f"centring over the pad ({off:.3f} m, yaw {math.degrees(yerr):+.1f} deg)") + f" [{self.pad_source}]"
+            self._cmd(cmd, self._hold_vel(xy), yr, note)
+            cmd.vz = -sp.land_vz if descending else 0.0
+            cmd.land = descending and z <= sp.landed_z_odom_m
             cmd.goal = "pad"
         cmd.state = self.state
         return cmd
 
     def status(self):
         st = super().status()
-        st.update(phase=self.phase, cross_offset_m=round(self.cross_offset, 3),
+        st.update(pad_source=self.pad_source, pad_fixes=self.pad_fuser.n,
+                  pad_xy=[round(float(v), 3) for v in self.goals[-1].xy],
+                  phase=self.phase, cross_offset_m=round(self.cross_offset, 3),
                   seg=None if self.seg is None else dict(b=[round(float(v), 3) for v in self.seg["b"]],
                                                          v=self.seg["v"], gate=self.seg["gate"]),
                   gate_refused=getattr(self, "gate_refused", None))

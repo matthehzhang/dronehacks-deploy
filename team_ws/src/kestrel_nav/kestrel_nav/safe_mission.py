@@ -17,11 +17,15 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import rclpy
 
 from .live_mission import LiveMissionNode
 from .livenav.replanner import ReplanParams
+from .coursenav.scan import level_from_px4_q
+from .livenav.pad import level_cam_rotation
 from .livenav.safe import REACH_M, SafeMission, SafeParams
+from .livenav import square_pad
 
 
 class SafeMissionNode(LiveMissionNode):
@@ -58,6 +62,53 @@ class SafeMissionNode(LiveMissionNode):
         if math.hypot(cmd.vx, cmd.vy) <= self.sp.creep_mps + 1e-6:
             return None
         return super().motion_corridor_error(cmd)
+
+    # ------------------------------------------------------------------ venue pad (blue square, colour)
+    def mono_info_cb(self, m):
+        if m.k[0] > 0 and self.K_mono is None:
+            self.K_mono = np.array(m.k, float).reshape(3, 3)
+            self.mono_hw = (m.height, m.width)
+            self.pad_detector = 'square'
+
+    def mono_cb(self, m):
+        """Square blue pad on a COLOUR image (pad_image via mono_topic). The skybeta stack streams only the
+        mono OV9282 pair: on a grey image there is no hue, nothing is detected, and the landing uses the
+        course-file pad position (logged as CAD FALLBACK)."""
+        self.counts['mono'] += 1
+        if self.pad_detector is None or self.mission.state not in ('FLY', 'PAD', 'DESCEND'):
+            return
+        rp = self.mission.replanner
+        if rp.k < len(self.mission.goals) - 2:
+            return                                                  # window crossing onward: pad in view
+        now = self.now_s()
+        if now - self.last_pad_run < 1.0 / self.pad_hz:
+            return
+        self.last_pad_run = now
+        try:
+            if m.encoding not in ('bgr8', 'rgb8'):
+                self.info_once('pad_mono', f'pad image is {m.encoding}: no colour, landing will use CAD pad coordinates')
+                return
+            img = np.frombuffer(m.data, np.uint8).reshape(m.height, m.step // 3, 3)[:, :m.width]
+            if m.encoding == 'rgb8':
+                img = img[..., ::-1]
+            img = np.ascontiguousarray(img)
+        except ValueError:
+            return
+        if not square_pad.is_colour(img):
+            self.info_once('pad_grey', 'pad image has equal channels (mono sensor): no hue, landing will use CAD pad coordinates')
+            return
+        R_body_cam, t_body_cam = self.camera_pose(m.header.frame_id)
+        roll = pitch = 0.0
+        if self.att is not None:
+            Rl = level_from_px4_q(self.att)
+            pitch, roll = -math.asin(max(-1.0, min(1.0, Rl[2, 0]))), math.atan2(Rl[2, 1], Rl[2, 2])
+        R_level_cam = level_cam_rotation(R_body_cam, roll, pitch)
+        det = square_pad.detect(img, self.K_mono, R_level_cam, np.asarray(t_body_cam, float), self.body_height())
+        fix = square_pad.fix_from_detection(det, np.asarray(t_body_cam, float)[:2])
+        if fix is not None and self.position is not None:
+            fix["odom"] = (float(self.position[0]), float(self.position[1]), float(self.yaw))
+            self.pad_fix, self.pad_fix_t = fix, now
+            self.counts['pad'] += 1
 
     def tick(self):
         self.safety.waived = frozenset({'depth'}) if self.mission.state == 'DESCEND' else frozenset()

@@ -55,6 +55,41 @@ turn by `yaw_rate * yaw_slip_s` (1.0 s used): a crude stand-in for the run010 me
 The carrot follower's offline contact point (-2.24, 2.27)-(-2.24, 2.30) is the same M1 corner as
 run010's real contact (-2.18, 2.30).
 
+## Landing pad (venue: blue square mat, 2026-11-07)
+
+The venue pad is NOT the CAD's 5 ft ring pad: it is a blue rounded-square "H" mat (photos IMG_9593/9594).
+**Assumed side 0.64 m, treated as unknown in 0.45-0.75 m** (accepted by metric size only). With the
+7-inch footprint (0.408 m long x 0.498 m wide, its centre 0.035 m behind the body origin) a centred,
+side-aligned landing has 7 cm (sideways) / 11.5 cm (fore-aft) per side.
+
+- Detector (`livenav/square_pad.py`): HSV hue 168-228 deg (pad ~205, floor ~5-10), saturation >= 70;
+  close/open; largest blob; rounded-square quad; `partial` when it touches the border or solidity < 0.90
+  (partial blobs are never used). The floor plane comes from the square's own vanishing points when
+  usable (immune to camera-mount pitch and attitude error), else from the attitude; the blob outline is
+  projected onto the floor and fitted there; sides must be 0.45-0.75 m.
+- Venue photos: both detected at normal exposure, IMG_9594 through the knotted net (solidity 0.99);
+  same centre within 3 px from 0.4x to 1.3x exposure; at 1.6x IMG_9594 degrades to a fragment that is
+  flagged partial (not trusted). Grey (mono) versions: not detected, by design.
+- Synthetic frames with the drone's intrinsics (fx 637.9, 1024x640), 1.9-2.6 m: **bearing error <= 1.5 cm
+  even with 3 deg pitch error; range error 6-9 cm (floor from the square) or 10-32 cm per 1-3 deg of pitch
+  error (floor from the attitude).** So fixes are fused as bearing lines (`PadFuser`: sigma 2 cm across the
+  line of sight, 8 / 25 cm along it, CAD prior 0.40 m), each with the odometry pose at which the frame was
+  taken, from the window crossing on (the pad is visible through the window from the window pre-point).
+- Landing: face the nearest pad side (pad yaw from square-floor fixes), put the footprint centre over the
+  fused pad centre within 0.03 m and 3 deg, still for 1 s, then descend at 0.15 m/s until PX4 disarms.
+  **No detection -> logged `CAD FALLBACK (pad not detected)`** in the events and `/kestrel_nav/live_status`.
+- Offline closed loop (square pad 6-10 cm and 15-30 deg off the course file, camera pitch bias 0-2 deg):
+  4/4 all prop discs inside, margins +2.5 to +5.6 cm, landing error 2-6 cm. With the CAD fallback
+  instead: 1/4 inside (margins -6 to -10 cm). Detection matters.
+
+**On the drone the detector cannot run as configured.** The skybeta stack streams only the OV9282 MONO
+pair (`oakd_vslam.yaml`, `i_pipeline_type: stereo`): no hue. In greyscale the pad (median 143-176) and the
+floor (median 96-129, but its bright print and sun patches reach 171-210) overlap, so a mono detector
+would not be trustworthy. The node logs this once and lands on the CAD coordinates (FALLBACK). Fixing it
+needs a colour image: enabling the IMX378 colour camera means changing the organizer camera pipeline,
+which also loads the XLink link that limits cuVSLAM (bug #3). That is a team / organizer decision. In the
+Gazebo sim, point `mono_topic:=<colour image topic>` at a colour camera.
+
 ## Matched to workspace `matthew930am` (steady course profile, flown in the cloud sim as run013/run015)
 
 Kestral now uses 930am's flown-evidence rules, ported to the hardware twist interface:

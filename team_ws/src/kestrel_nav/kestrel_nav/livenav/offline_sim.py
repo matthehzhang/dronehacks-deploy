@@ -78,6 +78,11 @@ class SimConfig:
     shift_m: tuple = (0.0, 0.0)
     depth: DepthModel = field(default_factory=DepthModel)
     camera: Camera = field(default_factory=Camera)
+    pad_style: str = "rings"                # "square": the venue's blue mat (colour frames, square_pad detector)
+    pad_truth_offset: tuple = (0.0, 0.0)    # where the real pad sits relative to the course-file pad
+    pad_side_m: float = 0.64
+    pad_yaw_deg: float = 0.0
+    cam_pitch_bias_deg: float = 0.0         # the detector's belief about the mount pitch is wrong by this
     pad_camera: bool = True                 # synthesise mono frames of the pad and run the ring detector
     pad_hz: float = 4.0
     seed: int = 0
@@ -183,6 +188,33 @@ class OfflineFlight:
     def truth_pose(self):
         return (self.x, self.y, self.yaw)
 
+    def pad_fix_square(self):
+        from .square_pad import detect, fix_from_detection
+        from .square_padsim import R_FLU_OPT, pitch_rot, render
+        cam = self.cfg.camera
+        K = np.asarray(cam.K, float)
+        if K.shape != (3, 3):                                   # (fx, fy, cx, cy)
+            fx, fy, cx, cy = K.ravel()[:4]
+            K = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1.0]])
+        pad = np.asarray(self.m.doc["sequence"][-1]["xy"], float) + np.asarray(self.cfg.pad_truth_offset, float)
+        c, s = math.cos(self.yaw), math.sin(self.yaw)
+        d = pad - np.array([self.x, self.y])
+        body = np.array([c * d[0] + s * d[1], -s * d[0] + c * d[1]])           # pad centre, level body frame
+        if np.linalg.norm(body) > 6.0:
+            return None
+        rel = body - np.asarray(cam.t_body[:2], float)
+        cam_h = self.z + cam.t_body[2]
+        img = render(K, (cam.height, cam.width), cam_h, rel, side=self.cfg.pad_side_m,
+                     pad_yaw=math.radians(self.cfg.pad_yaw_deg) - self.yaw, seed=self.pad_runs)
+        self.pad_runs += 1
+        R_belief = pitch_rot(math.radians(self.cfg.cam_pitch_bias_deg)) @ R_FLU_OPT
+        det = detect(img, K, R_belief, np.asarray(cam.t_body, float), self.z)
+        fix = fix_from_detection(det, np.asarray(cam.t_body[:2], float))
+        if fix is not None:
+            self.pad_hits += 1
+            fix["odom"] = (float(self.vio_xy[0]), float(self.vio_xy[1]), float(self.vio_yaw))
+        return fix
+
     def pad_fix(self):
         """Synthesise the left mono frame at the truth pose and run the ring detector -> body-frame fix."""
         cam = self.cfg.camera
@@ -221,7 +253,7 @@ class OfflineFlight:
                 (pts, h), pts_t = self.depth_points(), t - cfg.depth_latency_s
                 next_depth += depth_period
             if cfg.pad_camera and t >= next_pad and m.state in ("FLY", "PAD") and m.replanner.k >= len(m.goals) - 2:
-                fix = self.pad_fix()
+                fix = self.pad_fix_square() if cfg.pad_style == "square" else self.pad_fix()
                 if fix is not None:
                     pad_fix, pad_t = fix, t
                 next_pad += 1.0 / cfg.pad_hz
@@ -242,8 +274,9 @@ class OfflineFlight:
                 break
             if cmd.land:
                 result = "landed"
-                pad = np.asarray(m.doc["sequence"][-1]["xy"], float)
+                pad = np.asarray(m.doc["sequence"][-1]["xy"], float) + np.asarray(cfg.pad_truth_offset, float)
                 land_err = math.dist((self.x, self.y), pad)
+                self.land_pose = (self.x, self.y, self.yaw, pad)
                 break
             if m.state == "PAUSED":
                 result = "paused"
