@@ -177,7 +177,7 @@ One file per airframe, as it is actually running (fleet guide step 8), diffed wi
 - **`EKF2_EV_DELAY = 70`** — measured on the bench Orin, not yet on a flying airframe
   (2026-10-16, `tools/latency_probe.py`: image → bridge publish p50 68.7 ms, p95 102 ms, plus ~1–2 ms
   for the serial hop). It replaced a guessed 50. Re-run the probe on each airframe and cross-check
-  with an EKF2 replay log (`SDLOG_PROFILE` bit 7); a wrong delay is a prime toilet-bowl cause.
+  with an EKF2 replay log (`SDLOG_PROFILE` bit 1, value 2; bit 7 is computer vision); a wrong delay is a prime toilet-bowl cause.
 - **`UXRCE_DDS_DOM_ID`** — no longer in `02_telem2_uxrce_dds.params`: it is **per airframe**.
   Set it by hand to that drone's `ROS_DOMAIN_ID` from `/etc/skybeta/drone.env` (convention:
   `= DRONE_ID`). On a shared network, every drone left on 0 shares one DDS domain.

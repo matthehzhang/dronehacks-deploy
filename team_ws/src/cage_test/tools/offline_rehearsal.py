@@ -15,6 +15,7 @@ import json
 import math
 import os
 import sys
+import tempfile
 import types
 from types import SimpleNamespace as NS
 
@@ -44,8 +45,14 @@ class _Node:
         self._overrides = parameter_overrides or {}
         self.logs = []
 
-    def declare_parameter(self, name, default):
+    def declare_parameter(self, name, default, descriptor=None):
         self._params[name] = self._overrides.get(name, default)
+
+    def get_name(self):
+        return 'hop_test'
+
+    def get_topic_names_and_types(self):
+        return []
 
     def get_parameter(self, name):
         return NS(value=self._params[name])
@@ -90,8 +97,20 @@ class _String:
         self.data = data
 
 
+class _Any:
+    def __init__(self, *args, **kwargs):
+        pass
+
+
 for _name, _attrs in {
         'rclpy': {}, 'rclpy.node': {'Node': _Node},
+        'rclpy.qos': {'QoSProfile': _Any, 'QoSDurabilityPolicy': NS(TRANSIENT_LOCAL=0, VOLATILE=1),
+                      'QoSHistoryPolicy': NS(KEEP_LAST=0),
+                      'QoSReliabilityPolicy': NS(BEST_EFFORT=0)},
+        'rcl_interfaces': {}, 'rcl_interfaces.msg': {'ParameterDescriptor': _Any},
+        'sensor_msgs': {}, 'sensor_msgs.msg': {'Imu': object},
+        'px4_msgs': {}, 'px4_msgs.msg': {'BatteryStatus': object, 'SensorCombined': object,
+                                         'VehicleAttitude': object},
         'geometry_msgs': {}, 'geometry_msgs.msg': {
             'PoseStamped': _PoseStamped, 'TwistStamped': _TwistStamped},
         'nav_msgs': {}, 'nav_msgs.msg': {'Odometry': object},
@@ -100,23 +119,37 @@ for _name, _attrs in {
     _module.__dict__.update(_attrs)
     sys.modules[_name] = _module
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _PKG)
+# The real skybeta_flight_interface frames/topics (pure Python), from the repo or the stack.
+for _cand in (os.path.join(_PKG, '..', '..', '..', 'src', 'skybeta_flight_interface'),
+              '/root/skybeta_ws/src/skybeta_flight_interface'):
+    if os.path.isdir(os.path.join(_cand, 'skybeta_flight_interface')):
+        sys.path.insert(0, os.path.abspath(_cand))
+        break
 from cage_test.hop_test import HopTest  # noqa: E402
+from skybeta_flight_interface.frames import yaw_enu_to_ned  # noqa: E402
+
+LOG_DIR = tempfile.mkdtemp(prefix='cage_rehearsal_')
+YAW_P, YAW_RATE_MAX = 2.8, math.radians(200.0)   # MC_YAW_P, MC_YAWRATE_MAX on drone 16
 
 
 # ---------------------------------------------------------------- the flight
 def fly(overrides=None, yaw=0.0, start=(0.3, -0.2, 0.0), offboard_at_start=False,
         pilot_takes_over_at=None, landing_undetected=False, odom_gap=None,
-        ceiling_m=2.0, duration_s=120.0):
+        ceiling_m=2.0, duration_s=120.0, drift_at=None, px4_yaw_offset=0.0):
     NOW[0] = 1000.0
-    node = HopTest(parameter_overrides=overrides or {})
+    params = {'log_dir': LOG_DIR, 'record_bag': False}
+    params.update(overrides or {})
+    node = HopTest(parameter_overrides=params)
     pos = list(start)
+    heading = yaw                     # the vehicle's true ENU heading
     st = dict(px4_link=True, local_enu=list(pos), armed=offboard_at_start,
               offboard_active=offboard_at_start, landed=True, clamped=[], envelope={})
-    mode, setpoint, vz = None, None, 0.0
+    mode, setpoint, vz, yaw_sp = None, None, 0.0, None
     landed_since = None
-    out = NS(node=node, trace=[], max_speed=0.0, disarmed_at=None)
-    q = (0.0, 0.0, math.sin(yaw / 2.0), math.cos(yaw / 2.0))
+    out = NS(node=node, trace=[], max_speed=0.0, disarmed_at=None, max_yaw_rate=0.0,
+             headings=[], runs=[])
     t = 0.0
     while t < duration_s:
         NOW[0] += DT
@@ -129,21 +162,35 @@ def fly(overrides=None, yaw=0.0, start=(0.3, -0.2, 0.0), offboard_at_start=False
                 st['offboard_active'] = True
         if pilot_takes_over_at is not None and t >= pilot_takes_over_at:
             st['offboard_active'] = False
+        q = (0.0, 0.0, math.sin(heading / 2.0), math.cos(heading / 2.0))
         if not (odom_gap and odom_gap[0] <= t < odom_gap[1]):
             node.odometry_cb(NS(pose=NS(pose=NS(
                 position=NS(x=pos[0], y=pos[1], z=pos[2]),
                 orientation=NS(x=q[0], y=q[1], z=q[2], w=q[3])))))
+        # PX4's attitude: NED wxyz, heading possibly offset from VIO's.
+        yn = yaw_enu_to_ned(heading + px4_yaw_offset)
+        node.attitude_cb(NS(q=[math.cos(yn / 2.0), 0.0, 0.0, math.sin(yn / 2.0)]))
+        node.oak_imu_cb(NS(linear_acceleration=NS(x=0.01, y=-0.02, z=9.81 + 0.05 * math.sin(t * 50)),
+                           angular_velocity=NS(x=0.0, y=0.0, z=0.0),
+                           header=NS(stamp=NS(sec=int(NOW[0]), nanosec=0))))
         st['local_enu'] = list(pos)
         node.state_cb(_String(json.dumps(st)))
 
         n_pose, n_twist = len(node.pose_pub.msgs), len(node.twist_pub.msgs)
+        run_before = node.run
         node.tick()
+        if run_before is not None and node.run is None:
+            out.runs.append(run_before.path)
         if len(node.twist_pub.msgs) > n_twist:
             mode, vz = 'twist', node.twist_pub.msgs[-1].twist.linear.z
         elif len(node.pose_pub.msgs) > n_pose:
-            p = node.pose_pub.msgs[-1].pose.position
+            m = node.pose_pub.msgs[-1]
+            p, o = m.pose.position, m.pose.orientation
             z = min(max(p.z, start[2] + FLOOR_M), start[2] + ceiling_m)
             mode, setpoint = 'pose', (p.x, p.y, z)
+            # PX4 yaw setpoint is NED: the interface converts the ENU quaternion.
+            yaw_sp = (None if (o.x, o.y, o.z, o.w) == (0.0, 0.0, 0.0, 0.0)
+                      else math.atan2(2.0 * o.w * o.z, 1.0 - 2.0 * o.z * o.z))
 
         if st['armed'] and st['offboard_active']:
             if mode == 'pose':
@@ -152,17 +199,31 @@ def fly(overrides=None, yaw=0.0, start=(0.3, -0.2, 0.0), offboard_at_start=False
                 vel = [0.0, 0.0, vz]
             before = list(pos)
             pos = [c + DT * v for c, v in zip(pos, vel)]
+            if drift_at is not None and t >= drift_at:
+                pos[1] += 0.1          # a sideways push PX4 does not correct
             pos[2] = max(pos[2], start[2] + (0.05 if landing_undetected else 0.0))
-            out.max_speed = max(out.max_speed, math.dist(before, pos) / DT)
+            out.max_speed = max(out.max_speed, math.dist(before[:2], pos[:2]) / DT
+                                if drift_at is None else 0.0)
+            if yaw_sp is not None and mode == 'pose':
+                # The setpoint is on the VIO heading scale; PX4 tracks it in its own,
+                # so a PX4/VIO offset shows up as a constant error here.
+                target = yaw_sp
+                rate = max(-YAW_RATE_MAX, min(YAW_RATE_MAX, YAW_P * math.atan2(
+                    math.sin(target - heading - px4_yaw_offset),
+                    math.cos(target - heading - px4_yaw_offset))))
+                heading += rate * DT
+                out.max_yaw_rate = max(out.max_yaw_rate, abs(rate))
             on_ground = pos[2] <= start[2] + 1e-9 and mode == 'twist'
             st['landed'] = on_ground
             landed_since = (landed_since or t) if on_ground else None
             if landed_since is not None and t - landed_since >= 2.0:
                 st.update(armed=False, offboard_active=False)
                 out.disarmed_at = t
+        out.headings.append(heading)
         out.trace.append((round(t, 1), node.state, tuple(pos)))
-        if out.disarmed_at is not None and t > out.disarmed_at + 1.0:
+        if out.disarmed_at is not None and t > out.disarmed_at + 4.0:
             break
+    out.final_heading = heading
     return out
 
 
@@ -180,6 +241,20 @@ def peak(run, axis, fn=max):
     return fn(p[axis] for _, _, p in run.trace)
 
 
+def read_run(path):
+    import csv
+    files = sorted(os.listdir(path))
+    with open(os.path.join(path, 'meta.json')) as f:
+        meta = json.load(f)
+    with open(os.path.join(path, 'samples.csv')) as f:
+        samples = list(csv.DictReader(f))
+    summary = []
+    if os.path.exists(os.path.join(path, 'summary.json')):
+        with open(os.path.join(path, 'summary.json')) as f:
+            summary = json.load(f)
+    return NS(files=files, meta=meta, samples=samples, summary=summary)
+
+
 def main():
     print('nominal: up 1.0, forward 1.0 along +x, back, down 0.5, touchdown')
     r = fly()
@@ -192,6 +267,22 @@ def main():
     check('never faster than 0.5 m/s', r.max_speed <= 0.5, f'{r.max_speed:.2f} m/s')
     check('touches down', logged(r, 'PX4 reports landed'))
     check('whole hop under 45 s', r.disarmed_at < 45.0, f'{r.disarmed_at:.1f} s')
+    check('never commands yaw', all(m.pose.orientation.w == 0.0 for m in r.node.pose_pub.msgs))
+    check('one run directory written', len(r.runs) == 1, str(r.runs))
+    if r.runs:
+        run = read_run(r.runs[0])
+        check('run has meta, samples, both IMU files, events, summary',
+              {'meta.json', 'samples.csv', 'imu_oak.csv', 'imu_px4.csv', 'events.jsonl',
+               'summary.json', 'summary.txt'} <= set(run.files), ', '.join(run.files))
+        check('run result is "completed"', run.meta.get('result') == 'completed',
+              run.meta.get('result'))
+        check('samples include the pre-arm baseline',
+              float(run.samples[0]['t_run']) < -1.0, run.samples[0]['t_run'])
+        check('samples carry the command sent',
+              any(row['cmd_kind'] == 'twist' for row in run.samples)
+              and any(row['cmd_kind'] == 'pose' and row['seg'] == '1' for row in run.samples))
+        check('summary has all four legs', [s['name'] for s in run.summary] ==
+              ['up', 'forward', 'back', 'down'], str([s['name'] for s in run.summary]))
 
     print('nose along +y (vehicle turned after the stack came up)')
     r = fly(yaw=math.pi / 2)
@@ -207,6 +298,8 @@ def main():
     print('pilot takes over at 12 s, during "forward"')
     r = fly(pilot_takes_over_at=12.0, duration_s=20.0)
     check('stops advancing', r.node.state == 'ABORTED' and logged(r, 'Offboard lost'))
+    check('run result names the takeover', 'pilot took over' in r.node.run_result,
+          r.node.run_result)
 
     print('touchdown:=false')
     r = fly({'touchdown': False}, duration_s=40.0)
@@ -227,13 +320,71 @@ def main():
     check('gives up and holds', r.node.state == 'FAILED' and logged(r, 'not reached in time'))
 
     print('bad parameters are refused at startup')
-    for bad in ({'low_height_m': 1.5}, {'descend_speed_mps': 0.2}, {'speed_mps': 0.0}):
+    for bad in ({'low_height_m': 1.5}, {'descend_speed_mps': 0.2}, {'speed_mps': 0.0},
+                {'sequence': 'hop,loop'}, {'yaw_rates_dps': '30,400'},
+                {'speed_list_mps': '0.5,3.0'}, {'speed_axes': 'up'},
+                {'abort_distance_m': 0.1}):
         try:
             HopTest(parameter_overrides=bad)
             check(f'refuses {bad}', False)
         except ValueError:
             check(f'refuses {bad}', True)
 
+    print('integer and string parameters are accepted (speed_mps:=1, yaw_rates_dps:=60)')
+    try:
+        node = HopTest(parameter_overrides={'speed_mps': 1, 'yaw_rates_dps': 60,
+                                            'log_dir': LOG_DIR})
+        check('accepted', node.speed == 1.0)
+    except Exception as exc:  # noqa: BLE001
+        check('accepted', False, repr(exc))
+
+    print('tuning: hover,steps,speed,yaw,vertical,square in one flight')
+    r = fly({'sequence': 'hover,steps,speed,yaw,vertical,square', 'hover_seconds': 5.0,
+             'speed_list_mps': '0.25,0.5,1.0', 'yaw_rates_dps': '45,90'}, duration_s=600.0)
+    check('completes and disarms', r.disarmed_at is not None and r.node.state == 'WAIT_FOR_OFFBOARD',
+          f'state {r.node.state}')
+    check('yaw sweep ends on the start heading',
+          abs(math.degrees(math.atan2(math.sin(r.final_heading), math.cos(r.final_heading)))) < 5.0,
+          f'{math.degrees(r.final_heading):.1f} deg')
+    check('turned a full circle each way', max(r.headings) > math.radians(350)
+          and min(r.headings) > math.radians(-10))
+    check('yaw rate stayed under 200 deg/s', math.degrees(r.max_yaw_rate) <= 200.0 + 1e-6,
+          f'{math.degrees(r.max_yaw_rate):.0f} deg/s')
+    if r.runs:
+        run = read_run(r.runs[0])
+        names = [s['name'] for s in run.summary]
+        print('    ' + '\n    '.join(open(os.path.join(r.runs[0], 'summary.txt'))
+                                     .read().rstrip().splitlines()))
+        check('summary covers every segment', len(names) == len(r.node.run_legs),
+              f'{len(names)} of {len(r.node.run_legs)}')
+        steps = [s for s in run.summary if s['kind'] == 'step' and 'return' not in s['name']]
+        check('step responses have rise time and overshoot',
+              steps and all(s.get('rise_time_s') is not None
+                            and s.get('overshoot_pct') is not None for s in steps))
+        sweep = [s for s in run.summary if s['pattern'] == 'speed']
+        check('speed sweep peak speed rises with the commanded speed',
+              sweep[0]['vio_peak_speed_mps'] < sweep[2]['vio_peak_speed_mps']
+              < sweep[4]['vio_peak_speed_mps'],
+              ' '.join(str(s['vio_peak_speed_mps']) for s in sweep[::2]))
+        yaws = [s for s in run.summary if s['kind'] == 'yaw']
+        check('yaw segments report achieved rate near the commanded one',
+              all(abs(s['achieved_rate_dps'] - s['commanded_rate_dps']) < 10 for s in yaws),
+              ' '.join(f"{s['commanded_rate_dps']}->{s['achieved_rate_dps']}" for s in yaws))
+        hover = next(s for s in run.summary if s['kind'] == 'hold')
+        check('hover reports vibration from the OAK IMU', 'oak_imu' in hover)
+
+    print('yaw sweep with PX4 heading 20 deg off VIO')
+    r = fly({'sequence': 'yaw', 'yaw_rates_dps': '60'}, px4_yaw_offset=math.radians(20.0),
+            duration_s=120.0)
+    check('starts the spin from PX4 heading (no jump), completes', r.disarmed_at is not None,
+          f'state {r.node.state}')
+
+    print('pushed sideways during the speed sweep')
+    r = fly({'sequence': 'speed'}, drift_at=12.0, duration_s=60.0)
+    check('stops the sequence', r.node.state == 'FAILED' and logged(r, 'off its path'),
+          r.node.state)
+
+    print(f'\nrun logs in {LOG_DIR}')
     print(f'\n{"ALL PASS" if not FAILURES else "FAILED: " + ", ".join(FAILURES)}')
     return 1 if FAILURES else 0
 

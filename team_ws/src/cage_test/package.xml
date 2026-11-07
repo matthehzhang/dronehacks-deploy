@@ -1,10 +1,11 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>cage_test</name>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <description>
     First-flight tests for a skybeta drone in the cage: hop_test (up, forward,
-    back, down, touch down) and frame_check (disarmed hand-carry check that
+    back, down, touch down), tune_test (hover, step, speed-sweep, yaw-sweep and
+    vertical patterns with every run logged to CSV + mcap) and frame_check (disarmed hand-carry check that
     VIO's forward/left/yaw match the airframe and PX4). A team_ws package: no
     image rebuild needed.
   </description>
@@ -15,6 +16,10 @@
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
   <exec_depend>std_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>rcl_interfaces</exec_depend>
+  <exec_depend>ros2bag</exec_depend>
+  <exec_depend>rosbag2_storage_mcap</exec_depend>
   <exec_depend>px4_msgs</exec_depend>
   <exec_depend>skybeta_flight_interface</exec_depend>
   <exec_depend>launch</exec_depend>

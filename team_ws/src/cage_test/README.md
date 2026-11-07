@@ -1,10 +1,11 @@
-# cage_test: first flight in the cage
+# cage_test: first flight and tuning flights in the cage
 
-Two tools for the first autonomous flight of a skybeta drone in an open cage or net:
+Tools for the first autonomous flights of a skybeta drone in an open cage or net:
 
 | | What it does | Armed? |
 |---|---|---|
 | `hop_test` (`hop_test.launch.py`) | take off, up 1.0 m, forward 1.0 m along the nose, back, down to 0.5 m, touch down, PX4 disarms | flies |
+| `tune_test` (`tune_test.launch.py`) | same takeoff and landing, with tuning patterns in between: hover, step responses, a speed sweep, a yaw-rate sweep, a vertical sweep, a square ([Stage 6](#stage-6-tuning-flights-tune_test)) | flies |
 | `frame_check` | you carry the vehicle; it prints forward/left/up/yaw as VIO and PX4 see them, plus the position offset between them | **disarmed only** |
 
 It is a `team_ws` package, the way every team ships code here: it goes in `~/team_ws/src` on the
@@ -69,14 +70,16 @@ Launch arguments (write numbers with a decimal point: `1.0`, not `1`):
 
 ```bash
 cd team_ws/src/cage_test
-python3 tools/offline_rehearsal.py      # state machine against a toy vehicle: 17 checks
-python3 -m pytest -q test/              # geometry
+python3 tools/offline_rehearsal.py      # state machine against a toy vehicle: 42 checks
+python3 -m pytest -q test/              # geometry, plan, analysis: 30 tests
 ```
 
-The rehearsal swaps rclpy for stand-ins and flies the real `HopTest` node against a vehicle that
-follows the setpoint with PX4's position gain. It covers the nominal hop, a turned heading, a
+The rehearsal swaps rclpy for stand-ins and flies the real node against a vehicle that
+follows the setpoint with PX4's position gain and yaw gain. It covers the nominal hop, a turned heading, a
 restart while in Offboard, a pilot takeover, `touchdown:=false`, a landing PX4 never detects, an
-odometry dropout, an unreachable leg and bad parameters. It checks logic, not dynamics.
+odometry dropout, an unreachable leg, bad parameters, the full tuning sequence, a PX4/VIO yaw
+offset and a sideways push that trips the abort. It also checks every run directory it writes.
+It checks logic, not dynamics.
 
 ## Stage 1: SITL (optional; the sim profile has never been run)
 
@@ -130,7 +133,7 @@ Build and test it inside the running stack:
 cd ~/skybeta && host/run.sh shell
 team_build.sh --packages-select cage_test
 python3 -m pytest -q /root/team_ws/src/cage_test/test/
-ros2 pkg executables cage_test                 # frame_check, hop_test
+ros2 pkg executables cage_test                 # frame_check, hop_test, tune_test
 ```
 
 The stack's `competitor` window builds **all** of `~/team_ws` before it launches anything. If
@@ -251,6 +254,92 @@ Setpoint against odometry is the tracking error. `odom_enu` against `local_enu` 
 whether the vision link held. Set `COMPETITOR_PKG`/`COMPETITOR_LAUNCH` back to the team's code
 when you are done.
 
+## Stage 6: tuning flights (`tune_test`)
+
+Only after the hop (stage 5) has flown cleanly. Same takeoff, same landing, same pilot rules,
+same take-over criteria. Between them the node flies the patterns in `sequence`, each starting and
+ending at the hover point H (`climb_height_m` above the launch mark):
+
+| Pattern | What it flies (defaults) | What it is for |
+|---|---|---|
+| `hover` | hold at H for 20 s | baseline: position and yaw noise (VIO and PX4), PX4-VIO offset, hover vibration on the camera IMU and the FC IMU, battery sag. Run it first on every new airframe |
+| `steps` | **step** (no ramp) 0.5 m forward, back; 0.5 m left, back; 0.3 m up, back; 0.3 m down, back; 5 s hold after each | position-loop step response per axis: rise time, overshoot, settling, steady-state error. Roll and pitch respond differently on these frames (rotor arms are not symmetric) |
+| `speed` | forward 1.0 m and back at 0.25, 0.5, 0.75, 1.0 m/s, slowest first (`speed_axes:=forward,left` adds the lateral axis) | tracking lag, overshoot at the end of the leg and achieved speed as speed rises. The sequence stops at the first speed that goes off the path |
+| `yaw` | spin 360° left then 360° right in place at 30, 60, 90, 120 °/s, slowest first | yaw tracking (rate achieved, lag), **position drift while spinning** (a camera extrinsic or frame error shows up here first; it is the toilet-bowl test), and VIO tracking under rotation (odometry age) |
+| `vertical` | to H+0.4 m, then down and up between H−0.4 m and H+0.4 m at 0.2, 0.4, 0.6 m/s | thrust and vertical-velocity response; range finder vs VIO vs EKF2 height (the "climbs and keeps climbing" symptom) |
+| `square` | 1 m forward, 1 m left, back, back to H at `speed_mps` | frame alignment over a closed path: where it ends vs where it started |
+| `hop` | the stage-5 hop (forward and back) | — |
+
+`sequence` is a comma list, flown in order: `tune_test.launch.py` defaults to
+`hover,steps,speed,yaw` (about 3.5 min in the air with takeoff and landing). Do them one per flight
+first:
+
+```bash
+ros2 launch cage_test tune_test.launch.py sequence:=hover
+ros2 launch cage_test tune_test.launch.py sequence:=steps
+ros2 launch cage_test tune_test.launch.py sequence:=speed speed_list_mps:=0.25,0.5
+ros2 launch cage_test tune_test.launch.py sequence:=yaw yaw_rates_dps:=30,60
+ros2 launch cage_test tune_test.launch.py sequence:=vertical
+ros2 launch cage_test tune_test.launch.py                      # all four, once each one is clean
+```
+
+Or set `COMPETITOR_LAUNCH=tune_test.launch.py` in `drone.env`, as in stage 4. Lists are comma
+strings, slowest first. The node refuses speeds over 2 m/s, vertical speeds over 1 m/s and yaw rates
+over 180 °/s. Integers are fine here (`speed_mps:=1`).
+
+Before the flight, check the cage has room around H: forward +1 m (`speed`, `hop`, `square`),
+left +0.5 m (`steps`) or +1 m (`square`, `speed_axes:=forward,left`), height H−0.4 m to H+0.4 m
+(`vertical`). The node logs the segment count and time in the air at startup.
+
+**What to expect, and what is not a fault:**
+
+- **The vehicle trails the moving setpoint by about speed / `MPC_XY_P`** (0.95 on drone 16): ~1 m at
+  1 m/s. On a 1 m leg it never reaches 1 m/s: the rehearsal's toy vehicle peaks at 0.63 m/s. Raise
+  `speed_distance_m` if the cage allows, or read the result as tracking lag.
+- Yaw is held from the first yaw segment onwards (it is not commanded before that, as in the hop).
+  The spin starts from PX4's own heading, so a VIO/PX4 yaw offset causes no jump.
+- **The sequence stops by itself** (holds; pilot lands) if the vehicle is more than
+  `abort_distance_m` (0.6 m) off the current segment's path. Lag behind the moving setpoint does not
+  count; drifting sideways or overshooting past the end does. The log line says which segment.
+- The pilot takes over exactly as in stage 5. Spinning at 90-120 °/s blurs the cameras the most: if
+  odometry goes stale during the spin, the setpoint freezes and the log says so. Take over if it
+  drifts.
+
+### What every run saves
+
+A **run** is one arm → disarm (+3 s). Each one gets its own directory, `~/team_ws/runs/` on the host
+(`/root/team_ws/runs` in the stack; `log_dir:=` changes it), named `<date-time>_<sequence>`:
+
+| File | Contents |
+|---|---|
+| `meta.json` | every parameter, the planned segments (start/end/speed/yaw), start position and heading, drone (hostname, `ROS_DOMAIN_ID`), result (`completed`, `pilot took over during …`, `failed: …`), the bag's topic list |
+| `samples.csv` | each tick (20 Hz in `tune_test`): state, segment, phase (ramp/settle/hold), **the command sent** (pose x/y/z/yaw or twist vz), VIO pose, yaw and velocity, PX4 position and yaw, odometry age, armed/offboard/landed, clamp reasons, battery voltage. Starts 10 s **before** the arm |
+| `imu_oak.csv` | OAK-D IMU (BNO086, ~200 Hz) accel and gyro, receipt time and header stamp |
+| `imu_px4.csv` | PX4 `sensor_combined` accel and gyro, as it arrives over DDS |
+| `events.jsonl` | every log line, segment start and state change, timestamped |
+| `summary.json`, `summary.txt` | per-segment numbers: lag, peak speed, off-path, overshoot, rise/settling time, yaw rate achieved, yaw lag, drift while spinning, hover std, PX4-VIO offset, IMU vibration (accel std), battery. Also printed in the window when the run closes |
+| `bag/` | rosbag2 **mcap** of every `/fmu/in/*` and `/fmu/out/*` topic (the setpoints PX4 got, its attitude, local position, odometry, estimator flags, the pilot's sticks in `manual_control_setpoint`, battery, failsafe flags, `sensor_combined`), `/skybeta/*`, `/cage_test/event`, cuVSLAM odometry and status, the OAK IMU, camera_info, TF and `/rosout` (every node's log). Cameras only with `record_images:=true` (~39 MB/s) |
+
+A bag is skipped (CSVs still written) with under 1 GB free. Runs are not in git (`team_ws/.gitignore`);
+copy them off with `rsync -a dronehacks@<drone-ip>:~/team_ws/runs .` and re-summarize on a laptop
+with `python3 tools/summarize_run.py <run dir>` (no ROS needed).
+
+**The PX4 log is the other half, and the more important one for PID tuning.** The bag only has
+what DDS exports: no rate-controller setpoints, no actuator outputs, IMU at DDS rate. PX4 writes a
+`.ulg` on the SD card for every arm → disarm (`SDLOG_MODE=0`, already set). For tuning, set
+before the flights (v1.16 `SDLOG_PROFILE` bits: 0 default, 1 EKF2 replay, 3 system ID, 4 high rate,
+7 computer vision):
+
+```
+SDLOG_PROFILE = 147     # 1 + 2 + 16 + 128: default + EKF2 replay + high rate + vision
+                        # (+8 = 155 adds system-ID topics; watch for logger dropouts)
+```
+
+Download the `.ulg` after the session (QGC → Analyze Tools → Log Download, FC on USB) and keep it
+with the run directory: the arm times match (`started_wall` in `meta.json`). Flight Review /
+PlotJuggler read it. The EKF2 replay bit lets you re-run the estimator offline with a different
+`EKF2_EV_DELAY` or noise, which is how to settle the delay question without flying again.
+
 ## Known gaps between rehearsal and the real flight
 
 - PX4 dynamics, the takeoff ramp and land detection timing are only modelled crudely offline. The
@@ -260,5 +349,8 @@ when you are done.
 - VIO needs texture and light. A bare cage floor or a lens facing the net can lose tracking. PX4
   then has no horizontal position and the vehicle drifts in Altitude behaviour, so the pilot takes
   over.
+- The tuning patterns, the bag recorder and the run logs have only run offline (the recorder not
+  at all: there is no `ros2` on the laptop). Check on the bench (stage 4, props off) that an arm
+  creates a run directory with a non-empty `bag/` before the first tuning flight.
 - After a cold boot, wait for `timedatectl` to report synchronized (the service does this). A
   clock step makes EKF2 reject every vision sample.

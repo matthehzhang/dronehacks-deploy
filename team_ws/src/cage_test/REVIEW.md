@@ -4,8 +4,10 @@ For whoever reviews this on a machine with ROS 2 Humble. Read `README.md` in thi
 first (what it does, and the flight procedure), then the repo's `CLAUDE.md` and
 `docs/competitor_guide.md` §1–§4 for the interface it sits on.
 
-**What has been checked:** the pure geometry (`test/test_hop_plan.py`, 14 tests) and the node's state
-machine against a toy vehicle with rclpy stubbed out (`tools/offline_rehearsal.py`, 17 checks). Both
+**What has been checked:** the pure geometry, plan and analysis (`test/`, 30 tests) and the node's state
+machine, including the tuning sequence and the run logs, against a toy vehicle with rclpy stubbed out
+(`tools/offline_rehearsal.py`, 42 checks). The `ros2 bag record` child process (`recorder.py`) has
+not run anywhere: check that a bench arm writes a non-empty `bag/`. Both
 pass, on a Mac with **no ROS installed**. **Nothing has been built with colcon, run under real
 rclpy, or launched.** That is what this review is for.
 
@@ -34,6 +36,7 @@ python3 tools/offline_rehearsal.py
 cd ~/cage_ws/src/skybeta_flight_interface && python3 -m pytest -q test/     # untouched by this branch; must still pass
 ros2 pkg executables cage_test                                            # frame_check, hop_test
 ros2 launch cage_test hop_test.launch.py                                  # must start both nodes cleanly
+ros2 launch cage_test tune_test.launch.py sequence:=hover,yaw yaw_rates_dps:=30   # include + list args
 ros2 launch cage_test hop_test.launch.py forward_m:=0.5 touchdown:=false  # args parse as float/bool
 ```
 
