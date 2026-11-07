@@ -1,4 +1,4 @@
-# Bounded physical response diagnostic (branch `two`)
+# Bounded response diagnostic (branch `sim-diagnostic`)
 
 This code measures the response from organizer ENU velocity commands to observed
 odometry. It does not tune PX4 rate/attitude gains, write parameters, arm, change

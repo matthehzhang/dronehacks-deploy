@@ -1,6 +1,6 @@
 # kestrel_nav: team wide-kestrel course code, packaged for skybeta
 
-## Current branch: `two`
+## Current branch: `sim-diagnostic`
 
 This experimental branch adds `tune.launch.py`: slow map-guided transit, bounded
 straight-line response measurements, forward-facing slow return, raw sensor and
