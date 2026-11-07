@@ -1,5 +1,27 @@
 # kestrel_nav: team wide-kestrel course code, packaged for skybeta
 
+## Current branch: `matthew-05-59am`
+
+The entry point for this branch is **`live.launch.py`**. It keeps the hardware velocity follower
+and organizer flight interface, adds the timestamp/tracking/depth watchdogs described below, and
+ports the gate-planning fixes from workspace `matthew352am` at `dc2dd1c`.
+
+Gate openings are excluded from ordinary routes, fallback searches, path shortcuts and follower
+commands. Only the designated forward crossing leg opens its gate. A blocked crossing cannot
+backtrack through the opening and cross it again. Gate B is refused at the configured 0.40 m
+clearance; the default plan selects the window. The packaged alternative `navfield` planner gets
+the same upstream gate fixes, but it is not the controller used by `live_mission`.
+
+This is a **partial simulator port**. The simulator's trajectory follower, acceleration feedforward,
+arming/mode commands, VIO wrapper and final landing sequence are not transferred. No controller
+gains, particle-filter correction rates, global margins or stereo implementation are retuned here.
+See [PORTING.md](PORTING.md) for provenance, verification and remaining limitations.
+
+The older pose-waypoint mission documented next is retained for reference; it does **not** have
+the new `live_mission` watchdogs. Use the live-mission section below for this branch's launch setup.
+
+## Original pose-waypoint port
+
 A ROS 2 (ament_python) package that drops into `~/team_ws/src` on a skybeta drone. It carries the
 parts of the team workspace (github.com/AMMistry18/workspace) that are platform-independent and
 replaces the parts that fought the skybeta stack.
@@ -32,7 +54,7 @@ replaces the parts that fought the skybeta stack.
 ## Put it on skybeta-14
 
 ```bash
-# from this repo, on the laptop (drone 14, password 2rich)
+# from this repo, on the laptop (drone 14)
 rsync -a --delete team_ws/src/kestrel_nav/ dronehacks@skybeta-14.local:team_ws/src/kestrel_nav/
 
 # on the drone: point the competitor window at it, then restart the stack ON THE GROUND
@@ -125,13 +147,62 @@ docker rm -f skybeta-stack
 docker exec -it skybeta-stack tmux attach -t skybeta
 ```
 
-Needs the OAK depth stream enabled in the camera config (`depth_topic`, default
-`/oak/stereo/image_raw` + `camera_info`). Check before the first flight:
+`live.launch.py` starts host-side depth by default (`/kestrel_nav/depth` and
+`/kestrel_nav/depth/camera_info`), without changing the organizer camera pipeline.
+Check before the first flight:
 
 ```bash
-ros2 topic hz /oak/stereo/image_raw /oak/left/image_raw      # depth present, stereo still ~30 Hz
+ros2 topic hz /kestrel_nav/depth                           # host depth present
 ros2 topic echo /kestrel_nav/live_status --once              # plan, pf_sigma, scan_age, counts
 ```
 
 Open items: measure `landed_z_m`; a frame from the real camera for the ring detector; the pilot lands
 (the interface floors altitude at `min_altitude_m`, DESCEND holds there).
+
+## Hardware mission input supervision (2026-11-07)
+
+`live_mission` now requires fresh, advancing odometry, successful
+`/visual_slam/status`, usable depth and `/skybeta/state` before it sends readiness
+setpoints. It must observe a disarmed vehicle and a continuous healthy interval
+before accepting the pilot's ground Offboard handover. The ISAAC ROS status
+message package is an explicit dependency; a missing status stream blocks readiness.
+
+Preflight sends **zero twist**, never a pose. This avoids leaving the launch
+position in the organizer interface's cached pose fallback. Start with a fresh
+flight-interface instance on the ground: this change cannot erase a pose target
+left in an already-running interface by another program. There must be one team
+setpoint publisher. The organizer interface itself is unchanged.
+
+Both capture age (ROS time) and receipt age (monotonic time) are checked. Duplicate
+timestamps do not refresh the watchdog. Non-finite poses/covariance, invalid
+quaternions, frame changes and unsuccessful tracking are rejected. Stale/missing
+depth clears both retained scans; invalid pixels remain unknown, never invented
+obstacle measurements. A sampled-ray coverage check tests the commanded horizontal
+direction, including sideways and reverse commands. It is a missing-data guard,
+not a proof of full swept-volume clearance or sufficient braking distance.
+
+Once Offboard starts, a sensor fault latches `FAULT`, freezes mission/localizer/grid
+progress and requests zero velocity and yaw rate while fresh state confirms
+Offboard authority. The guard bypasses the ordinary HOLD state, which can back off
+and yaw. Lost/stale authority or an operator-requested interface hold stops team
+setpoint publication. Good sensor samples do not resume a faulted mission. The
+pilot takes over and lands; restart/re-anchor the mission and interface on the
+ground before another run. Zero twist cannot guarantee hover when PX4's estimate
+is bad. This is an in-process guard: a killed/frozen process still depends on the
+organizer interface/PX4 fallback and pilot, not on an independent watchdog.
+
+`/kestrel_nav/live_status` includes `safety_action`, `safety_reason`,
+`safety_fault` and the mission's `fault`. Launch parameters expose the initial
+limits: odometry/tracking/depth 0.5 s, interface state 1.0 s, future timestamp
+tolerance 0.05 s, readiness interval 1.0 s, valid-depth fraction 0.3, corridor
+coverage 0.6 with at least 12 sampled rays. These are conservative initial settings,
+**not measured hardware qualification**. Coverage thresholds reuse the simulator
+policy's fractions; they may abort in dark or poorly textured areas.
+
+Validation before flight: on a props-off setup, verify capture stamps share the
+ROS clock, measure actual data ages/coverage with the full workload, check each
+sensor dropout latches a zero-twist response, verify pilot takeover and the
+interface hold remain authoritative, and verify node shutdown does not recall a
+launch pose. Never restart VIO or inject sensor failures in flight for this check.
+Local tests use ROS transport doubles and an offline kinematic simulator; neither
+qualifies the deployed ROS graph, aircraft dynamics, or an autonomous landing.

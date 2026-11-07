@@ -17,6 +17,7 @@ import numpy as np
 
 from ..coursenav import planner
 from ..coursenav.planner import PlanError
+from ..coursenav.course import Grid2D
 from .navgrid import NavGrid
 
 
@@ -62,10 +63,18 @@ def goals_from_plan(plan_result):
 
 
 class Replanner:
-    def __init__(self, grid: NavGrid, goals, params: ReplanParams = None):
+    def __init__(self, grid: NavGrid, goals, params: ReplanParams = None, gate_rules=None):
         self.g = grid
         self.goals = list(goals)
         self.p = params or ReplanParams()
+        self.gate_rules = gate_rules or {}
+        empty = Grid2D(np.zeros_like(grid.blocked.occ), grid.blocked.origin, grid.blocked.res)
+        # Static exclusion masks, applied after carving and to the hard fallback too.
+        self.gate_masks = {
+            allowed: planner.with_walls(empty, [rule['line'] for name, rule in self.gate_rules.items()
+                                                if name != allowed]).occ
+            for allowed in [None, *self.gate_rules]
+        }
         self.k = 0
         self.path = None                  # (n,2) course frame: vehicle -> goal (-> next goal if the goal is a plain via)
         self.goal_s = None                # arc length of the current goal along self.path
@@ -73,6 +82,58 @@ class Replanner:
         self.blocked = False
         self.last_reason = ""
         self.replans = 0
+
+    def _policy_grid(self, grid, crossing=None):
+        return Grid2D(grid.occ | self.gate_masks[crossing], grid.origin, grid.res)
+
+    def _segment_blocked(self, a, b, crossing=None):
+        return not planner.segment_free(self._policy_grid(self.g.blocked_hard, crossing),
+                                        a, b, step=self.p.simplify_step)
+
+    def _path_allowed(self, path, crossing=None):
+        if any(self._segment_blocked(a, b, crossing) for a, b in zip(path[:-1], path[1:])):
+            return False
+        return self._gate_path_allowed(path, crossing)
+
+    def _gate_path_allowed(self, path, crossing=None):
+        mask = Grid2D(self.gate_masks[crossing], self.g.blocked.origin, self.g.blocked.res)
+        if any(not planner.segment_free(mask, a, b, step=self.p.simplify_step)
+               for a, b in zip(path[:-1], path[1:])):
+            return False
+        for name, rule in self.gate_rules.items():
+            directions = [d for _, d in planner.gate_crossings(path, rule['line'], rule['normal'])]
+            if directions and (name != crossing or directions != [1]):
+                return False
+            # gate_crossings has no previous side when the path begins on the plane.
+            # Reject departing that plane backwards into the pre side as well.
+            a, b = np.asarray(rule['line'], float)
+            tangent = b - a
+            normal = np.array([-tangent[1], tangent[0]]) / np.linalg.norm(tangent)
+            if normal @ np.asarray(rule['normal']) < 0:
+                normal = -normal
+            along = float((path[0] - a) @ tangent / (tangent @ tangent))
+            if abs(float((path[0] - a) @ normal)) <= 1e-6 and 0 <= along <= 1:
+                sides = (np.asarray(path) - a) @ normal
+                nonzero = sides[np.abs(sides) > 1e-6]
+                if len(nonzero) and nonzero[0] < 0:
+                    return False
+        return True
+
+    def gate_blocked(self, a, b):
+        """Gate-only motion guard, including HOLD/backoff; no change to inflation recovery."""
+        crossing = self.goal.crosses if self.goal is not None and self.goal.straight else None
+        return not self._gate_path_allowed(np.asarray([a, b]),
+                                          crossing if crossing in self.gate_rules else None)
+
+    def chord_blocked(self, a, b, hard=False):
+        """Follower shortcuts obey the same gate policy as its route."""
+        crossing = self.goal.crosses if self.goal is not None and self.goal.straight else None
+        crossing = crossing if crossing in self.gate_rules else None
+        grid = self.g.blocked_hard if hard else self.g.blocked
+        if not planner.segment_free(self._policy_grid(grid, crossing), a, b,
+                                    step=self.p.simplify_step):
+            return True
+        return not self._path_allowed(np.asarray([a, b]), crossing)
 
     # ------------------------------------------------------------------ goals
     @property
@@ -119,7 +180,7 @@ class Replanner:
         i = 0
         while i < len(pts) - 1:
             j = len(pts) - 1
-            while j > i + 1 and self.g.segment_blocked(pts[i], pts[j], self.p.simplify_step, hard=True):
+            while j > i + 1 and self._segment_blocked(pts[i], pts[j]):
                 j -= 1
             out.append(pts[j])
             i = j
@@ -138,14 +199,25 @@ class Replanner:
             # straight from here if that line is clear; otherwise back to the leg's start (the pre
             # point) and through from there; a crossing the live grid blocks either way is a HOLD
             pre = self.goals[self.k - 1].xy if self.k > 0 else xy
-            if not self.g.segment_blocked(xy, g.xy, hard=True):
+            crossing = g.crosses if g.crosses in self.gate_rules else None
+            before_plane = True
+            if crossing is not None:
+                rule = self.gate_rules[crossing]
+                a, b = np.asarray(rule['line'], float)
+                tangent = b - a
+                normal = np.array([-tangent[1], tangent[0]])
+                normal /= np.linalg.norm(normal)
+                if normal @ np.asarray(rule['normal']) < 0:
+                    normal = -normal
+                before_plane = float((xy - a) @ normal) < -1e-6
+            if self._path_allowed(np.vstack([xy, g.xy]), crossing):
                 self.path = np.vstack([xy, g.xy])
-            elif not self.g.segment_blocked(xy, pre, hard=True) and not self.g.segment_blocked(pre, g.xy, hard=True):
+            elif before_plane and self._path_allowed(np.vstack([xy, pre, g.xy]), crossing):
                 self.path = np.vstack([xy, pre, g.xy])
             else:
                 self.path = None
             self.blocked = self.path is None
-            self.last_reason = "gate crossing blocked by the live grid" if self.blocked else ""
+            self.last_reason = "gate crossing blocked by the live grid or gate rule" if self.blocked else ""
             self.goal_s = None if self.path is None else float(np.linalg.norm(np.diff(self.path, axis=0), axis=1).sum())
             return self.path
         start = self.g.nearest_free(xy, hard=True)
@@ -163,6 +235,9 @@ class Replanner:
             ext = self._astar(g.xy, nxt.xy, nxt.name)
             if ext is not None and len(ext) > 1:
                 path = np.vstack([path, self._simplify(ext)[1:]])
+        if not self._gate_path_allowed(path):
+            self.blocked, self.last_reason, self.path = True, "path violates gate rule", None
+            return None
         self.path = path
         self.blocked = False
         self.last_reason = ""
@@ -179,7 +254,8 @@ class Replanner:
             # start from inside the planning margin instead of jumping to the nearest soft-free cell
             grid = self.g.carved(a_xy)
         try:
-            return planner.astar(grid, self.g.clearance, a_xy, goal_xy, prefer_m=self.p.prefer_m, weight=self.p.weight)
+            return planner.astar(self._policy_grid(grid), self.g.clearance, a_xy, goal_xy,
+                                 prefer_m=self.p.prefer_m, weight=self.p.weight)
         except PlanError:
             pass
         # too tight at full margin: retry at the hard margin (the follower's corridor still guards it)
@@ -189,7 +265,8 @@ class Replanner:
             self.blocked, self.last_reason, self.path = True, f"no free cell near start/goal {name}", None
             return None
         try:
-            return planner.astar(self.g.blocked_hard, self.g.clearance, start, goal_xy, prefer_m=self.p.prefer_m, weight=self.p.weight)
+            return planner.astar(self._policy_grid(self.g.blocked_hard), self.g.clearance, start, goal_xy,
+                                 prefer_m=self.p.prefer_m, weight=self.p.weight)
         except PlanError as e:
             self.blocked, self.last_reason, self.path = True, str(e), None
             return None
@@ -199,10 +276,8 @@ class Replanner:
         live return lands a few centimetres inside the planning margin."""
         if self.path is None:
             return True
-        for a, b in zip(self.path[:-1], self.path[1:]):
-            if self.g.segment_blocked(a, b, self.p.simplify_step, hard=True):
-                return True
-        return False
+        crossing = self.goal.crosses if self.goal is not None and self.goal.straight else None
+        return not self._path_allowed(self.path, crossing if crossing in self.gate_rules else None)
 
     def deviation(self, xy):
         if self.path is None or len(self.path) < 2:

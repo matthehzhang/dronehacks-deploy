@@ -137,7 +137,7 @@ class Follower:
         self.t_prev = None
 
     def step(self, now, pose, path, goal, scan: Scan, clearance_m, gate_leg=False, hold=False, brake_end=True,
-             chord_blocked=None, vel=None) -> Command:
+             chord_blocked=None, vel=None, gate_blocked=None) -> Command:
         """pose = (x, y, yaw) course frame; path (n,2) from the vehicle to the goal; scan in the
         level body frame; clearance_m = map clearance at the body. hold: command zero velocity
         (used while blocked), still yawing toward the goal and backing off if something is too close."""
@@ -170,9 +170,17 @@ class Follower:
                     while L > p.lookahead_min_m and chord_blocked(xy_pred, carrot, True):
                         L -= 0.05
                         carrot = point_at(path, cum, seg_len, s_here + L)
+                if gate_blocked is not None and (gate_blocked(xy_pred, carrot) or gate_blocked(xy, carrot)):
+                    self.v_prev = np.zeros(2)
+                    cmd.limiter = "gate blocked"
+                    return cmd
             d = carrot - xy_pred
             dist_c = float(np.linalg.norm(d))
             if dist_c < 1e-3:
+                if gate_blocked is not None and gate_blocked(xy, path[-1]):
+                    self.v_prev = np.zeros(2)
+                    cmd.limiter = "gate blocked"
+                    return cmd
                 d = path[-1] - xy
                 dist_c = float(np.linalg.norm(d))
             u = d / max(dist_c, 1e-6)
@@ -230,6 +238,14 @@ class Follower:
             n = float(np.linalg.norm(dv))
             if n > p.a_max * dt:
                 v_des = self.v_prev + dv / n * p.a_max * dt
+        # Acceleration limiting and HOLD backoff can point away from the carrot.
+        # Check that actual command direction against gate policy too.
+        speed = float(np.linalg.norm(v_des))
+        if gate_blocked is not None and speed > 1e-6:
+            end = xy + v_des / speed * p.lookahead_m
+            if gate_blocked(xy, end):
+                v_des = np.zeros(2)
+                cmd.limiter = "gate blocked"
         self.v_prev = v_des
         cmd.vx, cmd.vy = float(v_des[0]), float(v_des[1])
         cmd.speed = float(np.linalg.norm(v_des))

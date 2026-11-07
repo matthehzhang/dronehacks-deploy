@@ -1,5 +1,6 @@
 """livenav unit tests: pure Python, no ROS. The closed-loop course flight is in test_livenav_sim.py."""
 import math
+import copy
 
 import numpy as np
 import pytest
@@ -156,3 +157,34 @@ def test_mission_waits_then_climbs(mission):
     assert c.vz > 0.2
     c = m.step(Observation(now=0.3, odom_xyz=(0, 0, 0), odom_yaw=0.0, offboard_active=False))
     assert c.state == "PAUSED" and c.vx == 0.0 and c.vz == 0.0
+
+
+@pytest.mark.parametrize('state', ['FLY', 'PAD', 'HOLD', 'DESCEND'])
+@pytest.mark.parametrize('failure', ['missing', 'empty', 'stale', 'future'])
+def test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched(mission, state, failure):
+    m = copy.deepcopy(mission)
+    m.state = state
+    m.t_offboard = 1.0
+    m.set_transform((0, 0), 0)
+    m.scan_nav = m.scan_pf = Scan(np.array([0.0]), np.array([1.0]), np.array([.05]))
+    m._pts_t = 9.0
+    pts = np.tile([2.0, 0.0, 0.0], (10, 1))
+    stamp = 10.0
+    if failure == 'missing':
+        pts = None
+    elif failure == 'empty':
+        pts = np.empty((0, 3))
+    elif failure == 'stale':
+        stamp = 9.4
+    else:
+        stamp = 10.2
+    before = m.grid.live.L.copy()
+    c = m.step(Observation(now=10, odom_xyz=(0, 0, .7), odom_yaw=0, offboard_active=True,
+                           pts_level=pts, height_m=.8, pts_t=stamp))
+    assert c.state == 'FAULT'
+    assert (c.vx, c.vy, c.vz, c.yaw_rate) == (0, 0, 0, 0)
+    assert m.scan_nav is None and m.scan_pf is None
+    assert np.array_equal(m.grid.live.L, before)
+    c = m.step(Observation(now=10.1, odom_xyz=(0, 0, .7), odom_yaw=0, offboard_active=True,
+                           pts_level=np.tile([2.0, 0.0, 0.0], (10, 1)), height_m=.8, pts_t=10.1))
+    assert c.state == 'FAULT' and c.vx == c.vy == c.vz == c.yaw_rate == 0

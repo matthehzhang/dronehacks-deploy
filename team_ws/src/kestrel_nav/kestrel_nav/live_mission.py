@@ -7,7 +7,7 @@ The skybeta contract (competitor guide section 1), nothing else:
     subscribe  /visual_slam/tracking/odometry     where we are (ENU, cuVSLAM ``odom`` frame)
     subscribe  /skybeta/state                     JSON: offboard_active, landed, clamped, ...
     publish    /skybeta/setpoint/twist            ENU world velocity + yaw rate (expires after 1 s)
-    publish    /skybeta/setpoint/pose             only while waiting: hold here (lets Offboard start)
+    preflight  zero twist after input qualification; never stores a fallback pose
 
 Sensors read (all the airframe's own): the OAK depth image + camera_info (depth_topic, enabled by
 the team in the camera config), the OAK left mono image for the pad rings, PX4 attitude for
@@ -22,23 +22,26 @@ from __future__ import annotations
 
 import json
 import math
+import time
 
 import numpy as np
 import rclpy
 from geometry_msgs.msg import PoseStamped, TwistStamped
+from isaac_ros_visual_slam_interfaces.msg import VisualSlamStatus
 from nav_msgs.msg import Odometry, Path
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import String
 
-from .coursenav.depth import decode_depth, quat_to_mat
+from .coursenav.depth import DepthFrame, decode_depth, quat_to_mat
 from .coursenav.scan import depth_points_level, level_from_px4_q
 from .livenav.follower import FollowParams
 from .livenav.mission import LiveMission, MissionParams, Observation
 from .livenav.navgrid import NavParams
 from .livenav.pad import PadDetector, level_cam_rotation
 from .livenav.replanner import ReplanParams
+from .livenav.safety import InputSafety, SafetyParams, corridor_error
 
 PX4_QOS = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                      history=HistoryPolicy.KEEP_LAST, depth=1)
@@ -61,6 +64,11 @@ class LiveMissionNode(Node):
     def __init__(self, **kwargs):
         super().__init__('live_mission', **kwargs)
         dp = self.declare_parameter
+        defaults = SafetyParams()
+        self.safety = InputSafety(SafetyParams(**{
+            name: type(value)(dp(name, value).value)
+            for name, value in vars(defaults).items()
+        }))
         # --- mission ---
         mp = MissionParams(
             use_pf=bool(dp('use_pf', True).value),
@@ -72,6 +80,7 @@ class LiveMissionNode(Node):
             descend_to_z_odom=float(dp('descend_to_z_m', 0.3).value),
             time_limit_s=float(dp('time_limit_s', 170.0).value),
             chicane=str(dp('chicane', 'auto').value),
+            depth_max_age_s=self.safety.p.depth_max_age_s,
         )
         sx, sy, syaw = (float(dp('start_x', float('nan')).value), float(dp('start_y', float('nan')).value),
                         float(dp('start_yaw_deg', float('nan')).value))
@@ -101,8 +110,8 @@ class LiveMissionNode(Node):
 
         # --- the contract ---
         self.twist_pub = self.create_publisher(TwistStamped, '/skybeta/setpoint/twist', 10)
-        self.pose_pub = self.create_publisher(PoseStamped, '/skybeta/setpoint/pose', 10)
         self.create_subscription(Odometry, '/visual_slam/tracking/odometry', self.odom_cb, 10)
+        self.create_subscription(VisualSlamStatus, '/visual_slam/status', self.tracking_cb, 10)
         self.create_subscription(String, '/skybeta/state', self.state_cb, 10)
         # --- sensors in ---
         self.create_subscription(CameraInfo, self.depth_info_topic, self.depth_info_cb, qos_profile_sensor_data)
@@ -137,6 +146,11 @@ class LiveMissionNode(Node):
         self.position = None
         self.yaw = None
         self.offboard_active = False
+        self.armed = False
+        self.px4_link = False
+        self.position_valid = False
+        self.interface_frozen = False
+        self.odom_frame = None
         self.landed = None
         self.clamped = []
         self.K_depth = None
@@ -148,6 +162,7 @@ class LiveMissionNode(Node):
         self.pts = None
         self.pts_h = 0.8
         self.pts_t = -math.inf
+        self.depth_frame = None
         self.pad_fix = None
         self.pad_fix_t = -math.inf
         self.pad_detector = None
@@ -166,17 +181,58 @@ class LiveMissionNode(Node):
     def now_s(self):
         return self.get_clock().now().nanoseconds * 1e-9
 
+    def monotonic_s(self):
+        return time.monotonic()
+
+    @staticmethod
+    def stamp_s(m):
+        return float(m.header.stamp.sec) + float(m.header.stamp.nanosec) * 1e-9
+
     def odom_cb(self, m):
         p, q = m.pose.pose.position, m.pose.pose.orientation
+        values = (p.x, p.y, p.z, q.x, q.y, q.z, q.w)
+        covariance = np.asarray(m.pose.covariance, float)
+        norm = math.hypot(q.x, q.y, q.z, q.w)
+        frame = (m.header.frame_id, m.child_frame_id)
+        if (not all(math.isfinite(v) for v in values) or not 0.9 <= norm <= 1.1
+                or covariance.size != 36 or not np.isfinite(covariance).all()
+                or np.any(covariance.reshape(6, 6).diagonal() < 0)):
+            self.safety.reject('odom', 'invalid odometry pose or covariance')
+            return
+        if not frame[0] or (self.odom_frame is not None and frame != self.odom_frame):
+            self.safety.reject('odom', 'odometry frame changed or missing; restart on ground')
+            return
+        if not self.safety.accept('odom', self.stamp_s(m), self.now_s(), self.monotonic_s()):
+            return
+        self.odom_frame = frame
         self.position = (float(p.x), float(p.y), float(p.z))
-        self.yaw = yaw_of_xyzw(q.x, q.y, q.z, q.w)
+        self.yaw = yaw_of_xyzw(q.x / norm, q.y / norm, q.z / norm, q.w / norm)
+
+    def tracking_cb(self, m):
+        if m.vo_state != 1:
+            self.safety.reject('tracking', f'cuVSLAM tracking failed (vo_state={m.vo_state})')
+            return
+        self.safety.accept('tracking', self.stamp_s(m), self.now_s(), self.monotonic_s())
 
     def state_cb(self, m):
         try:
             st = json.loads(m.data)
-        except ValueError:
+            if not isinstance(st, dict) or any(type(st.get(k)) is not bool
+                    for k in ('offboard_active', 'armed', 'px4_link', 'frozen')):
+                raise ValueError('missing authority fields')
+            stamp = float(st['stamp'])
+        except (ValueError, TypeError, KeyError):
+            self.safety.reject('state', 'invalid flight-interface state')
+            return
+        if not self.safety.accept('state', stamp, self.now_s(), self.monotonic_s()):
             return
         self.offboard_active = bool(st.get('offboard_active', False))
+        self.armed = st['armed']
+        self.px4_link = st['px4_link']
+        self.interface_frozen = st['frozen']
+        local = st.get('local_enu')
+        self.position_valid = (isinstance(local, list) and len(local) == 3
+                               and all(isinstance(v, (float, int)) and math.isfinite(v) for v in local))
         self.landed = st.get('landed')
         self.clamped = st.get('clamped') or []
         if self.clamped:
@@ -184,8 +240,12 @@ class LiveMissionNode(Node):
                            f"flight interface is CLAMPING our setpoints ({', '.join(self.clamped)}); envelope {st.get('envelope')}")
 
     def depth_info_cb(self, m):
-        if m.k[0] > 0:
+        if all(math.isfinite(v) for v in m.k) and m.k[0] > 0 and m.k[4] > 0:
             self.K_depth = (m.k[0], m.k[4], m.k[2], m.k[5])
+        else:
+            self.K_depth = None
+            self.safety.reject('depth', 'invalid depth camera calibration')
+            self.clear_depth()
 
     def mono_info_cb(self, m):
         if m.k[0] > 0 and self.K_mono is None:
@@ -243,13 +303,23 @@ class LiveMissionNode(Node):
             d = decode_depth(m.encoding, m.height, m.width, m.step, bytes(m.data))
         except ValueError as e:
             self.counts['depth_bad'] += 1
+            self.safety.reject('depth', f'invalid depth image: {e}')
+            self.clear_depth()
             self.info_once('depth_enc', str(e))
             return
         R_body_cam, t_body_cam = self.camera_pose(m.header.frame_id)
         R_level = level_from_px4_q(self.att) if self.att is not None else np.eye(3)
+        frame = DepthFrame(d, self.K_depth, R_body_cam, t_body_cam, R_level, stride=4, border_px=16)
+        if frame.valid_frac < self.safety.p.min_depth_valid_fraction:
+            self.safety.reject('depth', f'insufficient valid depth ({frame.valid_frac:.2f})')
+            self.clear_depth()
+            return
+        if not self.safety.accept('depth', self.stamp_s(m), self.now_s(), self.monotonic_s()):
+            return
+        self.depth_frame = frame
         self.pts = depth_points_level(d, self.K_depth, R_body_cam, t_body_cam, R_level, stride=4, border_px=16)
         self.pts_h = self.body_height()
-        self.pts_t = self.now_s()
+        self.pts_t = self.stamp_s(m)
         self.counts['depth'] += 1
 
     def mono_cb(self, m):
@@ -301,14 +371,18 @@ class LiveMissionNode(Node):
         t.twist.angular.z = float(yaw_rate)
         self.twist_pub.publish(t)
 
-    def send_hold_pose(self):
-        msg = PoseStamped()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = 'odom'
-        x, y, z = self.position
-        msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = float(x), float(y), float(z)
-        msg.pose.orientation.w = 0.0                     # all-zero quaternion: do not command yaw
-        self.pose_pub.publish(msg)
+    def clear_depth(self):
+        self.pts = self.depth_frame = None
+        self.mission.scan_nav = self.mission.scan_pf = None
+
+    def stop_mission(self, now, reason):
+        self.safety.trip(reason)
+        if self.safety.action == 'run':
+            self.safety.action = 'stop'
+        self.clear_depth()
+        self.mission.abort(now, self.safety.fault)
+        self.info_once(f'fault:{self.safety.fault}',
+                       f'MISSION FAULT: {self.safety.fault}. Pilot takeover required; ground restart to requalify.')
 
     def publish_path(self, path_course):
         if path_course is None or self.mission.T is None:
@@ -329,21 +403,45 @@ class LiveMissionNode(Node):
 
     # ------------------------------------------------------------------ 10 Hz
     def tick(self):
-        if self.position is None or self.yaw is None:
-            self.info_once('no_odom', 'no /visual_slam/tracking/odometry yet: nothing is commanded until cuVSLAM tracks')
-            return
         now = self.now_s()
-        if self.pts_t > -math.inf and now - self.pts_t > 1.5:
-            self.info_once('depth_stale', f'depth scan is {now - self.pts_t:.1f} s old: flying on the prior map only')
+        action = self.safety.evaluate(now, self.monotonic_s(), offboard=self.offboard_active,
+                                      armed=self.armed, landed=self.landed, link=self.px4_link,
+                                      position_valid=self.position_valid, frozen=self.interface_frozen)
+        if self.safety.stream_error('depth', now, self.monotonic_s()):
+            self.clear_depth()
+        if self.safety.fault:
+            self.stop_mission(now, self.safety.fault)
+        if action == 'silent':
+            self.info_once(self.safety.reason, self.safety.reason)
+            return
+        if action in ('ready', 'stop'):
+            # No pose target is planted in the interface, even during preflight.
+            self.send_twist(0.0, 0.0, 0.0, 0.0)
+            return
         obs = Observation(now=now, odom_xyz=self.position, odom_yaw=self.yaw, offboard_active=self.offboard_active,
-                          pts_level=self.pts if now - self.pts_t <= 1.5 else None, height_m=self.pts_h, pts_t=self.pts_t,
+                          pts_level=self.pts, height_m=self.pts_h, pts_t=self.pts_t,
                           pad_fix=self.pad_fix, pad_fix_t=self.pad_fix_t)
         before = self.mission.state
-        cmd = self.mission.step(obs)
+        try:
+            cmd = self.mission.step(obs)
+            if not all(math.isfinite(v) for v in (cmd.vx, cmd.vy, cmd.vz, cmd.yaw_rate)):
+                raise ValueError('non-finite mission command')
+        except Exception as e:
+            self.stop_mission(now, f'mission computation failed: {type(e).__name__}: {e}')
+            self.send_twist(0.0, 0.0, 0.0, 0.0)
+            return
+        c, s = math.cos(self.yaw), math.sin(self.yaw)
+        fp = self.mission.follower.p
+        reason = corridor_error(self.depth_frame, c * cmd.vx + s * cmd.vy, -s * cmd.vx + c * cmd.vy,
+                                half_width=fp.corridor_half_m, band=self.mission.doc.get('plan_band_m', 0.25),
+                                at_m=fp.stop_m + fp.reactive_ramp_m, params=self.safety.p)
+        if cmd.state == 'FAULT' or reason:
+            self.stop_mission(now, reason or cmd.note)
+            self.send_twist(0.0, 0.0, 0.0, 0.0)
+            return
         if cmd.state != before:
             self.get_logger().info(f'{before} -> {cmd.state} {cmd.note}')
-        if cmd.state in ('WAIT', 'PAUSED'):
-            self.send_hold_pose()
+        if cmd.state == 'PAUSED':
             return
         self.send_twist(cmd.vx, cmd.vy, cmd.vz, cmd.yaw_rate)
         if cmd.path_course is not None:
@@ -353,7 +451,8 @@ class LiveMissionNode(Node):
         st = self.mission.status()
         st.update(counts=self.counts, scan_age=round(self.now_s() - self.pts_t, 2) if self.pts_t > -math.inf else None,
                   height=self.height[1] if self.height else None, offboard=self.offboard_active, clamped=self.clamped,
-                  pad_fix=self.pad_fix)
+                  pad_fix=self.pad_fix, safety_action=self.safety.action,
+                  safety_reason=self.safety.reason, safety_fault=self.safety.fault)
         self.status_pub.publish(String(data=json.dumps(st, default=str)))
 
 

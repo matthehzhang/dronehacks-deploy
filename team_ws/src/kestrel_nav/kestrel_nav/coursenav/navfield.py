@@ -27,6 +27,7 @@ from scipy import sparse
 from scipy.sparse.csgraph import dijkstra
 
 from .course import Grid2D
+from .planner import gate_crossings, gate_segment, segment_free, with_walls
 
 SQ2 = math.sqrt(2.0)
 
@@ -66,6 +67,9 @@ class NavField:
         self.grid = blocked
         self.clear = np.asarray(clearance, float)
         self.stages = list(stages)
+        self.gates = [g for stage in self.stages for g in stage.gates]
+        # Ordinary graph edges never cross a gate, including gates from earlier
+        # stages and unchosen alternatives. Only that gate's directed hop may.
         self.p = params or FieldParams()
         self.nx, self.ny = blocked.occ.shape
         self.n = self.nx * self.ny
@@ -84,7 +88,7 @@ class NavField:
                                   p.v_min_frac, 1.0)
         inside = np.clip((p.clear_pref_m - c) / max(p.clear_pref_m - p.clear_min_m, 1e-6), 0.0, 1.0)
         cost = 1.0 / speed + p.clear_penalty_s_per_m * inside
-        cost[self.grid.occ | (c < p.clear_min_m)] = np.inf
+        cost[self.travel_grid.occ | (c < p.clear_min_m)] = np.inf
         return cost
 
     def _adjacency(self):
@@ -120,11 +124,18 @@ class NavField:
         t = t / L
         res = self.grid.res
         pre, post = [], []
+        physical = Grid2D(self.grid.occ | (self.clear < self.p.clear_min_m), self.grid.origin, res)
+        hop_grid = with_walls(physical, [(h.p, h.q) for h in self.gates if h is not g])
         for s in np.arange(g.margin_m, L - g.margin_m + 1e-9, res * 0.5):
             c = p + t * s
             a = self.grid.ij(c - n * self.p.gate_depth_m)
             b = self.grid.ij(c + n * self.p.gate_depth_m)
             if self.grid.inside(a) and self.grid.inside(b):
+                xy = self.grid.xy(np.array([a, b]))
+                if not segment_free(hop_grid, *xy, step=res / 3):
+                    continue
+                if [d for _, d in gate_crossings(xy, (g.p, g.q), g.normal)] != [1]:
+                    continue
                 pre.append(a[0] * self.ny + a[1])
                 post.append(b[0] * self.ny + b[1])
         if not pre:
@@ -136,6 +147,7 @@ class NavField:
     # ------------------------------------------------------------------ the fields
     def rebuild(self):
         t0 = time.perf_counter()
+        self.travel_grid = with_walls(self.grid, [(g.p, g.q) for g in self.gates])
         adj, cost = self._adjacency()
         self._adj = adj
         finite = np.isfinite(cost.reshape(-1))
@@ -200,12 +212,9 @@ class NavField:
         runs out; a gate hop advances the stage."""
         ij = tuple(self.grid.ij(xy))
         if not self.grid.inside(np.array(ij)) or not math.isfinite(self.ctg[stage][ij]):
-            # start from the nearest reachable cell
-            finite = np.argwhere(np.isfinite(self.ctg[stage]))
-            if len(finite) == 0:
-                return np.asarray([xy]), stage, []
-            k = np.argmin(np.linalg.norm(self.grid.xy(finite) - np.asarray(xy), axis=1))
-            ij = tuple(finite[k])
+            # Moving to a reachable cell would require a separately checked path;
+            # snapping can jump through the very gate that made us unreachable.
+            return np.asarray([xy]), stage, []
         path = [np.asarray(xy, float)]
         crossed = []
         length = 0.0
@@ -243,6 +252,8 @@ class NavField:
                         continue
                     nb = (ij[0] + dx, ij[1] + dy)
                     if 0 <= nb[0] < self.nx and 0 <= nb[1] < self.ny:
+                        if self._adj[lin, nb[0] * self.ny + nb[1]] == 0:
+                            continue                 # respect the graph's no-corner-cutting rule
                         c = self.ctg[st][nb]
                         if c < best_c - 1e-12:
                             best, best_c = nb, c
@@ -283,12 +294,14 @@ def stages_from_course(doc, seconds_per_point=20.0, vehicle_margin=None):
             for key, opt in doc["chicane_options"].items():
                 if "center" not in opt:
                     continue
-                c, n = np.asarray(opt["center"]), np.asarray(opt["normal"], float)
+                n = np.asarray(opt["normal"], float)
+                if "cross_deg" in opt:
+                    h = math.radians(opt["cross_deg"])
+                    n = np.array([math.cos(h), math.sin(h)])
                 n = n / np.linalg.norm(n)
-                side = np.array([-n[1], n[0]])
-                half = float(opt.get("width_m", 0.9)) / 2
-                gates.append(Gate(key, tuple(c - side * half), tuple(c + side * half), tuple(n),
-                                  credit_s=float(opt.get("points", 0)) * seconds_per_point, margin_m=v["radius_m"] + 0.05))
+                a, b = gate_segment(opt)
+                gates.append(Gate(key, tuple(a), tuple(b), tuple(n),
+                                  credit_s=float(opt.get("points", 0)) * seconds_per_point, margin_m=margin))
             stages.append(Stage("chicane", gates))
         elif g.get("land"):
             stages.append(Stage("pad", pad_xy=tuple(g["xy"]), pad_radius_m=0.3))

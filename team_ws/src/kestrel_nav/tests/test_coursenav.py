@@ -61,7 +61,7 @@ def test_vertical_ray_hits_floor_and_markings_can_be_ignored(course):
 
 
 # ---------------------------------------------------------------- planner
-@pytest.mark.parametrize("chicane", ["window", "gate_b"])
+@pytest.mark.parametrize("chicane", ["window"])   # gate_b: refused at 0.40 m (gate rule); see the gate_b tests
 def test_full_course_plan_keeps_clearance(course, chicane):
     doc, cm, obst, blocked, clearance, *_ = course
     p = planner.plan(doc, obst, blocked, clearance, chicane=chicane, cmap=cm)
@@ -103,9 +103,6 @@ def test_gate_b_crossing_direction_is_searched_not_typed_in(course):
     n, info = planner.gate_crossing(doc, "gate_b", obst, clearance)
     assert info["feasible"] and abs(info["chosen_deg"]) <= 30.0 and info["chosen_deg"] != 0.0
     assert math.degrees(math.atan2(n[1], n[0])) == pytest.approx(180.0, abs=25.0)
-    p = planner.plan(doc, obst, blocked, clearance, chicane="gate_b", cmap=cm)
-    assert p["min_clearance_m"] >= p["required_clearance_m"] - 1e-9
-    assert [w["name"] for w in p["waypoints"]].count("gate_b") == 1
 
 
 def test_the_chicane_is_chosen_by_score_and_the_window_wins(course):
@@ -113,9 +110,9 @@ def test_the_chicane_is_chosen_by_score_and_the_window_wins(course):
     raw = load_course(derive=False)
     assert "chicane" not in raw                                   # no fixed choice in the course file
     res = planner.plan_options(doc, obst, blocked, clearance, cmap=cm)
-    assert set(res["scores"]) == {"window", "gate_b"}
+    assert set(res["scores"]) == {"window"}                       # gate_b is refused at 0.40 m (gate rule)
     assert res["chicane"] == "window"
-    assert res["scores"]["window"]["score"] > res["scores"]["gate_b"]["score"]
+    assert "reachable only through gate_b" in res["reason"]
     assert res["scores"]["window"]["points"] == 5
     assert "window" in res["reason"] and "gate_b" in res["reason"]
     p = planner.plan(doc, obst, blocked, clearance, cmap=cm)        # chicane None: the same choice
@@ -422,13 +419,61 @@ def test_navfield_takes_gate_b_when_the_window_pays_nothing(course):
     d["chicane_options"]["window"]["width_m"] = 0.3                # too narrow for the hop margins: unusable
     stages = stages_from_course(d)
     nf = NavField(blocked, clearance, stages)
-    xy, st, crossed = d["start"]["spawn_xy"], 0, []
+    xy, st, crossed, pts = d["start"]["spawn_xy"], 0, [], []
     for _ in range(80):
         path, st, cr = nf.descend(xy, st, lookahead_m=1.0)
+        pts.append(path)
         crossed += cr
         xy = path[-1]
         if st == len(stages) - 1 and nf.cost_to_go(xy, st) < 1e-6:
             break
-    assert "gate_b" in crossed and "window" not in crossed
+    crossings = planner.gate_crossings(np.concatenate(pts),
+                                      planner.gate_segment(d["chicane_options"]["gate_b"]), (-1, 0))
+    assert [direction for _, direction in crossings] in ([], [1])
+    # At 0.40 m the remaining gate cannot be reached on its declared pre side.
+    assert not math.isfinite(nf.cost_to_go(d["start"]["spawn_xy"], 0))
+    assert not crossed and not crossings
 
 
+
+
+def test_gate_b_at_course_clearance_is_refused_not_crossed_twice(course):
+    """At 0.40 m the only way to gate_b_pre is through Gate B itself: before the gate rule, A* flew
+    through the gap the wrong way, turned in the pocket beyond it (Flight E landed there on silent
+    depth, 2026-11-06) and crossed back. A waypoint-name count did not see it; the planner must refuse
+    and say why."""
+    doc, cm, obst, blocked, clearance, *_ = course
+    with pytest.raises(planner.PlanError, match="reachable only through gate_b"):
+        planner.plan(doc, obst, blocked, clearance, chicane="gate_b", cmap=cm)
+
+
+def test_gate_b_crosses_once_where_the_pocket_has_another_way_in(course):
+    """At 0.38 m (margin 0.10) a second way into the pocket opens: one crossing, in the chosen direction."""
+    doc, cm, *_ = course
+    d = dict(doc, vehicle=dict(doc["vehicle"], margin_m=0.10))
+    obst, blocked, clearance = plan_grids(cm, d)
+    p = planner.plan(d, obst, blocked, clearance, chicane="gate_b", cmap=cm)
+    g = next(w for w in p["waypoints"] if w["name"] == "gate_b")
+    cr = planner.gate_crossings([w["xy"] for w in p["waypoints"]], p["gate_lines"][0], g["normal"])
+    assert [s for _, s in cr] == [1]
+    assert p["min_clearance_m"] >= p["required_clearance_m"] - 1e-9
+
+
+def test_window_plan_crosses_the_window_once(course):
+    doc, cm, obst, blocked, clearance, *_ = course
+    p = planner.plan(doc, obst, blocked, clearance, chicane="window", cmap=cm)
+    g = next(w for w in p["waypoints"] if w["name"] == "window")
+    cr = planner.gate_crossings([w["xy"] for w in p["waypoints"]], p["gate_lines"][0], g["normal"])
+    assert [s for _, s in cr] == [1]
+
+
+def test_gate_crossings_counts_passes_through_the_opening_only():
+    line, n = [[0.0, -0.5], [0.0, 0.5]], [-1.0, 0.0]          # opening on x = 0, cross westwards
+    assert planner.gate_crossings([[1, 0], [-1, 0]], line, n) == [(0, 1)]
+    assert planner.gate_crossings([[-1, 0], [1, 0]], line, n) == [(0, -1)]
+    through_and_back = [[-1, 0], [1, 0.1], [1, -0.1], [-1, 0]]
+    assert [s for _, s in planner.gate_crossings(through_and_back, line, n)] == [-1, 1]
+    around_the_end = [[1, 0], [1, 2], [-1, 2], [-1, 0]]       # passes beyond y = 0.5: not through the gate
+    assert planner.gate_crossings(around_the_end, line, n) == []
+    on_the_line = [[1, 0], [0, 0], [-1, 0]]                    # pre -> centre -> post legs: one crossing
+    assert planner.gate_crossings(on_the_line, line, n) == [(1, 1)]

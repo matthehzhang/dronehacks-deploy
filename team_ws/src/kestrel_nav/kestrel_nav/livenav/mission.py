@@ -8,6 +8,7 @@
              sim adapter), then hold
     HOLD     blocked / timed out: zero velocity, back off from anything inside the stop distance
     PAUSED   Offboard lost: the pilot has the vehicle; nothing is commanded
+    FAULT    invalid/missing input: zero command, latched until process restart
 
 Frames. odom = cuVSLAM's ENU, origin at the VIO start. course = the published OBJ frame. At the
 moment Offboard starts the vehicle is assumed to be at the course start pose (launch mark, heading
@@ -63,6 +64,7 @@ class MissionParams:
     scan_band_lo: float = 0.3         # localizer scan band (the field grid is built with it)
     scan_band_hi: float = 1.6
     scan_rmax_m: float = 4.0
+    depth_max_age_s: float = 0.5
 
 
 @dataclass
@@ -106,7 +108,13 @@ class LiveMission:
         self.plan = self._plan_course()
         self.goals = goals_from_plan(self.plan)
         self.pad_xy_map = np.asarray(self.doc["sequence"][-1]["xy"], float)
-        self.replanner = Replanner(self.grid, self.goals, self.replan_params)
+        centres = [w for w in self.plan['waypoints'] if w.get('part') == 'centre']
+        lines = self.plan['gate_lines']
+        if len(centres) != len(lines):
+            raise ValueError('plan gate geometry does not match crossing goals')
+        gate_rules = {w['name']: {'line': line, 'normal': w['normal']}
+                      for w, line in zip(centres, lines)}
+        self.replanner = Replanner(self.grid, self.goals, self.replan_params, gate_rules=gate_rules)
         self.state = "WAIT"
         self.T = None                 # course->odom: odom = R(dyaw) course + t
         self.t_offboard = None
@@ -129,6 +137,7 @@ class LiveMission:
             self.pf = CorrectionPF(field, scan_field(field, self.doc), PFParams(n=self.p.pf_particles), uninformative=net)
         self.z_odom_cruise = self.p.cruise_z_m - self.p.landed_z_m
         self.log = []
+        self.fault = None
 
     # ------------------------------------------------------------------ planning
     def _plan_course(self):
@@ -222,9 +231,21 @@ class LiveMission:
             self.goals[-1].xy = self.pad_est.copy()
 
     # ------------------------------------------------------------------ the tick
+    def abort(self, now, reason):
+        if self.fault is None:
+            self.fault = reason
+            self._set('FAULT', now, reason)
+            self.follower.reset()
+        self.scan_nav = self.scan_pf = None
+        return Command(state='FAULT', note=self.fault)
+
     def step(self, obs: Observation) -> Command:
         p = self.p
         now = obs.now
+        if self.fault is not None:
+            return Command(state='FAULT', note=self.fault)
+        if not all(math.isfinite(v) for v in (*obs.odom_xyz, obs.odom_yaw, now)):
+            return self.abort(now, 'non-finite mission observation')
         cmd = Command(state=self.state)
         z = obs.odom_xyz[2]
         if self.state not in ("WAIT", "PAUSED") and not obs.offboard_active:
@@ -246,7 +267,11 @@ class LiveMission:
             return cmd
         if self.state == "PAUSED":
             return cmd
-        new_scan = obs.pts_level is not None and obs.pts_t > self._pts_t
+        scan_fresh = (obs.pts_level is not None and math.isfinite(obs.pts_t)
+                      and -0.05 <= now - obs.pts_t <= p.depth_max_age_s)
+        if not scan_fresh:
+            self.scan_nav = self.scan_pf = None
+        new_scan = scan_fresh and obs.pts_t > self._pts_t
         if new_scan:
             self._pts_t = obs.pts_t
             band = self.doc.get("plan_band_m", 0.25)
@@ -256,6 +281,9 @@ class LiveMission:
                                              zhi=self.p.cruise_z_m + band, rmax=self.p.scan_rmax_m)
             self.scan_pf = scan_from_points(obs.pts_level, obs.height_m, zlo=self.p.scan_band_lo,
                                             zhi=self.p.scan_band_hi, rmax=self.p.scan_rmax_m)
+        if self.state in ('FLY', 'PAD', 'HOLD', 'DESCEND') and (self.scan_nav is None or not len(self.scan_nav)):
+            return self.abort(now, 'missing, stale or empty navigation depth scan')
+        if new_scan:
             if self.pf is not None and self.pf.ready and self.state in ("CLIMB", "FLY", "PAD", "HOLD", "DESCEND"):
                 self._localize(obs)
         pose_c = self.odom_to_course(obs.odom_xyz[:2], obs.odom_yaw)
@@ -299,7 +327,8 @@ class LiveMission:
                         self.hold_since = None
                         fc = self.follower.step(now, pose_c, path, goal, self.scan_nav, clearance, gate_leg=goal.is_gate_leg,
                                                 brake_end=not rp.continues,
-                                                chord_blocked=lambda a, b, hard: self.grid.segment_blocked(a, b, hard=hard),
+                                                chord_blocked=rp.chord_blocked,
+                                                gate_blocked=rp.gate_blocked,
                                                 vel=self.vel_course)
                         cmd.vx, cmd.vy = self.course_vec_to_odom(fc.vx, fc.vy)
                         cmd.yaw_rate, cmd.speed, cmd.note = fc.yaw_rate, fc.speed, fc.limiter
@@ -307,7 +336,8 @@ class LiveMission:
         if self.state == "HOLD":
             goal = rp.goal
             clearance = self.grid.clearance_at(pose_c[:2])
-            fc = self.follower.step(now, pose_c, None, goal, self.scan_nav, clearance, hold=True)
+            fc = self.follower.step(now, pose_c, None, goal, self.scan_nav, clearance, hold=True,
+                                    gate_blocked=rp.gate_blocked)
             cmd.vx, cmd.vy = self.course_vec_to_odom(fc.vx, fc.vy)
             cmd.yaw_rate, cmd.note = fc.yaw_rate, fc.limiter
             if goal is not None and self.hold_since is not None and now - self.t_state >= p.hold_recheck_s \
@@ -334,4 +364,4 @@ class LiveMission:
                     goal_index=self.replanner.k, goals=len(self.goals), replans=self.replanner.replans,
                     pad_fixes=self.pad_n, live=self.grid.live_stats(), pf_updates=self.pf_updates,
                     pf_sigma=None if math.isnan(self.pf_sigma) else round(self.pf_sigma, 3),
-                    T=None if self.T is None else [round(float(v), 3) for v in self.T])
+                    T=None if self.T is None else [round(float(v), 3) for v in self.T], fault=self.fault)

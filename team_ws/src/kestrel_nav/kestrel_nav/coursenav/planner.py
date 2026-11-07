@@ -12,6 +12,9 @@ What this module decides, all from the published map and the course file's polic
   * leg ends: no leg may end where a mapped surface lies within face_min_m along the next heading
     (the depth camera's blind range: flight E, 2026-11-06) or within arc_min_m anywhere in the arc the
     in-place turn sweeps; via points that break this are moved back along their incoming leg;
+  * gate openings are walls to A*: a gate is crossed only by its own pre -> centre -> post legs, and
+    the route must cross it exactly once in the chosen direction, or the option is refused (a route
+    that flies through the gap and back, as Flight E did at Gate B, is never produced);
   * nearly collinear legs are merged and short legs avoided;
   * per-leg metadata for refnav: gate alignment geometry (how far ahead the opening's plane is, how
     wide it is, its sill/header relative to the body) and passage legs (an enclosed straight
@@ -173,6 +176,72 @@ def _unit(v):
     return v / np.linalg.norm(v)
 
 
+# ---------------------------------------------------------------------------- gate openings as walls
+def gate_segment(gate):
+    """The gate's opening as a 2D line segment (a, b), from the resolved chicane option.
+    Gate B (a gap past a wall end): from the wall end through the centre to the far side.
+    Window (an opening in a wall): centre +- width/2 along the wall. The chosen crossing direction may
+    differ from the opening's own normal; the opening stays where it is."""
+    c = np.asarray(gate["center"], float)
+    if "wall_end_xy" in gate:
+        a = np.asarray(gate["wall_end_xy"], float)
+        return a, 2.0 * c - a
+    n = _unit(gate["normal"])
+    t = np.array([-n[1], n[0]])
+    h = 0.5 * float(gate["width_m"])
+    return c - t * h, c + t * h
+
+
+def gate_crossings(xy, line, cross_normal):
+    """Times the polyline `xy` passes through the gate segment `line` = (a, b).
+    -> list of (leg index, +1 crossing in the declared direction / -1 against it). A pass that goes
+    around the end of the segment is not a crossing."""
+    a, b = (np.asarray(p, float) for p in line)
+    u = b - a
+    L = float(np.linalg.norm(u))
+    u = u / L
+    nl = np.array([-u[1], u[0]])
+    if float(nl @ np.asarray(cross_normal, float)) < 0:
+        nl = -nl                                     # +side = the side the declared crossing ends on
+    out = []
+    pts = [np.asarray(p, float) for p in xy]
+    side_prev = 0.0
+    for k in range(len(pts) - 1):
+        p, q = pts[k], pts[k + 1]
+        sp, sq = float((p - a) @ nl), float((q - a) @ nl)
+        if abs(sp) > 1e-9:
+            side_prev = sp
+        if abs(sq) < 1e-9 or side_prev == 0.0 or np.sign(sq) == np.sign(side_prev):
+            continue
+        # the side changed on this leg (possibly via a point exactly on the line): where?
+        f = sp / (sp - sq) if abs(sp - sq) > 1e-12 and abs(sp) > 1e-9 else 0.0
+        hit = p + f * (q - p)
+        along = float((hit - a) @ u)
+        if 0.0 <= along <= L:
+            out.append((k, 1 if sq > 0 else -1))
+        side_prev = sq
+    return out
+
+
+def with_walls(blocked: Grid2D, lines):
+    """A copy of `blocked` with every line segment drawn in as a wall (dilated one cell). Used with the
+    gate openings so A* (the planner's and the navigator's) reaches a gate only by its own
+    pre -> centre -> post legs, never by flying through it on the way."""
+    if not lines:
+        return blocked
+    occ = blocked.occ.copy()
+    for a, b in lines:
+        a, b = np.asarray(a, float), np.asarray(b, float)
+        n = max(2, int(math.ceil(np.linalg.norm(b - a) / (blocked.res / 3))) + 1)
+        ij = blocked.ij(np.linspace(a, b, n))
+        for di in (-1, 0, 1):
+            for dj in (-1, 0, 1):
+                c = ij + np.array([di, dj])
+                c = c[blocked.inside(c)]
+                occ[c[:, 0], c[:, 1]] = True
+    return Grid2D(occ, blocked.origin, blocked.res)
+
+
 # ---------------------------------------------------------------------------- goals and gates
 def gate_crossing(doc, key, obst, clearance, search_deg=None, step_deg=5.0):
     """Choose a gate's crossing direction: within +-search_deg of the gap's perpendicular (the derived
@@ -228,8 +297,10 @@ def expand_goals(doc, chicane, obst=None, clearance=None):
             else:
                 n = _unit(gate["normal"])
             pts.append({"name": f"{key}_pre", "xy": list(c - n * d), "mode": "gate", "gate": key, "part": "pre"})
+            a, b = gate_segment(gate)
             pts.append({"name": f"{key}", "xy": list(c), "mode": "gate", "straight": True, "gate": key, "part": "centre",
-                        "normal": [float(v) for v in n], "pre_m": d})
+                        "normal": [float(v) for v in n], "pre_m": d,
+                        "gate_line": [[float(v) for v in a], [float(v) for v in b]]})
             pts.append({"name": f"{key}_post", "xy": list(c + n * post_d), "mode": "gate", "straight": True,
                         "gate": key, "part": "post"})
         else:
@@ -251,10 +322,12 @@ def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=N
     gate_info = {}
     if goals is None:
         goals, gate_info = expand_goals(doc, chicane, obst, clearance)
+    gate_lines = [g["gate_line"] for g in goals if "gate_line" in g]
+    gated = with_walls(blocked, gate_lines)          # A* never flies through a gate on the way to it
     path = [np.asarray(start, float)]
     names = [{"name": "start", "mode": "takeoff"}]
     keep = [0]
-    for g in goals:
+    for i, g in enumerate(goals):
         p = path[-1]
         q = np.asarray(g["xy"], float)
         if g.get("straight"):
@@ -263,7 +336,28 @@ def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=N
                 raise PlanError(f"straight segment to {g['name']} has only {c:.2f} m clearance (< {min_clear:.2f})")
             seg = [q]
         else:
-            seg = list(astar(blocked, clearance, p, q))[1:]
+            try:
+                seg = list(astar(gated, clearance, p, q))[1:]
+            except PlanError:
+                if gated is blocked:
+                    raise
+                ungated = astar(blocked, clearance, p, q)  # raises if physically unreachable too
+                crossed = []
+                for h in goals:
+                    if "gate_line" in h:
+                        hits = gate_crossings(ungated, h["gate_line"], h["normal"])
+                        if hits:
+                            crossed.append((hits[0][0], h["name"]))
+                if crossed:
+                    gate = ", ".join(name for _, name in sorted(crossed))
+                    raise PlanError(f"{g['name']} is reachable only through {gate}: the ungated path crosses "
+                                    f"those opening lines outside their crossing legs. No gated approach at "
+                                    f"{min_clear:.2f} m clearance") from None
+                # Dilated exclusion cells can block a goal/approach even when
+                # the fallback never crosses an opening's centreline.
+                raise PlanError(f"{g['name']} has no gated approach at {min_clear:.2f} m clearance: "
+                                "gate exclusion cells block it, but the ungated path has no gate "
+                                "centreline crossing") from None
         for s in seg[:-1]:
             path.append(np.asarray(s, float))
             names.append(None)
@@ -281,6 +375,13 @@ def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=N
         meta = names[k] or {"name": f"via{len(wps)}", "mode": "cruise"}
         wps.append(dict(meta, xy=[float(c) for c in path[k]]))
     wps, moved = fix_leg_ends(wps, obst, blocked, clearance, min_clear, pol, solid)
+    xy = [w["xy"] for w in wps]
+    for g in goals:                                  # shortcuts and moved leg ends must not cut a gate either
+        if "gate_line" in g:
+            cr = gate_crossings(xy, g["gate_line"], g["normal"])
+            if [s for _, s in cr] != [1]:
+                raise PlanError(f"route crosses {g['name']} {len(cr)} time(s) {[s for _, s in cr]}; "
+                                f"needs exactly once, in the chosen direction")
     annotate(wps, obst, clearance, doc, cmap, solid)
     segs = [segment_clearance(obst, clearance, wps[i]["xy"], wps[i + 1]["xy"]) for i in range(len(wps) - 1)]
     length = sum(math.dist(wps[i]["xy"], wps[i + 1]["xy"]) for i in range(len(wps) - 1))
@@ -288,7 +389,7 @@ def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=N
         w["xy"] = [round(float(c), 4) for c in w["xy"]]
     out = {"waypoints": wps, "length_m": round(length, 3), "min_clearance_m": round(min(segs), 3),
            "segment_clearance_m": [round(c, 3) for c in segs], "required_clearance_m": min_clear,
-           "chicane": chicane, "gate_crossings": gate_info, "moved_leg_ends": moved,
+           "chicane": chicane, "gate_crossings": gate_info, "gate_lines": gate_lines, "moved_leg_ends": moved,
            "leg_end_violations": [w["name"] for w in wps[1:-1] if not w.get("end_ok", True)],
            "leg_end_relaxed": [w["name"] for w in wps[1:-1] if w.get("end_relaxed")]}
     out["time_estimate_s"] = round(estimate_time(wps, doc), 1)

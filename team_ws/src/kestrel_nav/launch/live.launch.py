@@ -40,6 +40,15 @@ ARGUMENTS = [
     ('v_gate', '0.25', 'speed through the tunnel and the window, m/s'),
     ('stop_m', '0.55', 'reactive stop distance along the path, m'),
     ('time_limit_s', '170.0', 'stop driving after this long in Offboard'),
+    ('odom_max_age_s', '0.5', 'maximum odometry capture/receipt age; bench qualification required'),
+    ('tracking_max_age_s', '0.5', 'maximum successful cuVSLAM status age'),
+    ('depth_max_age_s', '0.5', 'maximum depth capture/receipt age'),
+    ('state_max_age_s', '1.0', 'maximum flight-interface state age; then yield authority'),
+    ('future_tolerance_s', '0.05', 'maximum future sensor timestamp tolerance'),
+    ('qualify_s', '1.0', 'continuous healthy input interval before preflight zero twists'),
+    ('min_depth_valid_fraction', '0.3', 'sampled depth validity floor; not hardware qualified'),
+    ('min_corridor_coverage', '0.6', 'valid fraction of sampled motion-corridor rays'),
+    ('min_corridor_rays', '12', 'minimum sampled rays viewing commanded motion corridor'),
     ('host_depth', 'true', 'run kestrel_nav host_depth (CPU stereo from the mono pair; on-device depth added 190 ms to VIO)'),
     ('depth_topic', '/kestrel_nav/depth', 'depth image (16UC1 mm or 32FC1 m)'),
     ('depth_info_topic', '/kestrel_nav/depth/camera_info', ''),
@@ -72,7 +81,9 @@ def generate_launch_description():
         parameters=[{k: LaunchConfiguration(k) for k in (
             'chicane', 'start_x', 'start_y', 'start_yaw_deg', 'cruise_z_m', 'landed_z_m', 'descend_to_z_m',
             'v_cruise', 'v_gate', 'stop_m', 'time_limit_s', 'depth_topic', 'depth_info_topic', 'mono_topic',
-            'mono_info_topic', 'camera_from_tf', 'camera_x', 'camera_y', 'camera_z', 'camera_pitch', 'min_altitude_m')}],
+            'mono_info_topic', 'camera_from_tf', 'camera_x', 'camera_y', 'camera_z', 'camera_pitch', 'min_altitude_m',
+            'odom_max_age_s', 'tracking_max_age_s', 'depth_max_age_s', 'state_max_age_s', 'future_tolerance_s',
+            'qualify_s', 'min_depth_valid_fraction', 'min_corridor_coverage', 'min_corridor_rays')}],
     )
 
     host_depth = Node(
