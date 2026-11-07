@@ -16,7 +16,7 @@ def config():
 
 def observation(now=1., **kw):
     values = dict(now=now, position=(0., 0., .8), yaw=0., velocity=(0., 0., 0.),
-                  front_clearance=4., coverage=1., transit_complete=True)
+                  front_clearance=4., coverage=1., transit_complete=True, yaw_rate=0.)
     values.update(kw)
     return TuningObservation(**values)
 
@@ -48,6 +48,19 @@ def test_trial_order_and_budget_refused_before_flight():
     with pytest.raises(ValueError, match='budget'): validate_config(c)
 
 
+def test_rotation_schedule_counts_against_same_flight_budget():
+    c = config()
+    with_yaw = validate_config(c)
+    c['yaw_rates_rps'] = []
+    translation_only = validate_config(c)
+    assert with_yaw['estimated_lane_s'] == translation_only['estimated_lane_s']+26
+    assert with_yaw['yaw_rates_rps'] == [.15, .25]
+    for rates in ([.2], [.15, .3], [.15, .1], [.1, .15, .2], [math.nan]):
+        c['yaw_rates_rps'] = rates
+        with pytest.raises(ValueError, match='yaw rates'):
+            validate_config(c)
+
+
 @pytest.mark.parametrize('change', [dict(imu_ok=False), dict(offboard=False), dict(clamped=True),
                                    dict(tracking_ok=False), dict(front_clearance=math.nan),
                                    dict(front_clearance=-math.inf)])
@@ -71,6 +84,24 @@ def test_turn_at_stopped_offset_stays_inside_declared_clear_disk():
     assert m.step(observation(1.2, position=(1.94, 0., .8), front_clearance=.4)).state == 'FAULT'
 
 
+@pytest.mark.parametrize('phase', ['TURN', 'YAW_PULSE'])
+def test_turn_disk_uses_radial_distance_not_forward_projection(phase):
+    m = TuningController(config()); m.state = phase; m.phase_t = m.started = 1.
+    # A diagonal wall can have forward projection below the disk radius while
+    # remaining outside the disk. It must not cause a false turn refusal.
+    cmd = m.step(observation(1.1, yaw=.1, front_clearance=.62, turn_clearance=.72))
+    assert cmd.state != 'FAULT'
+    # Conversely, a visible side obstacle cannot be ignored by a clear front.
+    cmd = m.step(observation(1.2, front_clearance=4., turn_clearance=.5))
+    assert cmd.state == 'FAULT'
+
+
+def test_invalid_radial_turn_measurement_fails_closed():
+    for value in (math.nan, -1., -math.inf):
+        m = TuningController(config())
+        assert m.step(observation(turn_clearance=value)).state == 'FAULT'
+
+
 def test_forward_camera_required_for_return():
     m = TuningController(config()); m.state = 'RETURN'; m.phase_t = m.started = 1.
     cmd = m.step(observation(1.1, position=(1., 0., .8), yaw=0.))
@@ -79,25 +110,63 @@ def test_forward_camera_required_for_return():
 
 def test_complete_pair_with_response_lag_and_no_blind_reverse():
     m = TuningController(config())
-    position, velocity, yaw = np.array([0., 0., .8]), np.zeros(3), 0.
+    position, velocity, yaw, yaw_rate = np.array([0., 0., .8]), np.zeros(3), 0., 0.
     phases, trial_ids, pulse_positions = set(), set(), {}
+    rotation_ids, translation_started = set(), False
     for now in np.arange(.1, 159., .1):
-        cmd = m.step(observation(float(now), position=tuple(position), velocity=tuple(velocity), yaw=yaw))
+        cmd = m.step(observation(float(now), position=tuple(position), velocity=tuple(velocity), yaw=yaw, yaw_rate=yaw_rate))
         phases.add(cmd.state)
         if cmd.state == 'PULSE':
+            translation_started = True
             trial_ids.add(m.trial)
             pulse_positions.setdefault(m.trial, position.copy())
+        if cmd.state.startswith('YAW_'):
+            assert not translation_started
+            assert np.linalg.norm(position[:2]) < .15
+            assert cmd.vx == cmd.vy == 0
+            if cmd.yaw_rate:
+                rotation_ids.add(m.rotation_trial)
+                assert math.copysign(1., cmd.yaw_rate) == (1. if m.rotation_trial % 2 == 0 else -1.)
         if math.hypot(cmd.vx, cmd.vy) > 1e-6:
             assert cmd.vx*math.cos(yaw)+cmd.vy*math.sin(yaw) >= -1e-8
         velocity += .1/.3*(np.array([cmd.vx, cmd.vy, cmd.vz])-velocity)
         position += velocity*.1
-        yaw += cmd.yaw_rate*.1
+        yaw_rate = cmd.yaw_rate
+        yaw += yaw_rate*.1
         if cmd.state in ('DONE', 'FAULT'): break
     assert cmd.state == 'DONE', (cmd.state, cmd.note, m.status(), position)
     assert trial_ids == {0, 1} and len(m.completed) == 2
+    assert len(m.completed_yaw) == 4
+    assert rotation_ids == {0, 1, 2, 3}
     assert {'PULSE', 'BRAKE', 'TURN', 'RETURN', 'TRANSFER', 'TRANSFER_SETTLE'} <= phases
     assert pulse_positions[1][0] > pulse_positions[0][0]+.4
     assert np.linalg.norm(position[:2]) < .15
+
+
+@pytest.mark.parametrize('change', [dict(yaw_rate=None), dict(yaw_rate=math.nan), dict(yaw_rate=.7),
+                                   dict(yaw=.81), dict(position=(.16, 0., .8)),
+                                   dict(position=(2., 0., .8)), dict(velocity=(.07, 0., 0.)),
+                                   dict(front_clearance=.5), dict(coverage=.59), dict(tracking_ok=False)])
+def test_rotational_trials_fail_closed_outside_open_start_envelope(change):
+    m = TuningController(config())
+    m.state, m.started, m.phase_t = 'YAW_PULSE', 1., 1.
+    m.yaw_started, m.yaw_reference = 1., 0.
+    cmd = m.step(observation(1.1, **change))
+    assert cmd.state == 'FAULT' and cmd.yaw_rate == cmd.vx == cmd.vy == 0
+    assert m.step(observation(1.2)).state == 'FAULT'
+
+
+def test_rotational_stage_has_its_own_time_bound_and_requires_actual_excitation():
+    m = TuningController(config())
+    m.state, m.started, m.phase_t = 'YAW_SETTLE', 1., 27.
+    m.yaw_started, m.yaw_reference = 1., 0.
+    assert m.step(observation(27.1)).state == 'FAULT'
+    m = TuningController(config())
+    m.state, m.started, m.phase_t = 'YAW_BRAKE', 1., 1.
+    m.yaw_brake_start = 0.
+    m.step(observation(1.1))
+    cmd = m.step(observation(2.2))
+    assert cmd.state == 'FAULT' and 'excitation' in cmd.note
 
 
 def test_out_of_lane_and_timeout_stop_instead_of_recovering():

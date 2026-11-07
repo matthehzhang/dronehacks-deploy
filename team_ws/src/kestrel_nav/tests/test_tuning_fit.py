@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
-from fit_tuning import analyze, prepare_trials, response_basis
-from rehearse_tuning import synthetic_recording, _forward_distance, rehearse
+from fit_tuning import analyze, prepare_trials, response_basis, heading_enu
+from rehearse_tuning import synthetic_recording, synthetic_yaw_recording, _forward_distance, rehearse
 
 
 @pytest.fixture(scope='module')
@@ -185,8 +185,123 @@ def test_production_diagnostic_core_completes_synthetic_lane_and_produces_heldou
     rows = rehearse(config, tau_s=.45, delay_s=.15)
     assert rows[-1]['terminal_phase'] == 'DONE', rows[-1]
     assert len(rows[-1]['completed']) == 2
+    assert len(rows[-1]['completed_yaw']) == 4
+    first_translation = next(r['source_stamp'] for r in rows if r.get('phase') == 'PULSE')
+    assert all(r['source_stamp'] < first_translation for r in rows if r.get('axis') == 'yaw')
     result = analyze(rows)
     assert result['accepted'], result
+    angular = result['yaw_candidates']['fixture']['model']
+    assert angular['tau_s'] == pytest.approx(.3, abs=.02)
+    assert angular['delay_s'] == pytest.approx(.1, abs=.02)
     model = result['candidates']['fixture']['model']
     assert model['tau_s'] == pytest.approx(.45, abs=.02)
     assert model['delay_s'] == pytest.approx(.15, abs=.02)
+
+
+@pytest.fixture(scope='module')
+def yaw_clean():
+    return synthetic_yaw_recording()
+
+
+def test_signed_yaw_response_recovered_across_heading_wrap(yaw_clean):
+    result = analyze(yaw_clean)
+    assert result['accepted'], result
+    fit = result['yaw_candidates']['synthetic_lane']
+    assert fit['model']['tau_s'] == pytest.approx(.3, abs=.02)
+    assert fit['model']['delay_s'] == pytest.approx(.1, abs=.02)
+    assert fit['model']['gain'] == pytest.approx(1., abs=.02)
+    assert abs(fit['model']['bias_rad_s']) < .002
+    assert 'bias_mps' not in fit['model']
+    assert len(fit['trials']) == 4
+    assert all('rate_rmse_rad_s' in t['fitted'] and 'angle_rmse_rad' in t['fitted']
+               for t in fit['trials'])
+
+
+def test_yaw_validation_is_not_fitted_and_changed_response_is_rejected(yaw_clean):
+    baseline = analyze(yaw_clean)['yaw_candidates']['synthetic_lane']['model']
+    result = analyze(synthetic_yaw_recording(validation_yaw_tau_s=.1))
+    assert not result['accepted']
+    assert result['yaw_candidates']['synthetic_lane']['model'] == pytest.approx(baseline, abs=1e-12)
+    assert any('validation' in r for r in result['yaw_candidates']['synthetic_lane']['reasons'])
+
+
+def test_explicit_enu_heading_equivalent_to_quaternion(yaw_clean):
+    rows = copy.deepcopy(yaw_clean)
+    for row in rows:
+        if row['kind'] == 'odom':
+            row['yaw_enu'] = heading_enu(row)
+            del row['quaternion_xyzw']
+    assert analyze(rows) == analyze(yaw_clean)
+
+
+@pytest.mark.parametrize('mutation', ['missing_heading', 'conflicting_heading', 'invalid_quaternion',
+                                     'nonfinite_heading', 'missing_axis', 'missing_rotation_id',
+                                     'wrong_sign', 'wrong_split', 'clamp', 'missing_completion',
+                                     'undeclared_yaw', 'wrong_candidate', 'bad_yaw_command'])
+def test_yaw_invalid_evidence_rejected(yaw_clean, mutation):
+    rows = copy.deepcopy(yaw_clean)
+    command = next(r for r in rows if r['kind'] == 'command' and r.get('phase') == 'YAW_PULSE')
+    odom = next(r for r in rows if r['kind'] == 'odom' and r.get('phase') == 'YAW_PULSE')
+    if mutation == 'missing_heading':
+        del odom['quaternion_xyzw']
+    elif mutation == 'conflicting_heading':
+        odom['yaw_enu'] = heading_enu(odom)+.1
+    elif mutation == 'invalid_quaternion':
+        odom['quaternion_xyzw'] = [0., 0., 0., 0.]
+    elif mutation == 'nonfinite_heading':
+        odom['yaw_enu'] = float('nan')
+    elif mutation == 'missing_axis':
+        del command['axis']
+    elif mutation == 'missing_rotation_id':
+        del command['rotation_trial']
+    elif mutation == 'wrong_sign':
+        command['yaw_rate'] *= -1
+    elif mutation == 'wrong_split':
+        command['split'] = 'validation'
+    elif mutation == 'clamp':
+        command['clamped'] = ['yaw_rate']
+    elif mutation == 'missing_completion':
+        rows[-1]['completed_yaw'].pop()
+    elif mutation == 'undeclared_yaw':
+        rows[0]['config']['yaw_rates_rps'] = []
+    elif mutation == 'wrong_candidate':
+        command['candidate'] = 'tube'
+    elif mutation == 'bad_yaw_command':
+        command['yaw_rate'] = float('inf')
+    assert not analyze(rows)['accepted']
+
+
+def test_yaw_default_requires_evidence_and_legacy_optout_is_explicit(clean):
+    assert analyze(clean)['accepted']
+    rows = copy.deepcopy(clean)
+    del rows[0]['config']['yaw_rates_rps']
+    assert not analyze(rows)['accepted']
+
+
+def test_imu_z_and_receipt_times_do_not_determine_yaw_fit(yaw_clean):
+    rows = copy.deepcopy(yaw_clean)
+    for row in rows:
+        if row['kind'] == 'odom':
+            row['angular_velocity'] = [400., -200., 900.]
+            row['t_mono'] += .123
+    assert analyze(rows) == analyze(yaw_clean)
+
+
+def test_yaw_turnaround_pose_is_excluded_from_identification(yaw_clean):
+    rows = copy.deepcopy(yaw_clean)
+    for row in rows:
+        if row['kind'] == 'odom' and row.get('axis') != 'yaw':
+            row['quaternion_xyzw'] = [0., 0., 1., 0.]
+    assert analyze(rows)['yaw_candidates'] == analyze(yaw_clean)['yaw_candidates']
+
+
+@pytest.mark.parametrize('velocity, accepted', [([0., 0., .02], True),
+                                               ([.02, 0., 0.], False),
+                                               ([0., .02, 0.], False),
+                                               ([0., 0., .101], False)])
+def test_yaw_allows_bounded_altitude_hold_not_horizontal_excitation(yaw_clean, velocity, accepted):
+    rows = copy.deepcopy(yaw_clean)
+    for row in rows:
+        if row['kind'] == 'command' and row.get('phase') == 'YAW_PULSE':
+            row['velocity_enu'] = velocity
+    assert analyze(rows)['accepted'] == accepted

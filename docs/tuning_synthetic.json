@@ -3,6 +3,7 @@
   "_purpose": "Generic offline plant/controller fixture only; physical adapter rejects it.",
   "start_course": [0.0, 0.0, 0.0],
   "speeds_mps": [0.10],
+  "yaw_rates_rps": [0.15, 0.25],
   "time_limit_s": 160.0,
   "candidates": [{
     "name": "synthetic_open_lane",

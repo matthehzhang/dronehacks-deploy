@@ -7,6 +7,7 @@
   "speeds_mps": [
     0.1
   ],
+  "yaw_rates_rps": [0.15, 0.25],
   "time_limit_s": 170.0,
   "candidates": [
     {

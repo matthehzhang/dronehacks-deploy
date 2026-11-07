@@ -1,0 +1,275 @@
+{
+  "schema": 1,
+  "accepted": true,
+  "errors": [],
+  "rejected_trials": [],
+  "candidates": {
+    "published_tube_axis": {
+      "accepted": true,
+      "reasons": [],
+      "model": {
+        "tau_s": 0.45000839987567576,
+        "delay_s": 0.15022223618398117,
+        "gain": 1.000005501155898,
+        "bias_mps": -2.453317656826023e-07
+      },
+      "nominal_model": {
+        "tau_s": 0.45,
+        "delay_s": 0.0,
+        "gain": 1.0,
+        "bias_mps": 0.0
+      },
+      "search": {
+        "tau_bounds_s": [
+          0.02499999999999858,
+          1.7750000000000021
+        ],
+        "delay_bounds_s": [
+          0.0,
+          1.0
+        ]
+      },
+      "training_velocity_rmse_mps": 4.801885085723493e-07,
+      "trials": [
+        {
+          "trial": "0",
+          "split": "train",
+          "fitted": {
+            "velocity_rmse_mps": 4.801885085723493e-07,
+            "position_rmse_m": 2.8430484583340042e-05,
+            "position_max_error_m": 6.691462353044913e-05,
+            "position_end_error_m": 2.1227114944399883e-06
+          },
+          "nominal": {
+            "velocity_rmse_mps": 0.01106225011696531,
+            "position_rmse_m": 0.009686315735713222,
+            "position_max_error_m": 0.014751672020753615,
+            "position_end_error_m": 0.0005334244994556481
+          },
+          "instantaneous": {
+            "velocity_rmse_mps": 0.04529585959784647,
+            "position_rmse_m": 0.03875603849539148,
+            "position_max_error_m": 0.05912736642143984,
+            "position_end_error_m": 0.001874473151372874
+          }
+        },
+        {
+          "trial": "1",
+          "split": "validation",
+          "fitted": {
+            "velocity_rmse_mps": 4.855754039343291e-07,
+            "position_rmse_m": 2.8952010723736884e-05,
+            "position_max_error_m": 6.749812767025884e-05,
+            "position_end_error_m": 5.205729990687136e-07
+          },
+          "nominal": {
+            "velocity_rmse_mps": 0.011062250116965433,
+            "position_rmse_m": 0.009685082150666257,
+            "position_max_error_m": 0.014750061168948142,
+            "position_end_error_m": 0.0005317928380534076
+          },
+          "instantaneous": {
+            "velocity_rmse_mps": 0.04471937379209578,
+            "position_rmse_m": 0.0375794954292875,
+            "position_max_error_m": 0.057559685472610866,
+            "position_end_error_m": 0.00028654030406013997
+          }
+        }
+      ]
+    }
+  },
+  "yaw_candidates": {
+    "published_tube_axis": {
+      "accepted": true,
+      "reasons": [],
+      "model": {
+        "tau_s": 0.30000359918293784,
+        "delay_s": 0.10034831833256633,
+        "gain": 1.0000036606998364,
+        "bias_rad_s": -4.896627976563356e-07
+      },
+      "nominal_model": {
+        "tau_s": 0.3,
+        "delay_s": 0.0,
+        "gain": 1.0,
+        "bias_rad_s": 0.0
+      },
+      "search": {
+        "tau_bounds_s": [
+          0.024999999999999467,
+          1.7249999999999996
+        ],
+        "delay_bounds_s": [
+          0.0,
+          1.0
+        ]
+      },
+      "training_rate_rmse_rad_s": 6.122232263177105e-07,
+      "trials": [
+        {
+          "trial": "0",
+          "split": "train",
+          "fitted": {
+            "rate_rmse_rad_s": 4.5335365976616714e-07,
+            "angle_rmse_rad": 5.823168018304968e-05,
+            "angle_max_error_rad": 0.00014800656778170078,
+            "angle_end_error_rad": 5.57893914399088e-07
+          },
+          "nominal": {
+            "rate_rmse_rad_s": 0.013811082605927776,
+            "angle_rmse_rad": 0.01028951986289451,
+            "angle_max_error_rad": 0.014970552398232723,
+            "angle_end_error_rad": 0.0001317765785915359
+          },
+          "instantaneous": {
+            "rate_rmse_rad_s": 0.05660885118995855,
+            "angle_rmse_rad": 0.04116459800311373,
+            "angle_max_error_rad": 0.059897018161615356,
+            "angle_end_error_rad": 0.0004608386933471764
+          }
+        },
+        {
+          "trial": "1",
+          "split": "validation",
+          "fitted": {
+            "rate_rmse_rad_s": 9.158556061884226e-07,
+            "angle_rmse_rad": 5.810366389167227e-05,
+            "angle_max_error_rad": 0.00014796622358177278,
+            "angle_end_error_rad": -3.665667284602492e-06
+          },
+          "nominal": {
+            "rate_rmse_rad_s": 0.013811082605927805,
+            "angle_rmse_rad": 0.010289537421109343,
+            "angle_max_error_rad": 0.014970575381490603,
+            "angle_end_error_rad": -0.0001317995962218932
+          },
+          "instantaneous": {
+            "rate_rmse_rad_s": 0.05661328082252791,
+            "angle_rmse_rad": 0.04117213625616641,
+            "angle_max_error_rad": 0.05990697450796584,
+            "angle_end_error_rad": -0.0004708099299866597
+          }
+        },
+        {
+          "trial": "2",
+          "split": "train",
+          "fitted": {
+            "rate_rmse_rad_s": 7.329038044196438e-07,
+            "angle_rmse_rad": 9.498362300651778e-05,
+            "angle_max_error_rad": 0.0002466581342008968,
+            "angle_end_error_rad": 1.229598051655234e-06
+          },
+          "nominal": {
+            "rate_rmse_rad_s": 0.022540782866620205,
+            "angle_rmse_rad": 0.01679317088316598,
+            "angle_max_error_rad": 0.02495094364697137,
+            "angle_end_error_rad": 0.0001332339096254409
+          },
+          "instantaneous": {
+            "rate_rmse_rad_s": 0.09239419855966874,
+            "angle_rmse_rad": 0.06719060875062276,
+            "angle_max_error_rad": 0.09983831994685866,
+            "angle_end_error_rad": 0.0004758259353563332
+          }
+        },
+        {
+          "trial": "3",
+          "split": "validation",
+          "fitted": {
+            "rate_rmse_rad_s": 1.248607674050445e-06,
+            "angle_rmse_rad": 9.487128347504099e-05,
+            "angle_max_error_rad": 0.00024662673759499773,
+            "angle_end_error_rad": -4.461620038143099e-06
+          },
+          "nominal": {
+            "rate_rmse_rad_s": 0.022540782866621277,
+            "angle_rmse_rad": 0.01679317107040972,
+            "angle_max_error_rad": 0.02495094389713609,
+            "angle_end_error_rad": -0.00013323416016580714
+          },
+          "instantaneous": {
+            "rate_rmse_rad_s": 0.09239424577328757,
+            "angle_rmse_rad": 0.06719068913542733,
+            "angle_max_error_rad": 0.09983842831690048,
+            "angle_end_error_rad": -0.0004759344679048372
+          }
+        }
+      ]
+    }
+  },
+  "meaning": "Accepted means held-out response prediction improved; NOT controller or flight approval.",
+  "limitations": [
+    "Effective command-to-odometry response includes estimator delay/error.",
+    "Horizontal translation and ENU heading response are identified separately.",
+    "Pose and unwrapped-heading secants use source-time interval centers; noise remains.",
+    "Yaw uses pose heading, never raw body IMU Z. Turnarounds are excluded.",
+    "Yaw response includes bounded altitude-hold operation, not locked 3D position.",
+    "No gain/configuration writes. No simulator truth used by fitting.",
+    "No absolute tracking-error acceptance budget or physical uncertainty bound established.",
+    "First-order model omits saturation, cross-axis coupling and changing dynamics."
+  ],
+  "synthetic_only": true,
+  "controller_summary": {
+    "schema": 1,
+    "kind": "summary",
+    "dropped_count": 0,
+    "synthetic": true,
+    "terminal_phase": "DONE",
+    "reason": "diagnostic complete; pilot lands",
+    "elapsed_s": 92.5,
+    "completed": [
+      {
+        "candidate": "published_tube_axis",
+        "trial": 0,
+        "speed": 0.1,
+        "peak_speed": 0.09816843611112616,
+        "stopping_distance": 0.05759153446090326
+      },
+      {
+        "candidate": "published_tube_axis",
+        "trial": 1,
+        "speed": 0.1,
+        "peak_speed": 0.09821219259042639,
+        "stopping_distance": 0.05761072155937441
+      }
+    ],
+    "completed_yaw": [
+      {
+        "candidate": "published_tube_axis",
+        "trial": 0,
+        "rate": 0.15,
+        "peak_rate": 0.14977448412105338,
+        "stopping_angle": 0.0595479212261143
+      },
+      {
+        "candidate": "published_tube_axis",
+        "trial": 1,
+        "rate": -0.15,
+        "peak_rate": 0.14977445129219527,
+        "stopping_angle": 0.05954790755960104
+      },
+      {
+        "candidate": "published_tube_axis",
+        "trial": 2,
+        "rate": 0.25,
+        "peak_rate": 0.24962410737290475,
+        "stopping_angle": 0.09948106806144352
+      },
+      {
+        "candidate": "published_tube_axis",
+        "trial": 3,
+        "rate": -0.25,
+        "peak_rate": 0.2496241070155784,
+        "stopping_angle": 0.09948106791235345
+      }
+    ]
+  },
+  "course_check": {
+    "passed": true,
+    "transit_length_m": 8.729,
+    "transit_min_clearance_m": 0.4,
+    "estimated_total_s": 162.2397039476925,
+    "meaning": "Prior-map and constructor checks only; no maze transit was simulated.",
+    "time_limitation": "Distance/cruise arithmetic is not a guaranteed upper time bound."
+  }
+}

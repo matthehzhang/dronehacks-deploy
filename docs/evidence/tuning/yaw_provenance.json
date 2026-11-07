@@ -1,0 +1,13 @@
+{
+  "base_commit": "a9cc763",
+  "command": "python3 team_ws/src/kestrel_nav/tools/rehearse_tuning.py --config docs/evidence/tuning/course_map_only.json --check-course --out /tmp/tuning-yaw-final.jsonl --report /tmp/tuning-yaw-final-report.json",
+  "source_sha256": {
+    "team_ws/src/kestrel_nav/kestrel_nav/livenav/tuning.py": "725fe8a346ad1feb8935dc883feb2f43594b8a38a6d47c0c674538fe478e469f",
+    "team_ws/src/kestrel_nav/kestrel_nav/tune_mission.py": "d1628a92390cf01cd732034b3c3583333df4776beeca575b9996c51354ec2ad3",
+    "team_ws/src/kestrel_nav/tools/fit_tuning.py": "a985b807317e1d9c01efafb5f451255886039eb87c9115a515aabe4c236e2a76",
+    "team_ws/src/kestrel_nav/tools/rehearse_tuning.py": "2dfee323942bd9d5a278a3f12ff01f73761d26efd8f6573a4f0500356b8fb724",
+    "docs/evidence/tuning/course_map_only.json": "1d1c369571f9dbbd198eabe99a9bb572e1d36b381f8698e6f074dfbd3404db7c"
+  },
+  "tests": "243 passed in 78.96s; python3 -m pytest -q tests from team_ws/src/kestrel_nav",
+  "scope": "Pure map construction, ideal lane sensors, first-order translation and yaw plants. No full maze, ROS/PX4 or hardware execution in this rehearsal."
+}

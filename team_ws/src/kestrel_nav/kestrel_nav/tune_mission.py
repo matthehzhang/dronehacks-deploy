@@ -10,7 +10,7 @@ from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Imu
 
 from .live_mission import LiveMissionNode
-from .livenav.tuning import TuningProgram, validate_config
+from .livenav.tuning import TuningProgram, validate_config, wrap
 
 
 
@@ -31,6 +31,8 @@ class TuningNode(LiveMissionNode):
         self.dropped_count = 0
         self.imu_sample = None
         self.imu_frame = None
+        self.yaw_sample = None
+        self.measured_yaw_rate = None
         super().__init__(node_name='tune_mission')
         topic = str(self.declare_parameter('imu_topic', '/oak/imu/data').value)
         self.create_subscription(Imu, topic, self.imu_cb, qos_profile_sensor_data)
@@ -59,9 +61,12 @@ class TuningNode(LiveMissionNode):
         row = dict(schema=1, kind=kind, t_ros=self.now_s(), t_mono=self.monotonic_s(),
                    source_stamp=source_stamp, frame_id=frame_id,
                    **{k: st[k] for k in ('phase', 'candidate', 'trial', 'trial_id', 'split', 'target_speed')})
+        row.update({k: st[k] for k in ('axis', 'rotation_trial', 'target_yaw_rate_rps') if k in st})
         row.update(data)
-        row['trial_id'] = f"{row['candidate']}:{row['trial']}"
-        row['split'] = 'train' if row['trial'] % 2 == 0 else 'validation'
+        yaw = row.get('axis') == 'yaw'
+        index = row['rotation_trial'] if yaw else row['trial']
+        row['trial_id'] = f"{row['candidate']}:yaw:{index}" if yaw else f"{row['candidate']}:{index}"
+        row['split'] = 'train' if index % 2 == 0 else 'validation'
         try:
             self.trace_file.write(json.dumps(_json_safe(row), allow_nan=False)+'\n')
         except (OSError, ValueError) as exc:
@@ -77,8 +82,17 @@ class TuningNode(LiveMissionNode):
         else:
             super().odom_cb(msg)
         accepted = self.safety.samples.get('odom') != before
+        if accepted:
+            stamp = self.stamp_s(msg)
+            previous = self.yaw_sample
+            self.measured_yaw_rate = None
+            if previous is not None and 0 < stamp-previous[0] <= .3:
+                self.measured_yaw_rate = wrap(self.yaw-previous[1])/(stamp-previous[0])
+            self.yaw_sample = (stamp, self.yaw, self.monotonic_s())
         self.record('odom', self.stamp_s(msg), msg.header.frame_id,
                     position=[p.x, p.y, p.z], quaternion_xyzw=[q.x, q.y, q.z, q.w],
+                    yaw_enu=self.yaw if accepted else None,
+                    observed_yaw_rate_rps=self.measured_yaw_rate if accepted else None,
                     covariance=list(msg.pose.covariance), accepted=accepted)
 
     def imu_cb(self, msg):
@@ -130,6 +144,10 @@ class TuningNode(LiveMissionNode):
         sample = self.imu_sample
         imu_ok = sample is not None and 0 <= now-sample[0] <= .3 and 0 <= mono-sample[1] <= .3
         self.mission.imu_ok, self.mission.clamped = imu_ok, bool(self.clamped)
+        yaw_sample = self.yaw_sample
+        yaw_fresh = (yaw_sample is not None and 0 <= now-yaw_sample[0] <= .3
+                     and 0 <= mono-yaw_sample[2] <= .3)
+        self.mission.measured_yaw_rate = self.measured_yaw_rate if yaw_fresh else None
         self.mission.frame = self.depth_frame
         if not imu_ok:
             if self.safety.active or self.offboard_active:

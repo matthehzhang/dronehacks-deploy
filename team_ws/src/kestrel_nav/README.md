@@ -3,7 +3,8 @@
 ## Current branch: `diagnostic`
 
 This experimental branch adds `tune.launch.py`: slow map-guided transit, bounded
-straight-line response measurements, forward-facing slow return, raw sensor and
+yaw measurements in the open area before the tube, straight-line response
+measurements, forward-facing slow return, raw sensor and
 command logging, and an offline fitter with held-out validation. It requires
 measured lane geometry and never changes PX4 gains. See
 [the diagnostic instructions](../../../docs/TUNING.md) for limits and evidence.

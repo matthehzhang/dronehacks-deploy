@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "kind": "summary",
+  "dropped_count": 0,
+  "synthetic": true,
+  "terminal_phase": "DONE",
+  "reason": "diagnostic complete; pilot lands",
+  "elapsed_s": 92.5,
+  "completed": [
+    {
+      "candidate": "published_tube_axis",
+      "trial": 0,
+      "speed": 0.1,
+      "peak_speed": 0.09816843611112616,
+      "stopping_distance": 0.05759153446090326
+    },
+    {
+      "candidate": "published_tube_axis",
+      "trial": 1,
+      "speed": 0.1,
+      "peak_speed": 0.09821219259042639,
+      "stopping_distance": 0.05761072155937441
+    }
+  ],
+  "completed_yaw": [
+    {
+      "candidate": "published_tube_axis",
+      "trial": 0,
+      "rate": 0.15,
+      "peak_rate": 0.14977448412105338,
+      "stopping_angle": 0.0595479212261143
+    },
+    {
+      "candidate": "published_tube_axis",
+      "trial": 1,
+      "rate": -0.15,
+      "peak_rate": 0.14977445129219527,
+      "stopping_angle": 0.05954790755960104
+    },
+    {
+      "candidate": "published_tube_axis",
+      "trial": 2,
+      "rate": 0.25,
+      "peak_rate": 0.24962410737290475,
+      "stopping_angle": 0.09948106806144352
+    },
+    {
+      "candidate": "published_tube_axis",
+      "trial": 3,
+      "rate": -0.25,
+      "peak_rate": 0.2496241070155784,
+      "stopping_angle": 0.09948106791235345
+    }
+  ],
+  "model_assumptions": {
+    "translation_tau_s": 0.45,
+    "translation_delay_s": 0.15,
+    "yaw_tau_s": 0.3,
+    "yaw_delay_s": 0.1,
+    "ideal_sensors": true
+  },
+  "maze_transit_simulated": false,
+  "native_px4_simulated": false,
+  "yaw_pulses": {
+    "0": {
+      "start_position": [
+        2.3114,
+        1.6192000000000002,
+        0.8
+      ],
+      "end_position": [
+        2.3114,
+        1.6192000000000002,
+        0.8
+      ]
+    },
+    "1": {
+      "start_position": [
+        2.3114,
+        1.6192000000000002,
+        0.8
+      ],
+      "end_position": [
+        2.3114,
+        1.6192000000000002,
+        0.8
+      ]
+    },
+    "2": {
+      "start_position": [
+        2.3114,
+        1.6192000000000002,
+        0.8
+      ],
+      "end_position": [
+        2.3114,
+        1.6192000000000002,
+        0.8
+      ]
+    },
+    "3": {
+      "start_position": [
+        2.3114,
+        1.6192000000000002,
+        0.8
+      ],
+      "end_position": [
+        2.3114,
+        1.6192000000000002,
+        0.8
+      ]
+    }
+  },
+  "translation_pulses": {
+    "0": {
+      "start_position": [
+        2.3114,
+        1.6192000000000002,
+        0.8
+      ],
+      "end_position": [
+        2.3114,
+        1.488278936592864,
+        0.8
+      ]
+    },
+    "1": {
+      "start_position": [
+        2.3114,
+        0.476187781371963,
+        0.8
+      ],
+      "end_position": [
+        2.3114,
+        0.3436120331217185,
+        0.8
+      ]
+    }
+  },
+  "raw_recording_sha256": "2aa02e60d95df734e517554c9eccae11e1dd4db99f205cb8d65634fc7fdbaa65"
+}

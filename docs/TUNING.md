@@ -26,6 +26,7 @@ not executable):
 {
   "start_course": [null, null, null],
   "speeds_mps": [0.10],
+  "yaw_rates_rps": [0.15, 0.25],
   "time_limit_s": 160,
   "candidates": [{
     "name": "measured_open_lane",
@@ -64,7 +65,27 @@ blockage ends the diagnostic. The particle-filter correction runs during transit
 its course-to-odom transform is frozen during measurement to avoid injecting
 localizer corrections into measured response. Raw odom remains the fit input.
 
-At the lane: settle, face forward in the open start zone, command a two-second
+At the lane: settle and face forward in the open start zone. **All rotational
+measurements happen here, before the tube and before translation trials.** At
+each of 0.15 and 0.25 rad/s (about 8.6 and 14.3 degrees/s), apply a two-second
+positive ENU yaw pulse for training, brake to zero yaw command, then apply a
+negative pulse at the same magnitude as a held-out validation. Wait for measured
+yaw rate and horizontal speed below 0.035 rad/s and 0.035 m/s, respectively, for
+one second between pulses. Rates increase only after the preceding pair settles.
+The node commands zero horizontal velocity during yaw trials; bounded vertical
+velocity up to 0.10 m/s maintains altitude.
+
+Yaw experiments run only at the first candidate's start disk. They stop on more
+than 0.15 m displacement from that centre, horizontal speed over 0.06 m/s,
+0.8 rad heading excursion from the initial yaw, 0.6 rad/s measured yaw rate,
+lost depth/tracking/authority, or failure to settle. The default four-trial yaw
+stage has its own 26 s timeout, also included in the unchanged overall budget.
+The estimated response is not used to loosen these bounds. The open disk is
+checked against radial obstacle distances; forward stopping distance remains a
+separate axial measurement. Missing radial measurements retain the older
+conservative forward-distance fallback for existing synthetic callers.
+
+After rotation measurements, face the lane again and command a two-second
 pulse, brake with zero horizontal velocity, and wait until measured speed is
 below 0.035 m/s for one second. It then transfers forward at up to 0.10 m/s to a
 separate held-out location, stops and settles, and runs the validation pulse at
@@ -84,6 +105,10 @@ is `0.30 + 0.8*v + v*v/(2*0.15)` metres: assumed delay 0.8 s, assumed braking
 deceleration 0.15 m/s², and 0.30 m residual margin. The diagnostic does not replace
 these limits with an automatically fitted value. A failed pulse, stop, sensor,
 lane boundary, altitude, heading, clamp, or log write latches a stop.
+The far-end turn remains a transit maneuver for the slow return. It is excluded
+from yaw fitting, and no rotational experiment runs inside or beyond the tube.
+An explicit empty `yaw_rates_rps` is supported for legacy translation-only
+replays; both supplied diagnostic examples enable the rotational schedule.
 
 Startup estimates the complete pulse/return schedule plus map transit at
 0.15 m/s. It refuses an estimate beyond the declared budget, at most 170 seconds.
@@ -124,6 +149,14 @@ the declared IMU frame. Command records use the exact published message capture
 stamp, ENU velocity and yaw rate; they also include authority, clamps, watchdog
 action, and fault. Tracking, interface state, depth coverage, and transition
 events are recorded separately. Invalid nonfinite values are JSON `null`.
+Yaw phases additionally carry `axis="yaw"`, `rotation_trial`, and
+`target_yaw_rate_rps`; their trial identities and train/validation split are
+separate from translation. The summary records `completed_yaw`. Control uses
+wrapped heading differences between accepted odometry capture timestamps, with
+at most 0.3 s capture and receipt age. The fitter derives angular response from
+raw timestamped ENU heading (`yaw_enu`) or an equivalent XYZW quaternion. It
+unwraps heading and rejects inconsistent dual representations. Raw IMU gyro-z
+is not assumed to equal world yaw rate.
 
 Odometry and commands must both be `odom`; other odom frames refuse qualification.
 Duplicate IMU or odometry stamps do not refresh the guard. IMU age is limited to
@@ -142,6 +175,11 @@ schedule in both the recorded pulses and completed-trial summary. A clean
 process shutdown during braking is still incomplete and cannot produce an
 accepted diagnostic. Expected pilot takeover after `DONE` preserves completion;
 the authority watchdog still stops publishing.
+Yaw fitting reports delay, lag, gain and bias separately, with rate errors in
+rad/s and angle errors in radians. Every negative-direction held-out trial must
+improve both rate and angle prediction against predeclared models. Missing yaw
+trials, horizontal motion during excitation, excessive vertical commands, or
+poor data prevent overall acceptance. No flight-controller gains are written.
 
 ## Published-course rehearsal evidence
 
@@ -154,18 +192,23 @@ measurement file. `derive_candidate.py` searches the published geometry;
 The selected straight is 2.324 m long at 0.8 m body height. The map-derived
 half-width is at least 0.588 m, and endpoint turning disks exceed 0.678 m radius.
 The mapped maze approach is 8.729 m with 0.40 m minimum planned clearance.
-Distance/cruise arithmetic gives approximately 136.24 s including the diagnostic;
+Distance/cruise arithmetic gives approximately 162.24 s including both axes;
 corner slowdown, turns, uncertainty and holds can make the actual transit longer.
 The 170 s runtime limit remains active; this arithmetic is not a completion
 guarantee or a collision-free flight certificate.
 
-The separate **lane-only** rehearsal completes in 71.65 s. Its first 0.10 m/s
+The separate **lane-only** rehearsal completes in 92.50 s, including all four yaw
+trials at the open start. For injected yaw lag 0.30 s and delay 0.10 s, the yaw
+fitter recovers approximately 0.300004 s and 0.100348 s; both held-out negative
+trials improve angular-rate and angle prediction against the baseline models.
+Its first 0.10 m/s
 pulse is outside the tube; its held-out pulse is inside, after a forward transfer
 and settled stop. With injected lag 0.45 s and delay 0.15 s, the fitter recovers
 approximately 0.45001 s and 0.15022 s and improves held-out prediction. This uses
 ideal synthetic observations and a first-order plant, so it validates software
-sequencing and identification, not real tuning values. Reports and pulse
-positions are in `lane_rehearsal_report.json` and `lane_summary.json`.
+sequencing and identification, not real tuning values. Current reports and pulse
+positions are in `yaw_lane_report.json` and `yaw_lane_summary.json`. The earlier
+translation-only reports remain as historical evidence of the prior version.
 
 Reproduce the pure map checks and lane rehearsal from the deployment root:
 
@@ -179,13 +222,19 @@ cloud adapter is included. The diagnostic is ready for offline review and
 props-off integration work, not for a claimed ready-to-launch cloud or physical
 flight. No flight command was issued during development.
 
-Final package verification: `python3 -m pytest -q tests` from
-`team_ws/src/kestrel_nav` — **203 passed** in 49.82 s; compile and diff checks
-passed. Independent review found and verified the fix for incomplete-run fit
+The original translation-only package passed 203 tests. Independent review
+found and verified the fix for incomplete-run fit
 acceptance. Additional focused checks cover stale/duplicate IMU and odometry,
 physical rejection of example geometry, lane/transit handoff, turn zones,
 distinct measurement positions, missing command heartbeats, and pilot takeover.
-Source hashes and the exact rehearsal command are in `provenance.json`.
+The yaw extension adds checks for pre-tube-only placement, signed train/validation
+trials, heading wrap, stale angular observations, radial clearance, altitude hold,
+and angular evidence refusal. Current source hashes and the exact rehearsal
+command are in `yaw_provenance.json`; `provenance.json` records the earlier version.
+Final yaw-extension verification: **243 tests passed** in 78.96 s, plus compile
+and diff checks. Independent review caught the fitter's altitude-hold mismatch;
+the corrected fitter permits bounded vertical hold while rejecting horizontal
+commands during yaw excitation.
 
 ## Offline commands and physical launch entry point
 

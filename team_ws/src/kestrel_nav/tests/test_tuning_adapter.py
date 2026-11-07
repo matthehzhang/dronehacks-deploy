@@ -2,6 +2,7 @@
 import importlib
 import io
 import json
+import math
 import sys
 from types import SimpleNamespace as NS
 
@@ -20,6 +21,7 @@ def tuning_node(node, monkeypatch):
     node.trace_error = None
     node.dropped_count = 0
     node.imu_sample = node.imu_frame = None
+    node.yaw_sample = node.measured_yaw_rate = None
     node.mission.controller = NS(status=lambda: dict(phase='PULSE', candidate='test', trial=0,
                                       trial_id='test:0', split='train', target_speed=.1), events=[])
     yield node
@@ -84,6 +86,38 @@ def test_command_record_uses_published_header_and_enu(tuning_node):
     assert record['source_stamp'] == published.header.stamp.sec+published.header.stamp.nanosec*1e-9
     assert record['velocity_enu'] == [.1, .02, 0.] and record['frame_id'] == 'odom'
     assert record['split'] == 'train' and record['trial_id'] == 'test:0'
+
+
+def test_yaw_trial_identity_and_split_do_not_reuse_translation_trial(tuning_node):
+    n = tuning_node
+    n.mission.controller.status = lambda: dict(phase='YAW_PULSE', candidate='test', trial=0,
+        trial_id='test:yaw:3', split='validation', target_speed=.1, axis='yaw', rotation_trial=3,
+        target_yaw_rate_rps=-.25)
+    n.send_twist(0., 0., 0., -.25)
+    record = rows(n)[-1]
+    assert record['split'] == 'validation' and record['trial_id'] == 'test:yaw:3'
+    assert record['axis'] == 'yaw' and record['rotation_trial'] == 3
+
+
+def test_yaw_rate_uses_accepted_capture_time_and_unwraps_heading(tuning_node):
+    n = tuning_node
+    def message(t, yaw):
+        msg = odom(t)
+        msg.pose.pose.orientation = NS(x=0., y=0., z=math.sin(yaw/2), w=math.cos(yaw/2))
+        return msg
+    n.odom_cb(message(100., math.pi-.01))
+    assert n.measured_yaw_rate is None
+    n._now = 100.1
+    n.odom_cb(message(100.1, -math.pi+.01))
+    assert n.measured_yaw_rate == pytest.approx(.2)
+    sample = n.yaw_sample
+    n._now = 100.2
+    n.odom_cb(message(100.1, -.5))
+    assert n.yaw_sample == sample and n.measured_yaw_rate == pytest.approx(.2)
+    # A large capture gap cannot supply the rotation gate with a fresh estimate.
+    n._now = 100.5
+    n.odom_cb(message(100.5, -math.pi+.02))
+    assert n.measured_yaw_rate is None
 
 
 def test_logging_failure_latches_fault(tuning_node):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Offline-only rehearsal; imports no ROS and cannot command a vehicle.
 
---fixture exercises the log/fit pipeline using synthetic pulse/brake records.
+--fixture exercises separate yaw and translation fits using synthetic records.
 --config exercises the actual pure TuningController in ONE declared lane using a
 delayed first-order velocity plant. It begins at the lane entrance, so it DOES
 NOT validate maze transit. The geometry is a rectangle plus circular open end
@@ -27,11 +27,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fit_tuning import analyze, response_basis  # noqa: E402
 
 
-def record(kind, now, phase, trial, *, candidate='synthetic_lane', **fields):
+def record(kind, now, phase, trial, *, candidate='synthetic_lane', axis='translation',
+           rotation_trial=None, **fields):
     return dict(schema=1, kind=kind, t_ros=float(now), t_mono=float(now),
                 source_stamp=float(now), frame_id='odom', phase=phase,
-                candidate=candidate, trial=trial, trial_id=f'{candidate}:{trial}',
-                split='train' if trial % 2 == 0 else 'validation', **fields)
+                candidate=candidate, trial=trial, trial_id=(f'{candidate}:yaw:{rotation_trial}' if axis == 'yaw' else f'{candidate}:{trial}'),
+                axis=axis, rotation_trial=rotation_trial,
+                split='train' if (rotation_trial if axis == 'yaw' else trial) % 2 == 0 else 'validation', **fields)
 
 
 def synthetic_recording(*, tau_s=.3, delay_s=.15, gain=1., bias_mps=0.,
@@ -45,7 +47,7 @@ def synthetic_recording(*, tau_s=.3, delay_s=.15, gain=1., bias_mps=0.,
     rng = np.random.default_rng(seed)
     rows = [dict(schema=1, kind='header', synthetic=True, config={
         'purpose': 'log/fitter fixture, not controller/flight validation',
-        'speeds_mps': [.1, .2], 'candidates': [{'name': 'synthetic_lane'}],
+        'speeds_mps': [.1, .2], 'yaw_rates_rps': [], 'candidates': [{'name': 'synthetic_lane'}],
         'tau_s': tau_s, 'delay_s': delay_s, 'gain': gain, 'bias_mps': bias_mps})]
     offset, position = 10., 0.
     for trial, speed in enumerate([.1, .1, .2, .2]):
@@ -73,6 +75,54 @@ def synthetic_recording(*, tau_s=.3, delay_s=.15, gain=1., bias_mps=0.,
         offset += 10.
     rows.append(dict(schema=1, kind='summary', dropped_count=0, synthetic=True,
                      terminal_phase='DONE', completed=[{'candidate': 'synthetic_lane', 'trial': i} for i in range(4)]))
+    return rows
+
+
+def synthetic_yaw_recording(*, yaw_tau_s=.3, yaw_delay_s=.1, yaw_gain=1.,
+                            yaw_bias_rad_s=0., validation_yaw_tau_s=None, dt=.05,
+                            **translation_options):
+    """Combined independent yaw and translation fixture, with heading wrap.
+
+    All four stationary yaw maneuvers precede translation. Opposite directions
+    are declared held-out before model fitting; simulator truth is not logged.
+    """
+    translation = synthetic_recording(dt=dt, **translation_options)
+    header = translation[0]
+    header['config']['yaw_rates_rps'] = [.15, .25]
+    rows = [header]
+    offset, heading = 10., math.pi-.1
+    completed = []
+    for trial, rate in enumerate([.15, -.15, .25, -.25]):
+        t = np.arange(0., 7.+dt/2, dt)
+        u = np.where((t >= 2.) & (t < 4.), rate, 0.)
+        tau = validation_yaw_tau_s if trial % 2 and validation_yaw_tau_s is not None else yaw_tau_s
+        ct, cu = np.r_[-max(2., yaw_delay_s+dt), t], np.r_[0., u]
+        vb, pb = response_basis(t, ct, cu, tau, yaw_delay_s, 0.)
+        coef = np.array([1., yaw_gain, yaw_bias_rad_s])
+        angle, measured_rate = pb @ coef, vb @ coef
+        rows.append(record('command', offset+ct[0], 'YAW_SETTLE', 0,
+                           axis='yaw', rotation_trial=trial, velocity_enu=[0., 0., 0.],
+                           yaw_rate=0., clamped=[], offboard_active=True))
+        for i, now in enumerate(t):
+            phase = 'YAW_SETTLE' if now < 2. else ('YAW_PULSE' if now < 4. else 'YAW_BRAKE')
+            fields = dict(axis='yaw', rotation_trial=trial)
+            rows.append(record('command', offset+now, phase, 0, **fields,
+                               velocity_enu=[0., 0., 0.], yaw_rate=float(u[i]),
+                               clamped=[], offboard_active=True, tracking_ok=True, imu_ok=True))
+            yaw = heading+float(angle[i])
+            rows.append(record('odom', offset+now, phase, 0, **fields,
+                               position=[0., 0., .8],
+                               quaternion_xyzw=[0., 0., math.sin(yaw/2), math.cos(yaw/2)]))
+        completed.append(dict(candidate='synthetic_lane', trial=trial, rate=rate,
+                              peak_rate=float(np.max(np.abs(measured_rate))),
+                              stopping_angle=float(angle[-1]-angle[np.searchsorted(t, 4.)])))
+        heading += float(angle[-1])
+        offset += 10.
+    for row in translation[1:-1]:
+        for key in ('source_stamp', 't_ros', 't_mono'):
+            row[key] += 50.
+        rows.append(row)
+    rows.append(dict(translation[-1], completed_yaw=completed))
     return rows
 
 
@@ -114,10 +164,11 @@ def _forward_distance(position, yaw, lane):
     return end
 
 
-def rehearse(config, *, tau_s=.45, delay_s=.15, dt=.05):
+def rehearse(config, *, tau_s=.45, delay_s=.15, yaw_tau_s=.3, yaw_delay_s=.1, dt=.05):
     """Drive the production pure core; preserve aborts and timeouts as failures."""
     from kestrel_nav.livenav.tuning import TuningController, TuningObservation
-    if tau_s <= 0 or delay_s < 0 or dt <= 0 or not all(map(math.isfinite, (tau_s, delay_s, dt))):
+    if (tau_s <= 0 or delay_s < 0 or yaw_tau_s <= 0 or yaw_delay_s < 0 or dt <= 0
+            or not all(map(math.isfinite, (tau_s, delay_s, yaw_tau_s, yaw_delay_s, dt)))):
         raise ValueError('finite positive tau/dt and nonnegative delay required')
     if len(config['candidates']) != 1:
         raise ValueError('rehearsal validates one lane only; inter-candidate navigation is not modeled')
@@ -128,27 +179,29 @@ def rehearse(config, *, tau_s=.45, delay_s=.15, dt=.05):
     velocity = np.zeros(3)
     yaw = math.atan2(*(b - a)[::-1])
     yaw_rate = 0.
-    history_t, history_u = [-1000.], [np.zeros(3)]
+    history_t, history_u, history_yaw = [-1000.], [np.zeros(3)], [0.]
     rows = [dict(schema=1, kind='header', synthetic=True, config=config,
-                 assumed_model={'tau_s': tau_s, 'delay_s': delay_s, 'yaw_tau_s': .3},
+                 assumed_model={'tau_s': tau_s, 'delay_s': delay_s, 'yaw_tau_s': yaw_tau_s, 'yaw_delay_s': yaw_delay_s},
                  exclusions=['maze transit', 'ROS', 'PX4', 'VIO dropout', 'sensor noise'])]
     now, end = 10., 10. + config.get('time_limit_s', 160.) + 2 * dt
     while now <= end:
         front = _forward_distance(position[:2], yaw, lane)
         obs = TuningObservation(now=now, position=tuple(position), yaw=yaw,
                                 velocity=tuple(velocity), front_clearance=front, coverage=1.,
-                                transit_complete=True)
+                                transit_complete=True, yaw_rate=yaw_rate)
         command = core.step(obs)
         state = core.status()
         phase, trial, candidate = state['phase'], state['trial'], state['candidate']
+        identification = dict(axis=state.get('axis', 'translation'), rotation_trial=state.get('rotation_trial'))
         u = np.array([command.vx, command.vy, command.vz])
         history_t.append(now)
         history_u.append(u)
-        rows.append(record('command', now, phase, trial, candidate=candidate,
+        history_yaw.append(command.yaw_rate)
+        rows.append(record('command', now, phase, trial, candidate=candidate, **identification,
                            velocity_enu=u.tolist(), yaw_rate=command.yaw_rate,
                            target_speed=state['target_speed'], clamped=[], offboard_active=True,
                            tracking_ok=True, imu_ok=True, note=command.note))
-        rows.append(record('odom', now, phase, trial, candidate=candidate,
+        rows.append(record('odom', now, phase, trial, candidate=candidate, **identification,
                            position=position.tolist(),
                            quaternion_xyzw=[0., 0., math.sin(yaw/2), math.cos(yaw/2)], covariance=[0.] * 36))
         if phase in ('DONE', 'FAULT'):
@@ -161,13 +214,19 @@ def rehearse(config, *, tau_s=.45, delay_s=.15, dt=.05):
             decay = math.exp(-step/tau_s)
             position += target*step + (velocity-target)*tau_s*(1-decay)
             velocity = target + (velocity-target)*decay
-        # Assumed yaw response is only for exercising state sequencing.
-        yaw_rate += (command.yaw_rate-yaw_rate)*(1-math.exp(-dt/.3))
-        yaw += yaw_rate*dt
+        # Independent exact delayed yaw plant; its measured rate reaches only
+        # the controller sensor input. The fitter derives rate from pose heading.
+        edges = [now] + [t+yaw_delay_s for t in history_t if now < t+yaw_delay_s < now+dt] + [now+dt]
+        for start, stop in zip(edges[:-1], edges[1:]):
+            target = history_yaw[int(np.searchsorted(history_t, start-yaw_delay_s+1e-10, side='right')-1)]
+            step = stop-start
+            decay = math.exp(-step/yaw_tau_s)
+            yaw += target*step + (yaw_rate-target)*yaw_tau_s*(1-decay)
+            yaw_rate = target+(yaw_rate-target)*decay
         now = round(now + dt, 9)
     rows.append(dict(schema=1, kind='summary', dropped_count=0, synthetic=True,
                      terminal_phase=core.state, reason=core.reason, elapsed_s=now-10.,
-                     completed=core.completed))
+                     completed=core.completed, completed_yaw=core.completed_yaw))
     return rows
 
 
@@ -198,6 +257,8 @@ def main(argv=None):
     ap.add_argument('--report', required=True, type=Path)
     ap.add_argument('--tau-s', type=float, default=.45)
     ap.add_argument('--delay-s', type=float, default=.15)
+    ap.add_argument('--yaw-tau-s', type=float, default=.3)
+    ap.add_argument('--yaw-delay-s', type=float, default=.1)
     ap.add_argument('--check-course', action='store_true',
                     help='also construct the real map-aware TuningProgram; requires --config')
     args = ap.parse_args(argv)
@@ -205,8 +266,10 @@ def main(argv=None):
         ap.error('--check-course requires --config, not the synthetic fixture')
     config = json.loads(args.config.read_text()) if args.config else None
     course_check = check_course(config) if args.check_course else None
-    rows = (synthetic_recording(tau_s=args.tau_s, delay_s=args.delay_s) if args.fixture
-            else rehearse(config, tau_s=args.tau_s, delay_s=args.delay_s))
+    rows = (synthetic_yaw_recording(tau_s=args.tau_s, delay_s=args.delay_s,
+                                    yaw_tau_s=args.yaw_tau_s, yaw_delay_s=args.yaw_delay_s) if args.fixture
+            else rehearse(config, tau_s=args.tau_s, delay_s=args.delay_s,
+                          yaw_tau_s=args.yaw_tau_s, yaw_delay_s=args.yaw_delay_s))
     args.out.write_text(''.join(json.dumps(r, allow_nan=False) + '\n' for r in rows))
     report = analyze(rows)
     report['synthetic_only'] = True

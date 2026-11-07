@@ -26,6 +26,8 @@ class TuningObservation:
     transit_complete: bool = False
     clamped: bool = False
     tracking_ok: bool = True
+    yaw_rate: float | None = None  # observed ENU heading rate, rad/s; never raw body gyro z
+    turn_clearance: float | None = None  # radial obstacle distance for open-disk checks
 
 
 @dataclass
@@ -79,12 +81,20 @@ def validate_config(config):
             or speeds[0] > .1 or any(b <= a or b-a > .100001 for a, b in zip(speeds, speeds[1:]))):
         raise ValueError('speeds must start <=0.10, increase by <=0.10, and stay <=0.40 m/s')
     c['speeds_mps'] = speeds
+    rates = list(c.get('yaw_rates_rps', [.15, .25]))
+    if (len(rates) > 2 or not all(math.isfinite(x) and .05 <= x <= .25 for x in rates)
+            or (rates and rates[0] > .15)
+            or any(b <= a or b-a > .100001 for a, b in zip(rates, rates[1:]))):
+        raise ValueError('yaw rates must start <=0.15, increase by <=0.10, stay <=0.25 rad/s; at most two rates')
+    c['yaw_rates_rps'] = rates
+    c['estimated_yaw_s'] = 13.*len(rates)  # once, in the first lane's open start zone
     c['time_limit_s'] = float(c.get('time_limit_s', 160.))
     if not math.isfinite(c['time_limit_s']) or not 10 <= c['time_limit_s'] <= 170:
         raise ValueError('time_limit_s must be 10–170 seconds')
     pairs = len(speeds)
     estimate = sum(2*float(np.linalg.norm(np.asarray(x['end_xy'])-x['start_xy']))/.1*pairs
                    + (2*pairs-1)*math.pi/.25 + pairs*14 for x in lanes)
+    estimate += c['estimated_yaw_s']
     c['estimated_lane_s'] = estimate
     if estimate+10 > c['time_limit_s']:
         raise ValueError('paired trial schedule cannot fit time budget; select a shorter lane/smaller schedule')
@@ -92,7 +102,7 @@ def validate_config(config):
 
 
 class TuningController:
-    """Slow-first pulse/brake, creep to open end, turn, forward-camera return.
+    """Open-start yaw trials, translation pulse/brake, forward-camera return.
 
     A fresh successful stop is required before the next trial. No recovery or
     automatic retry follows a fault. Remaining-distance checks use deliberately
@@ -111,6 +121,10 @@ class TuningController:
         self.validation_offset = None
         self.peak_speed = 0.
         self.completed = []
+        self.completed_yaw = []
+        self.rotation_trial = 0
+        self.yaw_started = self.yaw_reference = self.yaw_brake_start = None
+        self.peak_yaw_rate = 0.
         self.events = []
 
     @property
@@ -123,7 +137,9 @@ class TuningController:
 
     def _set(self, state, now, reason=''):
         self.events.append(dict(t_ros=now, phase=state, previous=self.state, reason=reason,
-                                candidate=self.lane['name'], trial=self.trial))
+                                candidate=self.lane['name'], trial=self.trial,
+                                axis='yaw' if state.startswith('YAW_') else 'translation',
+                                rotation_trial=self.rotation_trial))
         self.state, self.phase_t, self.settled_since = state, now, None
         self.reason = reason
 
@@ -143,6 +159,62 @@ class TuningController:
             self.settled_since = now
         return self.settled_since is not None and now-self.settled_since >= 1.
 
+    @property
+    def target_yaw_rate(self):
+        rates = self.config['yaw_rates_rps']
+        if not rates:
+            return 0.
+        magnitude = rates[min(self.rotation_trial//2, len(rates)-1)]
+        return magnitude if self.rotation_trial % 2 == 0 else -magnitude
+
+    def _yaw_step(self, obs, cmd, xy, speed):
+        """Excite yaw only in the FIRST lane's certified open start disk."""
+        now = obs.now
+        if obs.yaw_rate is None or not math.isfinite(obs.yaw_rate):
+            return self.abort(now, 'observed world yaw rate required for rotational diagnostic')
+        offset = float(np.linalg.norm(xy-np.asarray(self.lane['start_xy'])))
+        clear = self.lane['start_turn_radius_m']-offset
+        if (self.candidate != 0 or offset > .15 or speed > .06 or clear < .40
+                or (obs.turn_clearance if obs.turn_clearance is not None else obs.front_clearance)+1e-6 < clear
+                or obs.coverage < .6):
+            return self.abort(now, 'rotational diagnostic left observed open start zone')
+        if self.yaw_started is None:
+            self.yaw_started, self.yaw_reference = now, obs.yaw
+        if (now-self.yaw_started > self.config['estimated_yaw_s']
+                or abs(wrap(obs.yaw-self.yaw_reference)) > .8 or abs(obs.yaw_rate) > .6):
+            return self.abort(now, 'rotational time/angle/rate envelope exceeded')
+        angular_speed = abs(obs.yaw_rate)
+        self.peak_yaw_rate = max(self.peak_yaw_rate, angular_speed)
+        if self.state == 'YAW_PULSE':
+            if now-self.phase_t >= 2.:
+                self.yaw_brake_start = obs.yaw
+                self._set('YAW_BRAKE', now)
+            else:
+                cmd.yaw_rate = self.target_yaw_rate
+        else:
+            settled = self._settled(now, max(speed, angular_speed))
+            if settled and self.state == 'YAW_SETTLE':
+                self.peak_yaw_rate = 0.
+                self._set('YAW_PULSE', now)
+            elif settled:
+                stopped_angle = abs(wrap(obs.yaw-self.yaw_brake_start))
+                reserve = .05 + .8*self.peak_yaw_rate + self.peak_yaw_rate**2/(2*.5)
+                if self.peak_yaw_rate < .6*abs(self.target_yaw_rate) or stopped_angle > reserve:
+                    return self.abort(now, 'rotational excitation or braking quality failed')
+                self.completed_yaw.append(dict(candidate=self.lane['name'], trial=self.rotation_trial,
+                                               rate=self.target_yaw_rate, peak_rate=self.peak_yaw_rate,
+                                               stopping_angle=stopped_angle))
+                if self.rotation_trial+1 == 2*len(self.config['yaw_rates_rps']):
+                    self.after_turn = 'PULSE'
+                    self._set('SETTLE', now, 'rotation measurements complete; face lane before translation')
+                else:
+                    self.rotation_trial += 1
+                    self._set('YAW_SETTLE', now)
+            elif now-self.phase_t > 6:
+                return self.abort(now, 'rotational motion did not settle')
+        cmd.state, cmd.note = self.state, self.reason
+        return cmd
+
     def step(self, obs):
         now = obs.now
         if self.state in ('FAULT', 'DONE'):
@@ -151,6 +223,8 @@ class TuningController:
             return self.abort(now, 'invalid observation')
         if math.isnan(obs.front_clearance) or obs.front_clearance < 0:
             return self.abort(now, 'invalid front clearance')
+        if obs.turn_clearance is not None and (math.isnan(obs.turn_clearance) or obs.turn_clearance < 0):
+            return self.abort(now, 'invalid radial turn clearance')
         if self.started is None:
             self.started = self.phase_t = now
         if not obs.offboard or not obs.tracking_ok or not obs.imu_ok or obs.clamped:
@@ -159,7 +233,8 @@ class TuningController:
             return self.abort(now, 'diagnostic time limit')
         if self.state == 'TRANSIT':
             if obs.transit_complete:
-                self.after_turn = 'PULSE'
+                self.after_turn = ('YAW_SETTLE' if self.candidate == 0 and self.config['yaw_rates_rps']
+                                   and not self.completed_yaw else 'PULSE')
                 self._set('SETTLE', now)
             return TuningCommand(state=self.state)
         lane = self.lane
@@ -178,6 +253,8 @@ class TuningController:
         heading = math.atan2(u[1], u[0]) + (0 if forward else math.pi)
         cmd = TuningCommand(state=self.state)
         cmd.vz = float(np.clip(lane['height_m']-obs.position[2], -.1, .1))
+        if self.state.startswith('YAW_'):
+            return self._yaw_step(obs, cmd, xy, speed)
         if self.state == 'SETTLE':
             if self._settled(now, speed):
                 self._set('TURN', now)
@@ -198,7 +275,8 @@ class TuningController:
             offset = float(np.linalg.norm(xy-centre))
             required_clearance = radius-offset
             if (offset > .15 or required_clearance < .40
-                    or obs.front_clearance+1e-6 < required_clearance or obs.coverage < .6):
+                    or (obs.turn_clearance if obs.turn_clearance is not None else obs.front_clearance)+1e-6 < required_clearance
+                    or obs.coverage < .6):
                 return self.abort(now, 'open turning-zone clearance not observed')
             err = wrap(heading-obs.yaw)
             if abs(err) < math.radians(6):
@@ -276,9 +354,13 @@ class TuningController:
         return cmd
 
     def status(self):
+        yaw = self.state.startswith('YAW_')
         return dict(phase=self.state, candidate=self.lane['name'], trial=self.trial,
-                    target_speed=self.target_speed, split='train' if self.trial % 2 == 0 else 'validation',
-                    trial_id=f'{self.lane["name"]}:{self.trial}', reason=self.reason, completed=self.completed)
+                    axis='yaw' if yaw else 'translation', rotation_trial=self.rotation_trial,
+                    target_yaw_rate_rps=self.target_yaw_rate,
+                    target_speed=self.target_speed, split='train' if (self.rotation_trial if yaw else self.trial) % 2 == 0 else 'validation',
+                    trial_id=(f'{self.lane["name"]}:yaw:{self.rotation_trial}' if yaw else f'{self.lane["name"]}:{self.trial}'),
+                    reason=self.reason, completed=self.completed, completed_yaw=self.completed_yaw)
 
 
 from ..coursenav import planner
@@ -301,6 +383,7 @@ class TuningProgram(LiveMission):
         self.frame = None
         self._velocity_sample = None
         self.measured_velocity = np.zeros(3)
+        self.measured_yaw_rate = None  # supplied from accepted odometry capture timestamps
         sx, sy, yaw = self.config['start_course']
         mp = replace(mp, start_xy=(sx, sy), start_yaw_deg=yaw,
                      cruise_z_m=self.controller.lane['height_m'], time_limit_s=self.config['time_limit_s'])
@@ -323,7 +406,7 @@ class TuningProgram(LiveMission):
             route = planner.astar(self.grid.prior_blocked, self.grid.prior_clearance, a['start_xy'], b['start_xy'])
             transit_estimate += float(np.linalg.norm(np.diff(route, axis=0), axis=1).sum())/.15+5
         if transit_estimate+self.config['estimated_lane_s'] > self.config['time_limit_s']:
-            raise ValueError('measured lane trials plus conservative map transit exceed time budget')
+            raise ValueError('measured lane trials plus map transit estimate exceed time budget')
         self.estimated_total_s = transit_estimate+self.config['estimated_lane_s']
 
     def _plan_course(self):
@@ -393,10 +476,13 @@ class TuningProgram(LiveMission):
         pts = np.asarray(obs.pts_level) if obs.pts_level is not None else np.empty((0, 3))
         hits = pts[(pts[:, 0] > 0) & (np.abs(pts[:, 1]) < .40) & (np.abs(pts[:, 2]) < .25), 0]
         clearance = float(np.min(hits)) if len(hits) else math.inf
+        band = pts[np.isfinite(pts).all(axis=1) & (np.abs(pts[:, 2]) < .25)]
+        radial = float(np.min(np.linalg.norm(band[:, :2], axis=1))) if len(band) else math.inf
         tuning = self.controller.step(TuningObservation(obs.now, tuple(position), course[2],
                                       tuple(self.measured_velocity), clearance, coverage,
                                       imu_ok=self.imu_ok, offboard=obs.offboard_active,
-                                      transit_complete=True, clamped=self.clamped))
+                                      transit_complete=True, clamped=self.clamped,
+                                      yaw_rate=self.measured_yaw_rate, turn_clearance=radial))
         self.state = tuning.state
         if tuning.state == 'FAULT':
             return self.abort(obs.now, tuning.note)
