@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>kestrel_nav</name>
+  <version>0.1.0</version>
+  <description>
+    Team wide-kestrel competitor package for the skybeta stack: plans the DroneHacks course
+    from the published OBJ (coursenav planner), optionally refines the start pose with the
+    coursenav particle-filter localizer, and flies the plan through /skybeta/setpoint/pose.
+    Never touches /fmu/in/*; skybeta_flight_interface owns Offboard and the safety envelope.
+  </description>
+  <maintainer email="vc.matthewzhang@gmail.com">Matthew Zhang</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-scipy</exec_depend>
+  <exec_depend>skybeta_flight_interface</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

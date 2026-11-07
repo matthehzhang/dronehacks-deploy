@@ -1,0 +1,19 @@
+# coursenav localizer parameters for the skybeta OAK-D-S2 + PX4 stack (kestrel_nav.coursenav.loc_node).
+#
+# NOT TESTED ON THE JETSON. The localizer scan-matches a forward DEPTH image against the course map;
+# skybeta's oakd_vslam.yaml deliberately publishes only /oak/left|right/image_raw (no StereoDepth node).
+# To use it, re-add a `stereo:` block to that config so the depthai driver also publishes
+# /oak/stereo/image_raw + /oak/stereo/camera_info, then point depth_topic/depth_info_topic there.
+# The camera pose comes from TF (base_link <- camera optical frame), which skybeta already publishes
+# from the camera offsets in /etc/skybeta/drone.env. Everything else below skybeta publishes today.
+# PX4 inputs: /fmu/out/vehicle_attitude (published) and /fmu/out/distance_sensor (UNVERIFIED on the
+# fleet firmware: check `ros2 topic list` in the container).
+/**:
+  ros__parameters:
+    odom_topic: /visual_slam/tracking/odometry          # cuVSLAM, ENU odom frame (skybeta)
+    depth_topic: /oak/stereo/image_raw                   # requires the stereo block, see above
+    depth_info_topic: /oak/stereo/camera_info
+    base_frame: base_link
+    correction_topic: /coursenav/px4_correction         # nothing consumes it on skybeta; course_mission reads /coursenav/pose
+    rangefinder_below_origin_m: 0.027                    # VL53L1X mount, Sky Beta airframe
+    live_map: true

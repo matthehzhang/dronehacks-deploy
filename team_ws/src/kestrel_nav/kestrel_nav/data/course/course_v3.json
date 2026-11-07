@@ -1,0 +1,182 @@
+{
+  "schema": "coursenav-course/1",
+  "frame": "course ENU = published OBJ source frame (metres, x east, y north, z up, origin floor centre)",
+  "obj": "course/dronehacks-course-v3.obj",
+  "map": "maps/course_v3.npz",
+  "start": {
+    "from": {
+      "feature": "launch_mark",
+      "group": "Launch mark",
+      "heading_from": "Guideline"
+    },
+    "sigma_xy_m": 0.05,
+    "sigma_yaw_deg": 2.0,
+    "_note": "Derived at load (coursenav/semantics.py): the launch mark's centre, heading along the guideline's first direction. A PRIOR, not truth: the localizer refines it.",
+    "_sigma_note": "Placement accuracy of the drone on its start (mark or declared training fixture). Live 2026-11-07: with 0.3 m / 8 deg the localizer converged 0.37 m and 15 deg off on the pad (the view from the pad hardly constrains position; two early updates pulled the cloud, then the fit gate rejected every later scan). With 0.05 m / 2 deg it held 3 cm / 0.5 deg of truth over 40 s."
+  },
+  "vehicle": {
+    "radius_m": 0.28,
+    "margin_m": 0.12,
+    "_note": "7 in props: circumscribed prop-tip radius 0.28 m (airframe file). margin 0.12 -> planned clearance 0.40 m, so nothing mapped lies inside refnav's +-corridor_half_m (0.32) obstacle corridor: 8 cm slack for tracking and localization error. With 0.33 m the planned legs clipped corners (M1 tip, C1 end) inside refnav's corridor and refnav landed (tools/fly_offline.py, 2026-11-05)."
+  },
+  "cruise_z_m": 0.8,
+  "plan_band_m": 0.25,
+  "keepout": [
+    {
+      "groups": [
+        "Boulder"
+      ],
+      "zlo": 0.0,
+      "zhi": 0.6,
+      "radius_m": 0.25,
+      "_note": "stay off the boulders so the downward rangefinder never steps: VL53L1X 27 deg cone at 0.8 m is ~0.07 m radius at boulder-top height; 0.25 m adds position error. Boulder tops (0.53 m) are below refnav's band (cruise 0.8 - band_m 0.25 = 0.55 m), so refnav does not treat them as obstacles."
+    }
+  ],
+  "sequence": [
+    {
+      "name": "maze_exit",
+      "from": {
+        "feature": "guideline_end",
+        "group": "Guideline",
+        "past_m": 0.4,
+        "centre_span_m": 0.3
+      },
+      "_note": "Gate A (checkpoint 2) is where the floor guideline ends. past_m = vehicle radius + margin, so the whole drone is past the line."
+    },
+    {
+      "name": "tunnel",
+      "from": {
+        "feature": "tube_axis",
+        "group": "Tube oval",
+        "entry_m": 1.15,
+        "exit_m": 0.55
+      },
+      "_note": "Checkpoint 3: fly the tube's axis, entering at the end nearer the maze. Expands to tunnel_entry (align: entry_m before the mouth, far enough for the camera to see both rim edges: a 0.63 m half-bore needs 0.9 m plus the camera offset) and tunnel_exit (straight, exit_m past the far end)."
+    },
+    {
+      "name": "chicane",
+      "choose": "chicane"
+    },
+    {
+      "name": "pad",
+      "land": true,
+      "from": {
+        "feature": "pad_center",
+        "group": "Landing pad 5 ft"
+      },
+      "_note": "Checkpoint 5: land on the pad's centre; radius from the marking."
+    }
+  ],
+  "chicane_options": {
+    "window": {
+      "depth_m": 0.8,
+      "from": {
+        "feature": "wall_opening",
+        "group": "C2a"
+      },
+      "_note": "Checkpoint 4 (+5 points): the opening in wall C2a at cruise height, crossed towards the pad. depth_m: the pre point (alignment hover) 0.8 m before the plane, the farthest free point from which the camera (0.116 m ahead, 35 deg usable half-FOV) sees both jambs; post_m: the exit point.",
+      "post_m": 0.5,
+      "points": 5
+    },
+    "gate_b": {
+      "depth_m": 0.45,
+      "from": {
+        "feature": "gap_after_wall_end",
+        "group": "C2b",
+        "min_width_m": 0.6
+      },
+      "_note": "Checkpoint 4: the gap past wall C2b's end that the drone fits through, crossed towards the pad. The crossing direction is SEARCHED within +-cross_search_deg of the gap's perpendicular for the most clearance whose approach does not face a surface (planner.gate_crossing); nothing is typed in.",
+      "points": 0,
+      "cross_search_deg": 30.0
+    }
+  },
+  "return": {
+    "enabled": false,
+    "cruise_z_m": 2.1,
+    "radius_m": 0.61,
+    "_note": "x1.25 bonus: re-arm on the pad, climb above the 1.727 m barrier, land within radius_m (2 ft) of the launch mark's centre (derived at load).",
+    "from": {
+      "feature": "launch_mark",
+      "group": "Launch mark"
+    }
+  },
+  "refnav_params": {
+    "corridor_half_m": 0.32,
+    "leg_end_margin_m": 0.25,
+    "speed_mps": 0.3,
+    "lead_max_m": 0.25,
+    "arrive_m": 0.15,
+    "hold_s": 0.25,
+    "band_m": 0.25,
+    "corridor_wait_land_s": 10.0,
+    "yaw_rate_dps": 35.0,
+    "correction_max_m": 0.8,
+    "correction_step_m": 0.2,
+    "correction_deadband_m": 0.04,
+    "correction_max_sigma_m": 0.1,
+    "accel_mps2": 0.5,
+    "blend_turn_deg": 30.0,
+    "blocked_hold_s": 4.0,
+    "blocked_backoff_m": 0.2,
+    "blocked_recheck_s": 2.0,
+    "blocked_clear_margin_m": 0.15,
+    "depth_lost_pause_static": true,
+    "depth_lost_land_s": 5.0,
+    "stop_per_mps": 1.0,
+    "stop_base_m": 0.45,
+    "stop_min_m": 0.55,
+    "min_valid_frac_static": 0.15,
+    "min_valid_frac": 0.3,
+    "min_corridor_coverage": 0.45,
+    "confirm_frames": 3,
+    "align_timeout_s": 4.0,
+    "align_frames": 3,
+    "align_max_shift_m": 0.25,
+    "align_max_dz_m": 0.15,
+    "align_max_turn_deg": 0.0,
+    "tunnel_mode": true,
+    "tunnel_speed_mps": 0.3,
+    "tunnel_max_leg_m": 3.3,
+    "tunnel_face_tol_deg": 5.0,
+    "tunnel_align_max_age_s": 6.0,
+    "correction_rate_mps": 0.05,
+    "_note": "COMPETITION PROFILE: refnav Params written into every course route file (tools/plan_route.py, fly_course.py) and used by tools/fly_offline.py. refnav.core defaults stay as they are; these values turn the profile options on. corridor_half_m = prop-tip radius 0.28 + 0.04, below the planned clearance (vehicle radius + margin = 0.40). band_m = plan_band_m. Both assume the BODY flies at cruise_z_m above the floor: height_m = cruise_z_m - landed body height.",
+    "_profile_note": "Team-approved loosening (2026-11-06 flights A-E, see HANDOFF): hold-and-recheck before landing on 'route blocked' (4 s hover, 0.2 m back-off, 2 s recheck); depth silence not counted in turns/holds, land after 5 s (was 3); 3 confirming frames (was 2); stop distance max(0.55, 0.45 + 1.0 * v) (was 0.9 fixed); corridor coverage 0.45 (was 0.6); valid pixels 0.15 while static (0.3 moving); corridor wait 10 s (was 8). NOT loosened: landing on unhealthy estimator / invalid PX4 position, yielding when PX4 leaves Offboard, never translating into a confirmed obstacle, the height limit, every PX4-side setting. tunnel_align_max_age_s 6 s: the mouth is 1.15 m past the entry point (where both rim edges are in view), ~4.3 s at 0.3 m/s with the ramp and the check; the aircraft does not turn in between.",
+    "_align_note": "Gate alignment (refnav.gate): lateral and height shifts of the crossing from the opening measured in the depth image, bounded by align_max_shift_m / align_max_dz_m. align_max_turn_deg 0: the heading estimate from the jambs near corners was within 7 deg on voxel-rendered depth (offline, 2026-11-06); enable after checking it on real sim depth. With one jamb out of view the opening is placed from the other jamb and the expected width.",
+    "_correction_note": "correction_*: bounded map corrections (coursenav.loc_node -> /coursenav/px4_correction) shift the REMAINING targets at every leg start. Offline (2026-11-06): a 0.40 m total cap and a 0.06 m deadband let the correction lag the drift by 0.1-0.2 m, which was the margin at the M3 corner and the window; VIO can drift 0.3-0.5 m over the 17 m course, so the cap is 0.8 m (the enclosure bounds the localizer anyway), 0.2 m per leg start, 4 cm deadband. correction_rate_mps 0.05: the targets also follow the correction during a leg (at most 5 cm per second of shift), so the aircraft stays on the corrected line between leg starts; offline the leg-start-only rule lagged 0.1 m at the M3 corner and grazed it."
+  },
+  "_goals_note": "No goal coordinates are stored here (rule 9.5). Each goal names a part of the published OBJ and how to read it; coursenav/semantics.py measures it when the course is loaded. Fields xy/center/normal appear only in the loaded copy.",
+  "enclosure": {
+    "from": {
+      "group": "Net side",
+      "inset_m": 0.0
+    },
+    "_note": "The net's inner planes, measured on the OBJ's 'Net side' groups at load (coursenav.semantics). The net is 92% open: depth sees THROUGH it to unmapped things. Beyond it is UNKNOWN, not free: the localizer's likelihood field is 0 there and the body may not be there (live diagnosis 2026-11-06)."
+  },
+  "chicane_scoring": {
+    "time_points_per_s": 0.05,
+    "clearance_min_m": 0.45,
+    "clearance_penalty_per_cm": 0.5,
+    "facing_penalty": 10.0,
+    "alignment_penalty": 10.0,
+    "_note": "Chicane choice (planner.plan_options): score = option points - time_points_per_s * estimated time - clearance_penalty_per_cm per cm the plan's min clearance is below clearance_min_m - facing_penalty per leg end facing a surface closer than leg_policy.face_min_m (or an infeasible crossing) - alignment_penalty per gate whose edges the camera cannot see from its pre point. Scores and the reason are logged at planning time."
+  },
+  "leg_policy": {
+    "face_min_m": 0.8,
+    "arc_min_m": 0.6,
+    "move_max_m": 0.5,
+    "min_leg_m": 0.3,
+    "collinear_deg": 12.0,
+    "passage_min_frac": 0.4,
+    "_note": "Leg-end rule (planner.fix_leg_ends): no leg may end where a mapped surface lies within face_min_m along the next heading (the OAK's 0.4 m blind range put flight E's depth at 5 % valid facing the barrier at 0.47 m) or within arc_min_m anywhere in the in-place turn's arc; via points are moved back along their incoming leg up to move_max_m. Legs shorter than min_leg_m and corners under collinear_deg are merged. passage_min_frac: a straight leg with a roof and walls on both sides over this fraction is a passage (tunnel mode). overrun_min_m: no mapped surface within this distance beyond a leg's end along the leg's own heading (refnav's leg_end_margin_m 0.25 + 0.15 slack), else refnav calls the leg blocked. face_relaxed_m: a via point that cannot be moved to give face_min_m (maze corners: the divider end is 0.6-0.8 m ahead of the next leg) may face a surface down to this, which still clears the camera's blind range (0.4 m + the 0.12 m camera offset) by a margin.",
+    "overrun_min_m": 0.4,
+    "face_relaxed_m": 0.6
+  },
+  "sim_profile": {
+    "fixture_offset_m": [
+      0.0,
+      0.2
+    ],
+    "_note": "SIMULATION / TRAINING ONLY. The prepared-training world spawns the aircraft 20 cm north of the launch mark (environment.json); this declared offset gives the localizer's prior and the offline tools their start. It is not competition configuration: at the venue the start is the mark itself and fly_course.py takes the start pose from the localizer."
+  }
+}
