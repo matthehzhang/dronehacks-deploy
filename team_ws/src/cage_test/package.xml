@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>cage_test</name>
+  <version>0.1.0</version>
+  <description>
+    First-flight tests for a skybeta drone in the cage: hop_test (up, forward,
+    back, down, touch down) and frame_check (disarmed hand-carry check that
+    VIO's forward/left/yaw match the airframe and PX4). A team_ws package: no
+    image rebuild needed.
+  </description>
+  <maintainer email="asteyalaxmanan07@gmail.com">asteyalaxmanan</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>px4_msgs</exec_depend>
+  <exec_depend>skybeta_flight_interface</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

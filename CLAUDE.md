@@ -30,6 +30,10 @@ canonical hardware/PX4 procedure; [`README.md`](README.md) for the container wor
   the pilot arms, then switches to Position on the ground: `auto_offboard.py`), `competitor_example` (Python reference mission),
   `competitor_advanced_cpp` (px4_ros2_cpp custom mode). Competitors add their own packages
   in the team workspace, not here.
+- **`team_ws/src/cage_test`** (branch `cage-hop-test`) — first-flight cage test, shipped as a team
+  package (copied into `~/team_ws/src`, no image rebuild): `hop_test` (up, forward, back, down,
+  twist touchdown) and `frame_check` (disarmed hand-carry VIO vs PX4 check). Its README is the
+  laptop → SITL → props-off → cage procedure. Not yet flown.
 - **`px4/`** — pinned v1.16.2 firmware + staged parameter files; **`tools/`** — `param_diff.py`,
   `latency_probe.py`; **`sim/`** — Isaac Sim + Pegasus profile; **`docs/`** — competitor, fleet,
   hardware and debugging guides.
