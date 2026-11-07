@@ -31,7 +31,19 @@ from .livenav import square_pad
 class SafeMissionNode(LiveMissionNode):
     def __init__(self):
         self._corridor_wait = None
+        self._depth_bad_since = None
+        self._receipt_sim = False
         super().__init__(node_name='safe_mission')
+        # receipt_clock: 'wall' (default, the drone) or 'sim'. In a simulator whose clock pauses with the
+        # rendering (Gazebo under WSL: ~1.1 s freezes every ~33 s, 0.72x real time), wall-clock receipt
+        # ages read every pause as stale data; 'sim' measures them on the ROS clock instead.
+        clock = str(self.declare_parameter('receipt_clock', 'wall').value)
+        if clock not in ('wall', 'sim'):
+            raise ValueError("receipt_clock must be 'wall' or 'sim'")
+        self._receipt_sim = clock == 'sim'
+
+    def monotonic_s(self):
+        return self.now_s() if self._receipt_sim else super().monotonic_s()
 
     def make_mission(self, mp, fp, course_file):
         dp = self.declare_parameter
@@ -129,10 +141,26 @@ class SafeMissionNode(LiveMissionNode):
             self.pad_fix, self.pad_fix_t = fix, now
             self.counts['pad'] += 1
 
-    def tick(self):
-        self.safety.waived = frozenset({'depth'}) if self.mission.state == 'DESCEND' else frozenset()
-        super().tick()
+    DEPTH_LOSS_S = 5.0      # brief depth loss: the mission holds; the input watchdog latches after this long
 
+    def tick(self):
+        """Depth deadline owned here once flying: brief loss (or a rejected frame) holds the mission in place;
+        DEPTH_LOSS_S of continuous loss latches the fault. Before takeoff depth stays strictly required
+        for qualification; on the final descent it is not needed at all."""
+        now = self.now_s()
+        if not self.safety.active:
+            self.safety.waived = frozenset()
+            self._depth_bad_since = None
+        else:
+            self.safety.waived = frozenset({'depth'})
+            err = self.safety.stream_error('depth', now, self.monotonic_s())
+            if err and self.mission.state != 'DESCEND':
+                self._depth_bad_since = self._depth_bad_since or now
+                if now - self._depth_bad_since >= self.DEPTH_LOSS_S:
+                    self.safety.trip(f'{err} for {self.DEPTH_LOSS_S:.0f} s')
+            else:
+                self._depth_bad_since = None
+        super().tick()
 
 def main(args=None):
     rclpy.init(args=args)

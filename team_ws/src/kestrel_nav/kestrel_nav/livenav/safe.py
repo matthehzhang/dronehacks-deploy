@@ -105,6 +105,7 @@ class SafeParams(FollowParams):
     corr_total_yaw: float = math.radians(10.0)
     live_grid: bool = False       # 930am plans on the static map; live depth is the stop check on the leg
     align_retry_s: float = 5.0    # a refused gate: hold this long, re-measure once, then cross on the map
+    depth_lost_abort_s: float = 5.0
     escape_max_m: float = 0.30    # no path from inside the planning margin: step to the nearest free cell this close
     v_escape: float = 0.08  # a return that drops inside stereo minimum range is remembered this long
     # gate alignment
@@ -733,8 +734,16 @@ class SafeMission(LiveMission):
                                              zhi=p.cruise_z_m + band, rmax=p.scan_rmax_m)
             self.scan_pf = scan_from_points(obs.pts_level, obs.height_m, zlo=p.scan_band_lo,
                                             zhi=p.scan_band_hi, rmax=p.scan_rmax_m)
+        depth_wait = False
         if self.state in ('FLY', 'PAD', 'HOLD') and (self.scan_nav is None or not len(self.scan_nav)):
-            return self.abort(now, 'missing, stale or empty navigation depth scan')
+            # brief depth loss (real OAK: 66-100 ms gaps, VIO stalls up to 430 ms; sim stalls ~1 s): hold
+            # position and wait; only depth_lost_abort_s of continuous loss latches the fault (930am: 5 s)
+            self._depth_lost = getattr(self, "_depth_lost", None) or now
+            if now - self._depth_lost >= sp.depth_lost_abort_s:
+                return self.abort(now, f'navigation depth missing, stale or empty for {sp.depth_lost_abort_s:.0f} s')
+            depth_wait = True
+        else:
+            self._depth_lost = None
         if new_scan and self.pf is not None and self.pf.ready and self.state in ("CLIMB", "FLY", "PAD", "HOLD"):
             self._localize(obs)
         pose_c = self.odom_to_course(obs.odom_xyz[:2], obs.odom_yaw)
@@ -756,6 +765,15 @@ class SafeMission(LiveMission):
             if abs(z - self.z_odom_cruise) <= p.z_tol_m:
                 self._set("FLY", now)
                 self._phase("BRAKE", now)
+            cmd.state = self.state
+            return cmd
+        if depth_wait:
+            if self.anchor is None:
+                self.anchor = xy.copy()
+            cmd.vz = self._vz(z, self.z_odom_cruise, p.climb_rate_mps)
+            self._cmd(cmd, self._hold_vel(xy), 0.0, f"waiting for depth ({now - self._depth_lost:.1f} s)")
+            if self.phase == "GO":                 # resume the segment from a fresh stop afterwards
+                self._stop(now, xy, "BRAKE", "depth lost")
             cmd.state = self.state
             return cmd
         rp = self.replanner

@@ -58,3 +58,27 @@ def test_unobserved_corridor_stops_and_waits_then_latches(node):
 def test_creep_needs_no_corridor(node):
     cmd = Command(vx=0.05, vy=0.0)
     assert node.motion_corridor_error(cmd) is None and cmd.vx == 0.05
+
+
+def test_receipt_clock_sim_uses_the_ros_clock(node):
+    node._receipt_sim = True
+    assert node.monotonic_s() == node.now_s()
+
+
+def test_brief_depth_loss_holds_then_latches(node, monkeypatch):
+    from kestrel_nav.livenav.safety import InputSafety
+    import kestrel_nav.safe_mission as sm
+    node.safety = InputSafety()
+    node.safety.active = True
+    node.mission = NS(state='FLY', follower=NS(p=node.sp), doc={'plan_band_m': 0.25})
+    node._depth_bad_since = None
+    node._receipt_sim = True
+    monkeypatch.setattr(sm.LiveMissionNode, 'tick', lambda self: None)
+    node.tick()                                          # no depth sample at all
+    assert node.safety.fault is None and 'depth' in node.safety.waived
+    node._now += 4.0
+    node.tick()
+    assert node.safety.fault is None
+    node._now += 1.5
+    node.tick()
+    assert node.safety.fault and 'for 5 s' in node.safety.fault

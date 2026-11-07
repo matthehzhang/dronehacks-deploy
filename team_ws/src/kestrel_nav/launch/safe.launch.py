@@ -36,6 +36,7 @@ ARGUMENTS = [
     ('v_cap', '0.30', 'speed cap; each leg flies at min(cap, tube / 0.44 s), tube = (clearance - reach) / 2'),
     ('v_gate_window', '0.20', 'extra speed cap through a wall opening (the window), m/s'),
     ('turn_rate_deg', '35.0', 'in-place turn rate, deg/s (never while translating)'),
+    ('receipt_clock', 'wall', "receipt ages on 'wall' (drone) or 'sim' (ROS clock; simulators that pause)"),
     ('land_vz', '0.15', 'descent speed onto the pad, m/s (below LNDMC_Z_VEL_MAX 0.25)'),
     ('gate_requires_measurement', 'true', 'measure the opening before crossing; after two failed measurements cross on the map (logged)'),
     ('time_limit_s', '175.0', 'stop driving after this long in Offboard (rule: 3 min from leaving the mark)'),
@@ -81,7 +82,7 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('mission')),
         parameters=[{k: LaunchConfiguration(k) for k in (
             'chicane', 'start_x', 'start_y', 'start_yaw_deg', 'cruise_z_m', 'landed_z_m', 'descend_to_z_m',
-            'v_cap', 'v_gate_window', 'turn_rate_deg', 'land_vz', 'gate_requires_measurement', 'time_limit_s', 'depth_topic', 'depth_info_topic', 'mono_topic',
+            'v_cap', 'v_gate_window', 'turn_rate_deg', 'land_vz', 'receipt_clock', 'gate_requires_measurement', 'time_limit_s', 'depth_topic', 'depth_info_topic', 'mono_topic',
             'mono_info_topic', 'camera_from_tf', 'camera_x', 'camera_y', 'camera_z', 'camera_pitch', 'min_altitude_m',
             'odom_max_age_s', 'tracking_max_age_s', 'depth_max_age_s', 'state_max_age_s', 'land_max_age_s',
             'px4_reference_max_age_s', 'future_tolerance_s',
