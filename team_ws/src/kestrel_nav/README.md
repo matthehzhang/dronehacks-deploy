@@ -1,6 +1,6 @@
 # kestrel_nav: team wide-kestrel course code, packaged for skybeta
 
-## Current branch: `matthew-05-59am`
+## Current branch: `matthew559am`
 
 The entry point for this branch is **`live.launch.py`**. It keeps the hardware velocity follower
 and organizer flight interface, adds the timestamp/tracking/depth watchdogs described below, and

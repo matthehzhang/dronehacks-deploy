@@ -1,6 +1,6 @@
 # Hardware branch port, 2026-11-07
 
-Branch: `matthew-05-59am`, created from deploy `basic-obstacle-avoidance` at
+Branch: `matthew559am`, created from deploy `basic-obstacle-avoidance` at
 `6178b4de0c88d3115c1072c6f5fd3a7819d13b75`. The earlier uncommitted sensor-safety
 work is included. Separate IMU calibration files under `team_ws/config` are untouched.
 
