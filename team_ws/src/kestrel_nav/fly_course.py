@@ -251,6 +251,9 @@ def main(argv=None):
     ap.add_argument("--no-own-localizer", action="store_true",
                     help="never start a localizer here (default: start one when none is publishing)")
     ap.add_argument("--skip-preflight", action="store_true", help="tests only: do not gate arming on preflight")
+    ap.add_argument("--start-from-mark", action="store_true",
+                    help="skybeta: the start pose is the course file's launch mark and guideline heading (rule 7.4: "
+                         "the drone is placed on the mark); the localizer still corrects in flight")
     ap.add_argument("--no-return", action="store_true",
                     help="never fly the automatic return after the pad landing (skybeta: the pilot arms, not refnav)")
     ap.add_argument("--nav", choices=["path", "legs", "steady"], default=None,
@@ -292,6 +295,10 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
     source = "command line"
     if a.start:
         sx, sy, syaw = a.start
+    elif getattr(a, "start_from_mark", False):
+        sx, sy = doc["start"]["xy"]
+        syaw = doc["start"]["yaw_deg"]
+        source = "launch mark (course file)"
     else:
         got = None
         try:

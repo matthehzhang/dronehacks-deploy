@@ -61,7 +61,7 @@ def generate_launch_description():
         cwd=str(ROOT), additional_env=env, output='screen', name='localizer')
     fly_env = dict(env)
     fly = ExecuteProcess(
-        cmd=['python3', str(ROOT / 'fly_course.py'), '--event-start', '--skip-preflight', '--no-own-localizer', '--no-return',
+        cmd=['python3', str(ROOT / 'fly_course.py'), '--event-start', '--skip-preflight', '--no-own-localizer', '--no-return', '--start-from-mark',
              '--chicane', L('chicane'), '--landed-z', L('landed_z'), '--localizer-timeout', L('localizer_timeout'), '--',
              '-p', 'px4_output:=skybeta', '-p', ['depth_topic:=', L('depth_topic')],
              '-p', ['depth_info_topic:=', L('depth_info_topic')],
