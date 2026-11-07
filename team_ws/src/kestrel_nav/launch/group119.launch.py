@@ -60,9 +60,9 @@ def generate_launch_description():
                                  ['use_sim_time:=', L('use_sim_time')]], cwd=str(ROOT), additional_env=env,
                             output='screen', name='skybeta_health')
     localizer = ExecuteProcess(
-        cmd=['python3', '-m', 'coursenav.loc_node', '--ros-args', '--params-file', str(ROOT / 'onboard/config/common.yaml'),
+        cmd=['nice', '-n', '5', 'python3', '-m', 'coursenav.loc_node', '--ros-args', '--params-file', str(ROOT / 'onboard/config/common.yaml'),
              '-p', ['depth_topic:=', L('depth_topic')], '-p', ['depth_info_topic:=', L('depth_info_topic')],
-             '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'height_source:=local_position', '-p', 'publish_zero_drift:=true',
+             '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'height_source:=local_position', '-p', 'publish_zero_drift:=true', '-p', 'adaptive_hz:=4.0',
              '-p', ['landed_z_m:=', L('landed_z')]],
         cwd=str(ROOT), additional_env=env, output='screen', name='localizer')
     fly_env = dict(env)
@@ -74,6 +74,7 @@ def generate_launch_description():
              '-p', ['arm_wait_s:=', L('arm_wait_s')], '-p', ['wait_s:=', L('wait_s')],
              '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'path_turn_hold:=true'],
         cwd=str(ROOT), additional_env={**fly_env, 'KESTREL_USE_SIM_TIME': L('use_sim_time'),
-                                       'KESTREL_DECLARED_HEADING_DEG': L('declared_heading_deg')},
+                                       'KESTREL_DECLARED_HEADING_DEG': L('declared_heading_deg'),
+                                       'KESTREL_NICE_NAV': '5'},
         output='screen', name='fly_course')
     return LaunchDescription(declared + [flight_interface, host_depth, health, localizer, fly])

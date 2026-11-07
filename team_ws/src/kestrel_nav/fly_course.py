@@ -121,6 +121,8 @@ def start_navigator(run_dir):
     import os
     import subprocess
     args = [sys.executable, "-m", "coursenav.nav_node", "--ros-args", "-p", f"route_file:={run_dir / 'route.json'}"]
+    if os.environ.get("KESTREL_NICE_NAV"):                 # skybeta: never compete with refnav's setpoint loop
+        args = ["nice", "-n", str(int(os.environ["KESTREL_NICE_NAV"]))] + args
     deployment = Path("/etc/flyx/onboard.yaml")           # sim clock selection, like the localizer
     if deployment.is_file():
         args += ["--params-file", str(deployment)]

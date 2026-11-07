@@ -135,6 +135,8 @@ class LocNode(Node):
         self.pub_corr = self.create_publisher(Vector3Stamped, dp("correction_topic", "/coursenav/px4_correction").value, 10)
         self.min_updates_for_corr = int(dp("min_updates_for_correction", 30).value)
         self.publish_zero_drift = bool(dp("publish_zero_drift", False).value)   # skybeta launch: true
+        self.adaptive_hz = float(dp("adaptive_hz", 0.0).value)                   # skybeta launch: 4; 0 = every frame
+        self._t_proc, self._cost = 0.0, []
         # the odometry -> course correction as an EKF state (coursenav.drift): published for the navigator
         # (coursenav.nav_node), which converts its course-frame paths into PX4's frame with it every tick
         self.ekf = DriftEKF()
@@ -249,6 +251,14 @@ class LocNode(Node):
     def _on_depth(self, m):
         if self.K is None or self.att is None or not self.pf.ready:
             return
+        # kestral_nav934am (skybeta) adaptive rate: once confident (sigma_xy < 0.05 m, sigma_yaw < 2 deg), process
+        # at most adaptive_hz scans/s; full rate when confidence drops. Corrections are rate-limited anyway.
+        if self.adaptive_hz > 0 and self.last_est is not None:
+            cov = self.last_est[2]
+            confident = math.sqrt(max(cov[0, 0], cov[1, 1])) < 0.05 and math.degrees(math.sqrt(cov[2, 2])) < 2.0
+            if confident and time.monotonic() - self._t_proc < 1.0 / self.adaptive_hz:
+                return
+        t_cpu = time.process_time()
         if self.cam_cal is None:
             try:
                 self.cam_cal = (m.header.frame_id, *self._tf(m.header.frame_id))
@@ -286,6 +296,12 @@ class LocNode(Node):
                 f = self.live.landmark_field()
                 self.pf.set_distance(self.prior_dist if f is None else f)
         self.last_est = (t, mean, cov, pose, h, n_depth)
+        self._t_proc = time.monotonic()
+        self._cost.append(time.process_time() - t_cpu)
+        if len(self._cost) >= 50:                  # measured per-frame CPU cost, for the drone's first runs
+            self.get_logger().info(f"scan cost: mean {1000 * np.mean(self._cost):.1f} ms CPU/frame "
+                                   f"(p90 {1000 * np.percentile(self._cost, 90):.1f} ms) over {len(self._cost)} frames")
+            self._cost = []
         self._publish_pose(m.header.stamp, mean, cov, od[2])
         nominal_body = compose(self.nominal, pose)
         self.ekf.predict(nominal_body, dt)
