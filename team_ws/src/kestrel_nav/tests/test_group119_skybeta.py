@@ -31,3 +31,8 @@ def test_group119_plans_from_the_venue_launch_mark():
     import fly_course
     p, route, legs, doc = fly_course.plan_now((-2.515, 0.914), 90.0)
     assert len(route) >= 15 and p['min_clearance_m'] >= 0.41
+
+
+def test_landing_descent_triggers_px4_land_detector():
+    from refnav.skybeta import LAND_VZ
+    assert LAND_VZ >= 1.1 * 0.25          # MulticopterLandDetector in_descend, fleet LNDMC_Z_VEL_MAX 0.25

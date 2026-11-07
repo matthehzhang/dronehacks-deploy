@@ -10,7 +10,7 @@ norm capped at 1.5 m/s) into PX4 setpoints. So:
   * refnav's (n, e, d, yaw) setpoint + velocity feed-forward becomes a velocity command, the same loop
     PX4's position controller closes:  v = v_ff + kp * (sp - pos),  yawrate = yawspeed_ff + k_yaw * (yaw_sp - yaw);
     acceleration feed-forward cannot be carried by a twist and is dropped;
-  * refnav's "land" (PX4 AUTO_LAND on the lab) has no interface equivalent: a slow descent with xy held
+  * refnav's "land" (PX4 AUTO_LAND on the lab) has no interface equivalent: a 0.30 m/s descent with xy held
     where the landing started, until PX4's land detector disarms (COM_DISARM_LAND); "disarm" is not sent.
 Frames: PX4 local NED (refnav) <-> the interface's ENU world frame (it applies enu_to_ned: (y, x, -z)).
 """
@@ -22,7 +22,9 @@ KP_YAW = 2.0
 V_XY_MAX = 0.6       # m/s; refnav's legs fly <= 0.30
 V_Z_MAX = 0.5
 YAWRATE_MAX = math.radians(45.0)   # PX4 MPC_YAWRAUTO_MAX
-LAND_VZ = 0.15       # m/s down, below LNDMC_Z_VEL_MAX 0.25 so the land detector fires
+LAND_VZ = 0.30       # m/s down. PX4 1.16 MulticopterLandDetector: in_descend needs the setpoint vz >= 1.1 *
+                     # LNDMC_Z_VEL_MAX (0.25 on the fleet) = 0.275, and ground_contact requires in_descend; at 0.15
+                     # the drone sat armed on its legs (Gazebo, f30d131). PX4's own land speed default is 0.7.
 
 
 def _wrap(a):
