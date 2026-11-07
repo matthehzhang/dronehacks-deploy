@@ -170,6 +170,7 @@ class RefNav(Node):
                 self.create_subscription(BatteryStatus, topic, self._on_battery, PX4_QOS)
             self.create_subscription(String, "/coursenav/status", self._on_localizer, 10)
         self._yaw_align = (False, None)
+        self._ev_yaw = (False, None)
         self.create_subscription(EstimatorStatusFlags, "/fmu/out/estimator_status_flags", self._on_est_flags, PX4_QOS)
         self.create_subscription(Bool, self.health_topic, self._on_health, 10)
         if self.diagnostic_enabled:
@@ -215,6 +216,7 @@ class RefNav(Node):
 
     def _on_est_flags(self, m):
         self._yaw_align = (bool(m.cs_yaw_align), self._now())
+        self._ev_yaw = (bool(getattr(m, 'cs_ev_yaw', False)), self._now())
 
     def _on_lpos(self, m):
         accepted = self._return_observe('position', m.timestamp * 1e-6,
@@ -258,6 +260,13 @@ class RefNav(Node):
         # controller flies on. A vision heading sets heading_good_for_control on the ground.
         ya, ya_t = self._yaw_align
         heading_ok = bool(m.heading_good_for_control) or (ya and ya_t is not None and self._now() - ya_t <= 3.0)
+        if self.px4_output == "skybeta" and not heading_ok:
+            # skybeta (kestral_nav934am): vision arrives in an FRD frame (pose_frame 2, EKF2_EV_CTRL 9). PX4 1.16
+            # ev_yaw_control resets yaw to EV and leaves yaw_align FALSE for FRD, so heading_good_for_control
+            # never sets (deploy CLAUDE.md, drone 16 bench: "it does not gate Position mode"). The heading is
+            # the fused vision yaw: accept it while EKF2 reports cs_ev_yaw (fresh) and the heading is finite.
+            ev, ev_t = getattr(self, '_ev_yaw', (False, None))
+            heading_ok = bool(ev and ev_t is not None and self._now() - ev_t <= 3.0)
         self.v.pos_ok = bool(m.xy_valid and m.z_valid and heading_ok
                              and all(math.isfinite(c) for c in (m.x, m.y, m.z, m.heading)))
 
