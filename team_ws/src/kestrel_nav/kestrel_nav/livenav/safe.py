@@ -1,0 +1,625 @@
+"""Safe course policy: stop-turn-go along the live A* path. PURE (numpy). No ROS, no clocks.
+
+Goal: finish the course without touching anything. Speed is spent only where clearance is large.
+
+Rules, each from measured evidence (workspace sim runs 3-10 on 2026-11-07, docs/SAFE_POLICY.md):
+
+1. NEVER YAW WHILE TRANSLATING (beyond a small heading hold). Run010's contact at maze divider M1
+   happened while the vehicle yawed ~27 deg/s and translated at 0.15 m/s: true velocity swung toward
+   the nose while the estimate did not, 12 cm of cross-track error, 0.268 m truth clearance against a
+   0.294 m prop reach. Run004 lost 14 cm to tracking at M3 on a moving corner. Here every corner is a
+   stop: brake, hold, turn in place at <= turn_rate, settle, then translate straight.
+2. FACE WHERE YOU GO. Translation is only commanded along the body's forward axis (plus a bounded
+   cross-track correction), so the forward depth camera always watches the swept corridor.
+3. CLOSE THE POSITION LOOP ON VIO, NOT ON PX4. The hardware interface takes world velocity; this
+   policy computes it from cuVSLAM odometry (via the course<-odom transform). In run010 VIO position
+   followed truth while PX4's own velocity estimate lagged the slide.
+4. HOLD WHERE YOU ARE. After every stop the station-keeping anchor is the CURRENT position, never
+   the waypoint just targeted (run008: a stale hold target pulled the vehicle 10 cm sideways).
+5. MEASURE GATES, DO NOT TRUST THE MAP FOR THEM. Before a crossing leg (window, tunnel) the vehicle
+   faces the crossing, measures the opening's jambs in depth, side-steps onto its centre, re-measures,
+   and keeps re-centring on the measured opening while it closes in. No measurement -> no crossing.
+6. STOP DISTANCE IS A BUDGET. A return ahead in the body corridor must be farther than
+   reach + front_buffer + v*delay + v^2/(2*a_brake); otherwise the segment is shortened or the
+   vehicle holds. delay/a_brake are conservative assumptions, not measured hardware values.
+7. LAND ON THE PAD. Centre over the pad, descend slowly (below PX4's land-detector vertical speed),
+   keep commanding descent until PX4 disarms. The interface's 0.3 m floor clamps pose setpoints only.
+
+Speeds are deliberately low (0.12-0.25 m/s). They are not tuned: nothing here was fitted to a flight.
+"""
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+
+import numpy as np
+
+from .follower import FollowParams, scan_ahead, wrap
+from .mission import Command, LiveMission, Observation
+from .navgrid import NavParams
+from .opening import combine, find_opening_flu, to_leg_frame
+from .replanner import ReplanParams
+
+
+# 7-inch propellers (confirmed by the team, 2026-11-07) on the fleet allocator geometry
+# (deploy/px4/params/07_airframe_geometry.params, FRD metres). The horizontal yaw-independent reach
+# of a rotor disk centred at (x, y) is hypot(x, y) + D/2; the airframe's is the largest of the four.
+ROTOR_CENTRES_XY_M = ((0.08, 0.16), (-0.15, -0.14), (0.08, -0.16), (-0.15, 0.14))
+PROP_DIAMETER_M = 7 * 0.0254
+
+
+def prop_reach_m(rotors=ROTOR_CENTRES_XY_M, diameter=PROP_DIAMETER_M):
+    """0.294 m for the skybeta fleet with 7-inch props. Level flight, no guards/tilt allowance."""
+    return max(math.hypot(x, y) for x, y in rotors) + diameter / 2.0
+
+
+REACH_M = prop_reach_m()
+
+
+@dataclass
+class SafeParams(FollowParams):
+    # node-level motion-corridor guard (live_mission.tick reads these three via mission.follower.p)
+    corridor_half_m: float = REACH_M + 0.05   # body corridor the depth image must observe
+    stop_m: float = 0.45                      # depth is blind under ~0.4 m (stereo minimum range)
+    reactive_ramp_m: float = 0.30
+    # speeds: slow everywhere, slowest where it is tight
+    v_open: float = 0.35          # segment whose map clearance is >= clear_open_m everywhere
+    v_tight: float = 0.25
+    v_gate: float = 0.12          # wall-opening crossings (the window); passages use clearance speeds
+    clear_open_m: float = 0.55
+    reach_m: float = REACH_M
+    # stopping budget (assumptions, not measured; the workspace diagnostic assumed 0.8 s / 0.15 m/s^2)
+    a_brake: float = 0.25         # commanded deceleration, m/s^2
+    response_delay_s: float = 0.6
+    front_buffer_m: float = 0.10  # always stop at least reach + this short of a return ahead
+    # turning in place
+    turn_rate: float = math.radians(30)       # well under MPC_YAWRAUTO_MAX 45 deg/s
+    turn_kp: float = 3.0
+    heading_hold_rate: float = math.radians(6)  # the only yaw allowed while translating (run010: 27 deg/s)
+    flow_turn_max: float = math.radians(12)     # a vertex turning less than this is flown through, not stopped at
+    yaw_tol_go: float = math.radians(4)
+    settle_s: float = 0.5         # still (< settle_speed) this long before measuring an opening
+    pre_turn_dwell_s: float = 0.2 # still this long before turning in place
+    post_turn_dwell_s: float = 0.3  # heading on target this long before translating
+    settle_speed: float = 0.05
+    settle_timeout_s: float = 6.0
+    # station keeping and cross-track (bounded creep; see creep_mps)
+    hold_kp: float = 0.6
+    creep_mps: float = 0.06       # corrective velocity cap; below it the node needs no forward corridor
+    ct_kp: float = 0.8
+    # segments
+    min_seg_m: float = 0.10
+    arrive_tol_m: float = 0.05
+    # gate alignment
+    align_frames: int = 5
+    align_tol_m: float = 0.03
+    align_max_shift_m: float = 0.25   # a bigger measured offset than this is a localisation fault: hold
+    align_max_rounds: int = 4
+    align_timeout_s: float = 12.0
+    align_spread_max_m: float = 0.06  # frames disagreeing more than this are not a measurement
+    recentre_min_range_m: float = 0.55  # depth is unreliable inside ~0.45 m; stop re-centring there
+    recentre_gain: float = 0.5
+    gate_requires_measurement: bool = True
+    # landing
+    land_vz: float = 0.15         # PX4 LNDMC_Z_VEL_MAX 0.25: descend below it so the land detector fires
+    pad_over_m: float = 0.10
+    landed_z_odom_m: float = 0.04
+
+
+def stop_distance(v, p: SafeParams):
+    v = max(0.0, float(v))
+    return v * p.response_delay_s + v * v / (2.0 * p.a_brake)
+
+
+class SafeMission(LiveMission):
+    """LiveMission (planning, PF localizer, live grid, replanner, pad detector) with the follower
+    replaced by the stop-turn-go segment driver above. States seen by the node/sim are unchanged:
+    WAIT CLIMB FLY PAD HOLD DESCEND PAUSED FAULT; the driver's phase is in Command.note/`phase`."""
+
+    def __init__(self, params=None, nav_params: NavParams = None, replan_params: ReplanParams = None,
+                 safe_params: SafeParams = None, course_file=None):
+        sp = safe_params or SafeParams()
+        super().__init__(params, nav_params, replan_params, sp, course_file=course_file)
+        self.sp = sp
+        self.phase = "IDLE"
+        self.t_phase = None
+        self.anchor = None            # course xy held while stationary
+        self.seg = None               # dict(a, b, dir, heading, v, gate)
+        self.settle_since = None
+        self.align = None             # dict for the gate alignment in progress
+        self.aligned_for = None       # goal index whose crossing has been centred
+        self.cross_offset = 0.0       # measured lateral offset of the crossing line (left +)
+        self.climb_xy = None
+        self.pf_hold_k = None         # goal index whose crossing froze the PF (the opening is the fix)
+        self.align_meta = self._align_meta()
+        self.events = []
+
+    # ------------------------------------------------------------------ gate geometry from the plan
+    def _align_meta(self):
+        """goal name -> {centre, dir, meta} for every crossing leg that has a measurable opening."""
+        wps = self.plan["waypoints"]
+        out = {}
+        by_name = {w["name"]: w for w in wps}
+        for i, g in enumerate(self.goals):
+            if not g.is_gate_leg or i == 0:
+                continue
+            pre = self.goals[i - 1]
+            if g.crosses is not None:
+                centre = next((w for w in wps if w.get("gate") == g.crosses and w.get("part") == "centre"), None)
+                if centre is None or "align" not in centre:
+                    continue
+                d = np.asarray(centre["normal"], float)
+                out[g.name] = dict(centre=np.asarray(centre["xy"], float), dir=d / np.linalg.norm(d),
+                                   meta=dict(centre["align"]), pre=pre.xy.copy())
+            elif g.passage:
+                w = by_name.get(pre.name)
+                if w is None or "align" not in w:
+                    continue
+                d = g.xy - pre.xy
+                d = d / np.linalg.norm(d)
+                mouth = pre.xy + float(w["align"]["dist_m"]) * d
+                out[g.name] = dict(centre=mouth, dir=d, meta=dict(w["align"]), pre=pre.xy.copy())
+        return out
+
+    # ------------------------------------------------------------------ localisation from an opening
+    def _shift_course(self, dv):
+        """Move the vehicle's course-frame position by dv (course metres) by correcting course<-odom.
+        Every stored course-frame point that describes the vehicle moves with it."""
+        tx, ty, dyaw = self.T
+        c, s = math.cos(dyaw), math.sin(dyaw)
+        self.T = (tx - (c * dv[0] - s * dv[1]), ty - (s * dv[0] + c * dv[1]), dyaw)
+        if self.anchor is not None:
+            self.anchor = self.anchor + dv
+        if self._last_odom is not None:
+            self._last_odom = (self._last_odom[0], self._last_odom[1] + dv)
+
+    def _localize(self, obs):
+        """PF as in LiveMission, except while a measured opening is the position reference."""
+        if self.pf_hold_k is None:
+            return super()._localize(obs)
+        T = self.T
+        super()._localize(obs)
+        self.T = T
+
+    def _release_pf(self, now, obs):
+        """Crossing done: re-seed the PF at the gate-corrected pose, so it does not pull back to the
+        pre-gate estimate the opening measurement just disproved."""
+        self.pf_hold_k = None
+        if self.pf is not None:
+            pose = self.odom_to_course(obs.odom_xyz[:2], obs.odom_yaw)
+            self.pf.init(pose, 0.05, math.radians(2.0), np.array([obs.odom_xyz[0], obs.odom_xyz[1], obs.odom_yaw]))
+            self._pf_last_t = now
+        self.events.append((now, "PF", "PF", "re-seeded at the gate-corrected pose"))
+
+    # ------------------------------------------------------------------ small helpers
+    def _phase(self, name, now, note=""):
+        if name != self.phase:
+            self.events.append((now, self.phase, name, note))
+        self.phase, self.t_phase = name, now
+
+    def _hold_vel(self, xy):
+        """Bounded station keeping on the anchor (course frame)."""
+        if self.anchor is None:
+            return np.zeros(2)
+        v = self.sp.hold_kp * (self.anchor - np.asarray(xy, float))
+        n = float(np.linalg.norm(v))
+        return v if n <= self.sp.creep_mps else v * (self.sp.creep_mps / n)
+
+    def _cmd(self, cmd, v_course, yaw_rate=0.0, note=""):
+        cmd.vx, cmd.vy = self.course_vec_to_odom(float(v_course[0]), float(v_course[1]))
+        cmd.yaw_rate = float(yaw_rate)
+        cmd.speed = float(np.linalg.norm(v_course))
+        cmd.note = f"{self.phase}{': ' + note if note else ''}"
+        return cmd
+
+    def _seg_clearance(self, a, b):
+        n = max(2, int(math.ceil(math.dist(a, b) / 0.05)) + 1)
+        return min(self.grid.clearance_at(a + t * (b - a)) for t in np.linspace(0.0, 1.0, n))
+
+    def _chord_blocked(self, a, b):
+        """Live-grid validity of a straight move a->b at the HARD inflation (reach + 0.10 class).
+        A vehicle already inside the band (a live return landed close) may move only if clearance never
+        decreases until it is out, and the rest of the chord is free. Never deeper into the band."""
+        rp = self.replanner
+        if not rp.chord_blocked(a, b, hard=True):
+            return False
+        a, b = np.asarray(a, float), np.asarray(b, float)
+        n = max(2, int(math.ceil(math.dist(a, b) / 0.025)) + 1)
+        pts = [a + t * (b - a) for t in np.linspace(0.0, 1.0, n)]
+        clear = [self.grid.clearance_at(q) for q in pts]
+        k = next((i for i, c in enumerate(clear) if c >= self.grid.hard_inflate_m), None)
+        if k is None or k == 0:
+            return True
+        if any(clear[i + 1] < clear[i] - 0.01 for i in range(k)):
+            return True
+        return k < n - 1 and rp.chord_blocked(pts[k], b, hard=True)
+
+    def _stop(self, now, xy, phase="BRAKE", note=""):
+        self.anchor = np.asarray(xy, float).copy()
+        self.seg = None
+        self.settle_since = None
+        self._phase(phase, now, note)
+
+    # ------------------------------------------------------------------ segment choice
+    def _next_segment(self, now, pose_c):
+        """Pick the next straight segment from the current position along a FRESH path."""
+        sp, rp = self.sp, self.replanner
+        xy = np.asarray(pose_c[:2], float)
+        # goals already reached from here
+        while not rp.done and rp.arrived(xy) and rp.goal is not self.goals[-1]:
+            rp.advance()
+        if rp.done:
+            return None
+        goal = rp.goal
+        gate = self.align_meta.get(goal.name)
+        if gate is not None and self.aligned_for != rp.k:
+            return "ALIGN"
+        if gate is not None:
+            # crossing: straight along the measured crossing line to the goal
+            d = gate["dir"]
+            left = np.array([-d[1], d[0]])
+            # the goal projected onto the measured crossing line, at its along-track position
+            line_pt = gate["centre"] + self.cross_offset * left
+            along = float((goal.xy - line_pt) @ d)
+            b = line_pt + along * d
+            return dict(a=xy.copy(), b=b, dir=d, heading=math.atan2(d[1], d[0]), v=sp.v_gate, gate=goal.name,
+                        line_pt=line_pt)
+        path = rp.plan(xy, now)
+        if path is None or rp.blocked:
+            return "BLOCKED"
+        # first vertex far enough away; the path starts at the vehicle
+        b = None
+        for q in path[1:]:
+            if math.dist(q, xy) >= sp.min_seg_m:
+                b = np.asarray(q, float)
+                break
+        if b is None:
+            if math.dist(goal.xy, xy) < sp.min_seg_m:
+                rp.advance()
+                return self._next_segment(now, pose_c)
+            b = goal.xy.copy()
+        d = (b - xy) / max(1e-9, math.dist(b, xy))
+        clear = self._seg_clearance(xy, b)
+        v = sp.v_gate if goal.crosses is not None else (sp.v_open if clear >= sp.clear_open_m else sp.v_tight)
+        # flow through b only when the path continues past it almost straight (no gate, no stop)
+        flow = False
+        idx = next((i for i, q in enumerate(path) if np.allclose(q, b)), None)
+        if idx is not None and idx + 1 < len(path) and not goal.is_gate_leg:
+            e = np.asarray(path[idx + 1], float) - b
+            if np.linalg.norm(e) >= sp.min_seg_m:
+                turn = abs(wrap(math.atan2(e[1], e[0]) - math.atan2(d[1], d[0])))
+                flow = turn <= sp.flow_turn_max
+        return dict(a=xy.copy(), b=b, dir=d, heading=math.atan2(d[1], d[0]), v=v, gate=None, line_pt=xy.copy(),
+                    flow=flow)
+
+    # ------------------------------------------------------------------ gate alignment
+    def _align_step(self, now, obs, pose_c, cmd):
+        """Face the crossing, measure the opening, side-step onto its centre. Repeat until centred."""
+        sp, rp = self.sp, self.replanner
+        gate = self.align_meta[rp.goal.name]
+        xy = np.asarray(pose_c[:2], float)
+        a = self.align
+        if a is None:
+            a = self.align = dict(t0=now, rounds=0, frames=[], last_pts_t=-math.inf, target=None)
+            self.anchor = xy.copy()
+            self.pf_hold_k = rp.k
+        heading = math.atan2(gate["dir"][1], gate["dir"][0])
+        err = wrap(heading - pose_c[2])
+        if now - a["t0"] > sp.align_timeout_s:
+            return self._align_fail(now, xy, cmd, "opening not measured in time")
+        # 1. side-step in progress
+        if a["target"] is not None:
+            if self._chord_blocked(xy, a["target"]):
+                return self._align_fail(now, xy, cmd, "side-step blocked on the live grid")
+            self.anchor = a["target"]
+            v = self._hold_vel(xy)
+            if math.dist(xy, a["target"]) <= sp.arrive_tol_m and float(np.linalg.norm(self.vel_course)) < sp.settle_speed:
+                a["target"], a["frames"], a["settle"] = None, [], None
+            return self._cmd(cmd, v, 0.0, "side-step onto the opening")
+        # 2. face the crossing
+        if abs(err) > sp.yaw_tol_go:
+            yr = float(np.clip(sp.turn_kp * err, -sp.turn_rate, sp.turn_rate))
+            a["frames"], a["settle"] = [], None
+            return self._cmd(cmd, self._hold_vel(xy), yr, "facing the crossing")
+        # 3. settle, then collect frames
+        speed = float(np.linalg.norm(self.vel_course))
+        if speed > sp.settle_speed:
+            a["settle"] = None
+            return self._cmd(cmd, self._hold_vel(xy), 0.0, "settling")
+        a["settle"] = a.get("settle") or now
+        if now - a["settle"] < sp.settle_s:
+            return self._cmd(cmd, self._hold_vel(xy), 0.0, "settling")
+        if obs.pts_level is not None and obs.pts_t > a["last_pts_t"]:
+            a["last_pts_t"] = obs.pts_t
+            meta = dict(gate["meta"])
+            meta["dist_m"] = float((gate["centre"] - xy) @ gate["dir"])
+            est = find_opening_flu(obs.pts_level, meta)
+            a["frames"].append(to_leg_frame(est, wrap(pose_c[2] - heading)) if est else None)
+        if len(a["frames"]) < sp.align_frames:
+            return self._cmd(cmd, self._hold_vel(xy), 0.0, f"measuring opening {len(a['frames'])}/{sp.align_frames}")
+        good = [f for f in a["frames"] if f]
+        m = combine(good) if len(good) >= (sp.align_frames + 1) // 2 else None
+        a["frames"] = []
+        if m is None or m["lateral_spread_m"] > sp.align_spread_max_m or m["two_edge_frames"] == 0:
+            a["misses"] = a.get("misses", 0) + 1
+            if a["misses"] >= 3:
+                return self._align_fail(now, xy, cmd, f"opening not measured consistently ({m})")
+            return self._cmd(cmd, self._hold_vel(xy), 0.0, "re-measuring opening")
+        lat = float(m["lateral_m"])
+        left = np.array([-gate["dir"][1], gate["dir"][0]])
+        # The opening is a landmark: the vehicle is -lat across from its centre. Correct course<-odom
+        # so the believed position agrees (lateral only), then steer onto the map's crossing line.
+        corr = -lat - float((xy - gate["centre"]) @ left)
+        self.events.append((now, "ALIGN", "measured", dict(lateral_m=round(lat, 3), width_m=round(m["width_m"], 3),
+                                                            correction_m=round(corr, 3), round=a["rounds"])))
+        if abs(corr) > sp.align_max_shift_m:
+            return self._align_fail(now, xy, cmd, f"opening {corr:+.2f} m off the believed position: localisation fault")
+        self._shift_course(corr * left)
+        xy = xy + corr * left
+        self.cross_offset = 0.0
+        if abs(lat) <= sp.align_tol_m:
+            self.aligned_for = rp.k
+            self.align = None
+            self._stop(now, xy, "SETTLE", "centred on the opening")
+            return self._cmd(cmd, self._hold_vel(xy), 0.0, "centred")
+        a["rounds"] += 1
+        if a["rounds"] > sp.align_max_rounds:
+            return self._align_fail(now, xy, cmd, "did not converge on the opening centre")
+        a["target"] = xy + lat * left
+        return self._cmd(cmd, self._hold_vel(xy), 0.0, f"opening {lat:+.3f} m left: side-stepping")
+
+    def _align_fail(self, now, xy, cmd, why):
+        if not self.sp.gate_requires_measurement:
+            self.aligned_for, self.align, self.cross_offset = self.replanner.k, None, 0.0
+            self.events.append((now, "ALIGN", "map-only crossing", why))
+            self._stop(now, xy, "SETTLE", why)
+            return self._cmd(cmd, self._hold_vel(xy), 0.0, why)
+        self.align = None
+        self._stop(now, xy, "REFUSED", why)
+        self._set("HOLD", now, f"gate refused: {why}")
+        self.hold_since = now
+        self.gate_refused = why
+        return self._cmd(cmd, self._hold_vel(xy), 0.0, why)
+
+    # ------------------------------------------------------------------ the driver
+    def _drive(self, now, obs, pose_c, cmd):
+        sp, rp = self.sp, self.replanner
+        xy = np.asarray(pose_c[:2], float)
+        speed = float(np.linalg.norm(self.vel_course))
+        if self.anchor is None:
+            self.anchor = xy.copy()
+        if self.phase in ("IDLE", "BRAKE"):
+            self.seg = None
+            if speed > sp.settle_speed:
+                return self._cmd(cmd, np.zeros(2), 0.0, "braking")
+            self.anchor = xy.copy()          # rule 4: hold where the vehicle actually stopped
+            self._phase("SETTLE", now)
+        if self.phase == "SETTLE":
+            if speed > sp.settle_speed:
+                self.settle_since = None
+            else:
+                self.settle_since = self.settle_since or now
+            if self.settle_since is None or now - self.settle_since < sp.pre_turn_dwell_s:
+                if now - self.t_phase > sp.settle_timeout_s:
+                    self.anchor = xy.copy()
+                    self.t_phase = now
+                return self._cmd(cmd, self._hold_vel(xy), 0.0, "settling")
+            nxt = self._next_segment(now, pose_c)
+            if nxt is None:
+                return self._cmd(cmd, self._hold_vel(xy), 0.0, "route done")
+            if nxt == "ALIGN":
+                self._phase("ALIGN", now)
+                return self._align_step(now, obs, pose_c, cmd)
+            if nxt == "BLOCKED":
+                self._set("HOLD", now, rp.last_reason or "no path")
+                self.hold_since = now
+                return self._cmd(cmd, self._hold_vel(xy), 0.0, rp.last_reason)
+            self.seg = nxt
+            self._phase("TURN", now, f"to {rp.goal.name} {math.degrees(wrap(nxt['heading'] - pose_c[2])):+.0f} deg")
+        if self.phase == "ALIGN":
+            return self._align_step(now, obs, pose_c, cmd)
+        seg = self.seg
+        if self.phase == "TURN":
+            err = wrap(seg["heading"] - pose_c[2])
+            if abs(err) > sp.yaw_tol_go:
+                self.settle_since = None
+                yr = float(np.clip(sp.turn_kp * err, -sp.turn_rate, sp.turn_rate))
+                return self._cmd(cmd, self._hold_vel(xy), yr, f"turning {math.degrees(err):+.0f} deg")
+            if speed > sp.settle_speed:
+                self.settle_since = None
+            else:
+                self.settle_since = self.settle_since or now
+            if self.settle_since is None or now - self.settle_since < sp.post_turn_dwell_s:
+                return self._cmd(cmd, self._hold_vel(xy), sp.turn_kp * err, "settling after the turn")
+            # the turn may have moved the vehicle a little: start the segment from here
+            seg["a"] = xy.copy()
+            self._phase("GO", now)
+        if self.phase == "GO":
+            d = seg["dir"]
+            left = np.array([-d[1], d[0]])
+            remaining = float((seg["b"] - xy) @ d)
+            # live checks: the chord ahead on the live grid, the depth scan in the body corridor
+            if seg["gate"] is None and self._chord_blocked(xy, seg["b"]):
+                self.blocked_count = getattr(self, "blocked_count", 0) + 1
+                if self.blocked_count >= 3:          # same refusal again and again: wait, then recheck
+                    self.blocked_count = 0
+                    self._stop(now, xy, "BRAKE", "segment repeatedly blocked")
+                    self._set("HOLD", now, "segment repeatedly blocked on the live grid")
+                    self.hold_since = now
+                    return self._cmd(cmd, np.zeros(2), 0.0, "repeatedly blocked")
+                self._stop(now, xy, "BRAKE", "segment blocked on the live grid")
+                return self._cmd(cmd, np.zeros(2), 0.0, "segment blocked")
+            if now - self.t_phase > 1.0:
+                self.blocked_count = 0
+            ahead = scan_ahead(self.scan_nav, wrap(seg["heading"] - pose_c[2]), sp.corridor_half_m)
+            v = seg["v"] if seg.get("flow") else min(seg["v"], math.sqrt(max(0.0, 2.0 * sp.a_brake * max(0.0, remaining))))
+            # rule 6: what is seen ahead caps the speed so the vehicle can still stop short of it
+            room = ahead - sp.reach_m - sp.front_buffer_m
+            while v > 0.02 and stop_distance(v, sp) > room:
+                v *= 0.8
+            if seg["gate"] is None and room < sp.min_seg_m and remaining > room:
+                self._stop(now, xy, "BRAKE", f"return {ahead:.2f} m ahead")
+                return self._cmd(cmd, np.zeros(2), 0.0, "obstacle ahead")
+            if remaining <= sp.arrive_tol_m and seg.get("flow"):
+                nxt = self._next_segment(now, pose_c)
+                if isinstance(nxt, dict) and nxt["gate"] is None \
+                        and abs(wrap(nxt["heading"] - pose_c[2])) <= sp.flow_turn_max + math.radians(3):
+                    self.seg = seg = nxt
+                    self.events.append((now, "GO", "GO", f"flow to {rp.goal.name}"))
+                    return self._drive(now, obs, pose_c, cmd)
+            if remaining <= sp.arrive_tol_m:
+                self._stop(now, xy, "BRAKE", "segment end")
+                return self._cmd(cmd, np.zeros(2), 0.0, "arrived")
+            # cross-track: back onto the segment line (or the measured crossing line), bounded
+            cross = float((xy - seg["line_pt"]) @ left)
+            if seg["gate"] is not None:
+                self._recentre(obs, pose_c, seg)
+                cross = float((xy - seg["line_pt"]) @ left)
+            v_ct = float(np.clip(-sp.ct_kp * cross, -sp.creep_mps, sp.creep_mps))
+            herr = wrap(seg["heading"] - pose_c[2])
+            yr = float(np.clip(sp.turn_kp * herr, -sp.heading_hold_rate, sp.heading_hold_rate))
+            if abs(herr) > math.radians(15):
+                self._stop(now, xy, "BRAKE", "heading lost while translating")
+                return self._cmd(cmd, np.zeros(2), 0.0, "heading lost")
+            return self._cmd(cmd, v * d + v_ct * left, yr, f"{remaining:.2f} m to go at {v:.2f} m/s")
+        return self._cmd(cmd, self._hold_vel(xy), 0.0, "hold")
+
+    def _recentre(self, obs, pose_c, seg):
+        """While still far enough to see both jambs, keep the crossing line on the measured opening."""
+        sp = self.sp
+        gate = self.align_meta.get(seg["gate"])
+        if gate is None or obs.pts_level is None or obs.pts_t <= getattr(self, "_recentre_t", -math.inf):
+            return
+        self._recentre_t = obs.pts_t
+        xy = np.asarray(pose_c[:2], float)
+        dist = float((gate["centre"] - xy) @ gate["dir"])
+        if dist < sp.recentre_min_range_m:
+            return
+        meta = dict(gate["meta"])
+        meta["dist_m"] = dist
+        est = find_opening_flu(obs.pts_level, meta)
+        if not est or est.get("one_edge"):
+            return
+        est = to_leg_frame(est, wrap(pose_c[2] - seg["heading"]))
+        left = np.array([-gate["dir"][1], gate["dir"][0]])
+        measured = float((xy - gate["centre"]) @ left) + float(est["lateral_m"])
+        if abs(measured - self.cross_offset) > 0.10:
+            return                    # one frame disagreeing by > 10 cm is an outlier, not a correction
+        self.cross_offset += sp.recentre_gain * (measured - self.cross_offset)
+        line_pt = gate["centre"] + self.cross_offset * left
+        seg["line_pt"] = line_pt
+        seg["b"] = line_pt + float((seg["b"] - line_pt) @ gate["dir"]) * gate["dir"]
+
+    # ------------------------------------------------------------------ the tick
+    def step(self, obs: Observation) -> Command:
+        p, sp = self.p, self.sp
+        now = obs.now
+        if self.fault is not None:
+            return Command(state='FAULT', note=self.fault)
+        if not all(math.isfinite(v) for v in (*obs.odom_xyz, obs.odom_yaw, now)):
+            return self.abort(now, 'non-finite mission observation')
+        cmd = Command(state=self.state)
+        z = obs.odom_xyz[2]
+        if self.state not in ("WAIT", "PAUSED") and not obs.offboard_active:
+            self._set("PAUSED", now, "Offboard lost")
+            cmd.state = self.state
+            return cmd
+        if self.state == "WAIT":
+            cmd = super().step(obs)
+            if self.state == "CLIMB":
+                self.climb_xy = None
+            return cmd
+        if self.state == "PAUSED":
+            return cmd
+        # sensors -> scans, localizer, live grid (exactly as LiveMission)
+        scan_fresh = (obs.pts_level is not None and math.isfinite(obs.pts_t)
+                      and -0.05 <= now - obs.pts_t <= p.depth_max_age_s)
+        if not scan_fresh:
+            self.scan_nav = self.scan_pf = None
+        new_scan = scan_fresh and obs.pts_t > self._pts_t
+        if new_scan:
+            from ..coursenav.scan import scan_from_points
+            self._pts_t = obs.pts_t
+            band = self.doc.get("plan_band_m", 0.25)
+            self.scan_nav = scan_from_points(obs.pts_level, obs.height_m, zlo=p.cruise_z_m - band,
+                                             zhi=p.cruise_z_m + band, rmax=p.scan_rmax_m)
+            self.scan_pf = scan_from_points(obs.pts_level, obs.height_m, zlo=p.scan_band_lo,
+                                            zhi=p.scan_band_hi, rmax=p.scan_rmax_m)
+        if self.state in ('FLY', 'PAD', 'HOLD') and (self.scan_nav is None or not len(self.scan_nav)):
+            return self.abort(now, 'missing, stale or empty navigation depth scan')
+        if new_scan and self.pf is not None and self.pf.ready and self.state in ("CLIMB", "FLY", "PAD", "HOLD"):
+            self._localize(obs)
+        pose_c = self.odom_to_course(obs.odom_xyz[:2], obs.odom_yaw)
+        cmd.pose_course = pose_c
+        self._update_velocity(now, pose_c)
+        xy = np.asarray(pose_c[:2], float)
+        if new_scan and self.scan_nav is not None and self.state in ("FLY", "PAD", "HOLD", "CLIMB"):
+            self.grid.integrate(pose_c, self.scan_nav, now)
+        if now - self.t_offboard > p.time_limit_s and self.state in ("FLY", "PAD"):
+            self._stop(now, xy, "BRAKE", "time limit")
+            self._set("HOLD", now, "time limit")
+            self.hold_since = -math.inf
+        if self.state == "CLIMB":
+            if self.climb_xy is None:
+                self.climb_xy = xy.copy()
+            self.anchor = self.climb_xy
+            cmd.vz = self._vz(z, self.z_odom_cruise, p.climb_rate_mps)
+            self._cmd(cmd, self._hold_vel(xy), 0.0, "climbing straight up")
+            if abs(z - self.z_odom_cruise) <= p.z_tol_m:
+                self._set("FLY", now)
+                self._phase("BRAKE", now)
+            cmd.state = self.state
+            return cmd
+        rp = self.replanner
+        if self.pf_hold_k is not None and rp.k > self.pf_hold_k:
+            self._release_pf(now, obs)
+            pose_c = self.odom_to_course(obs.odom_xyz[:2], obs.odom_yaw)
+            xy = np.asarray(pose_c[:2], float)
+        if self.state in ("FLY", "PAD", "HOLD"):
+            cmd.vz = self._vz(z, self.z_odom_cruise, p.climb_rate_mps)
+        if self.state in ("FLY", "PAD"):
+            last = self.goals[-1]
+            if rp.goal is last and self.state == "FLY":
+                self._set("PAD", now)
+            if self.state == "PAD":
+                self._update_pad(obs, pose_c)
+            if rp.goal is last and math.dist(xy, last.xy) <= sp.arrive_tol_m * 2 and self.phase in ("SETTLE", "BRAKE", "IDLE"):
+                self._set("DESCEND", now, "over the pad")
+                self.anchor = last.xy.copy()
+            else:
+                self._drive(now, obs, pose_c, cmd)
+                cmd.goal = rp.goal.name if rp.goal is not None else ""
+                if self.seg is not None:
+                    cmd.path_course = np.vstack([xy, self.seg["b"]])
+        if self.state == "HOLD":
+            self.anchor = self.anchor if self.anchor is not None else xy.copy()
+            self._cmd(cmd, self._hold_vel(xy), 0.0, f"hold: {self.log[-1][3] if self.log else ''}")
+            recheck = (self.hold_since is not None and now - self.t_state >= p.hold_recheck_s
+                       and now - self.hold_since < p.blocked_abort_s and now - self.t_offboard <= p.time_limit_s
+                       and not getattr(self, "gate_refused", None))
+            if recheck:
+                path = rp.plan(xy, now)
+                if path is not None and not rp.blocked:
+                    self._set("FLY", now, "path clear again")
+                    self._phase("SETTLE", now)
+                else:
+                    self.t_state = now
+        if self.state == "DESCEND":
+            goal_xy = self.goals[-1].xy
+            self.anchor = np.asarray(goal_xy, float)
+            off = math.dist(xy, goal_xy)
+            note = "descending onto the pad" if off <= sp.pad_over_m else f"centring over the pad ({off:.2f} m)"
+            self._cmd(cmd, self._hold_vel(xy), 0.0, note)
+            cmd.vz = -sp.land_vz if off <= sp.pad_over_m else 0.0
+            cmd.land = off <= sp.pad_over_m and z <= sp.landed_z_odom_m
+            cmd.goal = "pad"
+        cmd.state = self.state
+        return cmd
+
+    def status(self):
+        st = super().status()
+        st.update(phase=self.phase, cross_offset_m=round(self.cross_offset, 3),
+                  seg=None if self.seg is None else dict(b=[round(float(v), 3) for v in self.seg["b"]],
+                                                         v=self.seg["v"], gate=self.seg["gate"]),
+                  gate_refused=getattr(self, "gate_refused", None))
+        return st

@@ -1,6 +1,16 @@
 # kestrel_nav: team wide-kestrel course code, packaged for skybeta
 
-## Current branch: `diagnostic`
+## Current branch: `kestral_nav934am` (safe policy)
+
+The entry point for this branch is **`safe.launch.py`** (`COMPETITOR_LAUNCH=safe.launch.py`): a
+safety-first course policy built on livenav's planning, localizer and live grid. Stop-turn-go (never
+yaw while translating), depth-measured centring on the tunnel mouth and the window (no measurement, no
+crossing), stopping-distance budget against the depth view, the 7-inch prop reach (0.294 m), and an
+autonomous descent onto the pad. See **[docs/SAFE_POLICY.md](docs/SAFE_POLICY.md)** for the rules, the
+evidence behind each, offline results (16/16 landed, 0 contacts, 156-170 s) and the open risks. It has
+not flown. `live.launch.py` and `tune.launch.py` are unchanged.
+
+## Branch `diagnostic` (inherited)
 
 This experimental branch adds `tune.launch.py`: slow map-guided transit, bounded
 yaw measurements in the open area before the tube, straight-line response

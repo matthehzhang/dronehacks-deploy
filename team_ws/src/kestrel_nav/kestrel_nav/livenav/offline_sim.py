@@ -71,6 +71,8 @@ class SimConfig:
     tick_hz: float = 10.0
     max_time_s: float = 200.0
     prop_radius_m: float = 0.28
+    yaw_slip_s: float = 0.0                 # run010 mechanism: while yawing at r, the achieved velocity is the
+                                            # command rotated by r * yaw_slip_s toward the turn (0 = off)
     unmapped: tuple = ()
     shift_group: str = ""
     shift_m: tuple = (0.0, 0.0)
@@ -154,6 +156,10 @@ class OfflineFlight:
         # commanded odom-frame velocity -> course frame (odom axes = body FLU at power-on)
         c, s = math.cos(self.odom0[2]), math.sin(self.odom0[2])
         v_cmd = np.array([c * cmd.vx - s * cmd.vy, s * cmd.vx + c * cmd.vy])
+        if cfg.yaw_slip_s:
+            a = self.yaw_rate * cfg.yaw_slip_s
+            ca, sa = math.cos(a), math.sin(a)
+            v_cmd = np.array([ca * v_cmd[0] - sa * v_cmd[1], sa * v_cmd[0] + ca * v_cmd[1]])
         self.v += (v_cmd - self.v) * min(1.0, dt / cfg.tau_v)
         self.yaw_rate += (cmd.yaw_rate - self.yaw_rate) * min(1.0, dt / cfg.tau_yaw)
         d = self.v * dt

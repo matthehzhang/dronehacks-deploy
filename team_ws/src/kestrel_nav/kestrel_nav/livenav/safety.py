@@ -49,6 +49,7 @@ class InputSafety:
         self.healthy_since = None
         self.reason = 'waiting for inputs'
         self.action = 'silent'
+        self.waived = frozenset()  # streams the current mission phase does not need (e.g. depth on final descent)
 
     def trip(self, reason):
         if self.fault is None:
@@ -120,7 +121,7 @@ class InputSafety:
             self.action = 'stop' if offboard and armed else 'silent'
             return self.action
         error = land_error or next((e for s in ('odom', 'tracking', 'depth')
-                      if (e := self.stream_error(s, ros_now, now))), None)
+                      if s not in self.waived and (e := self.stream_error(s, ros_now, now))), None)
         if not position_valid:
             error = error or 'PX4 local position invalid'
         if error:

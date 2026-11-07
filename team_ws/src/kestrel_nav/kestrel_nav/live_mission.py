@@ -459,11 +459,7 @@ class LiveMissionNode(Node):
             self.stop_mission(now, f'mission computation failed: {type(e).__name__}: {e}')
             self.send_twist(0.0, 0.0, 0.0, 0.0)
             return
-        c, s = math.cos(self.yaw), math.sin(self.yaw)
-        fp = self.mission.follower.p
-        reason = corridor_error(self.depth_frame, c * cmd.vx + s * cmd.vy, -s * cmd.vx + c * cmd.vy,
-                                half_width=fp.corridor_half_m, band=self.mission.doc.get('plan_band_m', 0.25),
-                                at_m=fp.stop_m + fp.reactive_ramp_m, params=self.safety.p)
+        reason = self.motion_corridor_error(cmd)
         if cmd.state == 'FAULT' or reason:
             self.stop_mission(now, reason or cmd.note)
             self.send_twist(0.0, 0.0, 0.0, 0.0)
@@ -475,6 +471,14 @@ class LiveMissionNode(Node):
         self.send_twist(cmd.vx, cmd.vy, cmd.vz, cmd.yaw_rate)
         if cmd.path_course is not None:
             self.publish_path(cmd.path_course)
+
+    def motion_corridor_error(self, cmd):
+        """Depth must observe the commanded horizontal direction (a missing-data guard)."""
+        c, s = math.cos(self.yaw), math.sin(self.yaw)
+        fp = self.mission.follower.p
+        return corridor_error(self.depth_frame, c * cmd.vx + s * cmd.vy, -s * cmd.vx + c * cmd.vy,
+                              half_width=fp.corridor_half_m, band=self.mission.doc.get('plan_band_m', 0.25),
+                              at_m=fp.stop_m + fp.reactive_ramp_m, params=self.safety.p)
 
     def publish_status(self):
         st = self.mission.status()
