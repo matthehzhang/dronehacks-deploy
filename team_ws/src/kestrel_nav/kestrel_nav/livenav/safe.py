@@ -90,6 +90,10 @@ class SafeParams(FollowParams):
     # segments
     min_seg_m: float = 0.10
     arrive_tol_m: float = 0.05
+    pad_enter_m: float = 0.30     # stopped this close to the pad goal -> DESCEND (which centres to pad_over_m)
+    brake_timeout_s: float = 3.0  # still "moving" after this: hold position where the vehicle is
+    no_progress_max: int = 3      # segments ending in a stop without progress, in a row -> HOLD and recheck
+    obstacle_memory_s: float = 3.0  # a return that drops inside stereo minimum range is remembered this long
     # gate alignment
     align_frames: int = 5
     align_tol_m: float = 0.03
@@ -119,6 +123,11 @@ class SafeMission(LiveMission):
     def __init__(self, params=None, nav_params: NavParams = None, replan_params: ReplanParams = None,
                  safe_params: SafeParams = None, course_file=None):
         sp = safe_params or SafeParams()
+        if nav_params is None:
+            # Live validity band = the REAL prop reach + 0.10 m. NavGrid adds hard_margin_m to the course
+            # file's 0.28 m radius; the 7-inch airframe reaches 0.294 m, so the margin grows by 0.014 m.
+            # (Planning inflation stays radius + 0.12 = 0.40 m: reach + 0.106 m. See docs/SAFE_POLICY.md.)
+            nav_params = NavParams(hard_margin_m=0.10 + max(0.0, sp.reach_m - 0.28))
         super().__init__(params, nav_params, replan_params, sp, course_file=course_file)
         self.sp = sp
         self.phase = "IDLE"
@@ -234,6 +243,31 @@ class SafeMission(LiveMission):
             return True
         return k < n - 1 and rp.chord_blocked(pts[k], b, hard=True)
 
+    def _update_velocity_odom(self, now, odom_xy):
+        """Velocity from VIO odometry differences rotated into the course frame. Unlike LiveMission's
+        course-frame difference, a PF/gate correction of course<-odom is not mistaken for motion."""
+        p = np.asarray(odom_xy, float)
+        last = getattr(self, "_last_odom_xy", None)
+        if last is not None:
+            dt = now - last[0]
+            if 0.02 <= dt <= 0.5:
+                c, s = math.cos(-self.T[2]), math.sin(-self.T[2])
+                d = (p - last[1]) / dt
+                v = np.array([c * d[0] - s * d[1], s * d[0] + c * d[1]])
+                self.vel_course = 0.6 * self.vel_course + 0.4 * v
+        self._last_odom_xy = (now, p)
+
+    def _no_progress(self, now, xy, cmd, why):
+        """Stop. The same refusal a few times in a row (no progress between them) -> HOLD, which
+        replans every hold_recheck_s and gives up after blocked_abort_s."""
+        self.no_progress = getattr(self, "no_progress", 0) + 1
+        self._stop(now, xy, "BRAKE", why)
+        if self.no_progress >= self.sp.no_progress_max:
+            self.no_progress = 0
+            self._set("HOLD", now, f"no progress: {why}")
+            self.hold_since = now
+        return self._cmd(cmd, np.zeros(2), 0.0, why)
+
     def _stop(self, now, xy, phase="BRAKE", note=""):
         self.anchor = np.asarray(xy, float).copy()
         self.seg = None
@@ -262,7 +296,14 @@ class SafeMission(LiveMission):
             line_pt = gate["centre"] + self.cross_offset * left
             along = float((goal.xy - line_pt) @ d)
             b = line_pt + along * d
-            return dict(a=xy.copy(), b=b, dir=d, heading=math.atan2(d[1], d[0]), v=sp.v_gate, gate=goal.name,
+            if float((b - xy) @ d) <= sp.arrive_tol_m and goal is not self.goals[-1]:
+                rp.advance()                     # past the crossing goal along the track: leg done
+                return self._next_segment(now, pose_c)
+            if goal.crosses is not None:
+                v = sp.v_gate                    # a wall opening (the window)
+            else:                                # a passage (the tunnel): its own clearance decides
+                v = sp.v_open if self._seg_clearance(xy, b) >= sp.clear_open_m else sp.v_tight
+            return dict(a=xy.copy(), b=b, dir=d, heading=math.atan2(d[1], d[0]), v=v, gate=goal.name,
                         line_pt=line_pt)
         path = rp.plan(xy, now)
         if path is None or rp.blocked:
@@ -275,6 +316,8 @@ class SafeMission(LiveMission):
                 break
         if b is None:
             if math.dist(goal.xy, xy) < sp.min_seg_m:
+                if goal is self.goals[-1]:
+                    return None                  # at the pad: the caller descends
                 rp.advance()
                 return self._next_segment(now, pose_c)
             b = goal.xy.copy()
@@ -315,11 +358,13 @@ class SafeMission(LiveMission):
             v = self._hold_vel(xy)
             if math.dist(xy, a["target"]) <= sp.arrive_tol_m and float(np.linalg.norm(self.vel_course)) < sp.settle_speed:
                 a["target"], a["frames"], a["settle"] = None, [], None
+                a["t0"] = now                    # each measuring round gets the full timeout
             return self._cmd(cmd, v, 0.0, "side-step onto the opening")
         # 2. face the crossing
         if abs(err) > sp.yaw_tol_go:
             yr = float(np.clip(sp.turn_kp * err, -sp.turn_rate, sp.turn_rate))
             a["frames"], a["settle"] = [], None
+            a["t0"] = now                        # the timeout counts measuring, not turning
             return self._cmd(cmd, self._hold_vel(xy), yr, "facing the crossing")
         # 3. settle, then collect frames
         speed = float(np.linalg.norm(self.vel_course))
@@ -390,7 +435,7 @@ class SafeMission(LiveMission):
             self.anchor = xy.copy()
         if self.phase in ("IDLE", "BRAKE"):
             self.seg = None
-            if speed > sp.settle_speed:
+            if speed > sp.settle_speed and now - self.t_phase < sp.brake_timeout_s:
                 return self._cmd(cmd, np.zeros(2), 0.0, "braking")
             self.anchor = xy.copy()          # rule 4: hold where the vehicle actually stopped
             self._phase("SETTLE", now)
@@ -433,6 +478,9 @@ class SafeMission(LiveMission):
                 return self._cmd(cmd, self._hold_vel(xy), sp.turn_kp * err, "settling after the turn")
             # the turn may have moved the vehicle a little: start the segment from here
             seg["a"] = xy.copy()
+            if seg["gate"] is None:
+                seg["line_pt"] = xy.copy()
+            seg["ahead_mem"] = None
             self._phase("GO", now)
         if self.phase == "GO":
             d = seg["dir"]
@@ -440,26 +488,25 @@ class SafeMission(LiveMission):
             remaining = float((seg["b"] - xy) @ d)
             # live checks: the chord ahead on the live grid, the depth scan in the body corridor
             if seg["gate"] is None and self._chord_blocked(xy, seg["b"]):
-                self.blocked_count = getattr(self, "blocked_count", 0) + 1
-                if self.blocked_count >= 3:          # same refusal again and again: wait, then recheck
-                    self.blocked_count = 0
-                    self._stop(now, xy, "BRAKE", "segment repeatedly blocked")
-                    self._set("HOLD", now, "segment repeatedly blocked on the live grid")
-                    self.hold_since = now
-                    return self._cmd(cmd, np.zeros(2), 0.0, "repeatedly blocked")
-                self._stop(now, xy, "BRAKE", "segment blocked on the live grid")
-                return self._cmd(cmd, np.zeros(2), 0.0, "segment blocked")
+                return self._no_progress(now, xy, cmd, "segment blocked on the live grid")
             if now - self.t_phase > 1.0:
-                self.blocked_count = 0
+                self.no_progress = 0
             ahead = scan_ahead(self.scan_nav, wrap(seg["heading"] - pose_c[2]), sp.corridor_half_m)
-            v = seg["v"] if seg.get("flow") else min(seg["v"], math.sqrt(max(0.0, 2.0 * sp.a_brake * max(0.0, remaining))))
+            # a return inside stereo minimum range (~0.4 m) vanishes from the scan: remember where it was
+            s_here = float(xy @ d)
+            if math.isfinite(ahead):
+                seg["ahead_mem"] = (now, s_here + ahead)
+            elif seg.get("ahead_mem") and now - seg["ahead_mem"][0] <= sp.obstacle_memory_s:
+                ahead = seg["ahead_mem"][1] - s_here
+            # always ramp down into the segment end: a flow-through is only confirmed there (fresh replan),
+            # and braking from full speed after a refused flow overshot 7 cm toward a wall offline
+            v = min(seg["v"], math.sqrt(max(0.0, 2.0 * sp.a_brake * max(0.0, remaining))))
             # rule 6: what is seen ahead caps the speed so the vehicle can still stop short of it
             room = ahead - sp.reach_m - sp.front_buffer_m
-            while v > 0.02 and stop_distance(v, sp) > room:
+            while v > 0.03 and stop_distance(v, sp) > room:
                 v *= 0.8
-            if seg["gate"] is None and room < sp.min_seg_m and remaining > room:
-                self._stop(now, xy, "BRAKE", f"return {ahead:.2f} m ahead")
-                return self._cmd(cmd, np.zeros(2), 0.0, "obstacle ahead")
+            if (room < sp.min_seg_m or v <= 0.03) and remaining > max(room, sp.arrive_tol_m):
+                return self._no_progress(now, xy, cmd, f"return {ahead:.2f} m ahead")
             if remaining <= sp.arrive_tol_m and seg.get("flow"):
                 nxt = self._next_segment(now, pose_c)
                 if isinstance(nxt, dict) and nxt["gate"] is None \
@@ -551,7 +598,7 @@ class SafeMission(LiveMission):
             self._localize(obs)
         pose_c = self.odom_to_course(obs.odom_xyz[:2], obs.odom_yaw)
         cmd.pose_course = pose_c
-        self._update_velocity(now, pose_c)
+        self._update_velocity_odom(now, obs.odom_xyz[:2])
         xy = np.asarray(pose_c[:2], float)
         if new_scan and self.scan_nav is not None and self.state in ("FLY", "PAD", "HOLD", "CLIMB"):
             self.grid.integrate(pose_c, self.scan_nav, now)
@@ -583,7 +630,9 @@ class SafeMission(LiveMission):
                 self._set("PAD", now)
             if self.state == "PAD":
                 self._update_pad(obs, pose_c)
-            if rp.goal is last and math.dist(xy, last.xy) <= sp.arrive_tol_m * 2 and self.phase in ("SETTLE", "BRAKE", "IDLE"):
+            at_pad = rp.done or (rp.goal is last and math.dist(xy, last.xy) <= sp.pad_enter_m
+                                 and self.phase in ("SETTLE", "BRAKE", "IDLE"))
+            if at_pad:
                 self._set("DESCEND", now, "over the pad")
                 self.anchor = last.xy.copy()
             else:

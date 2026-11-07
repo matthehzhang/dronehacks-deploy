@@ -31,7 +31,7 @@ never has to touch the sticks on a good run. **Any stick input ends the run (rul
 | **Close the position loop on VIO.** Twist setpoints computed from cuVSLAM odometry (through the PF-corrected course frame), not pose setpoints. | Run010: VIO position followed truth while PX4's velocity estimate lagged the slide. Interface: a pose setpoint has no speed limit (flown at `MPC_XY_VEL_MAX` 12 m/s) and never expires; a twist is capped at 1.5 m/s and expires to hold after 1 s. |
 | **Hold where you stopped.** After every stop the station-keeping anchor is the current position, never the waypoint. | Run008: a stale hold target pulled the vehicle 10 cm sideways. |
 | **Measure gates; no measurement, no crossing.** At the tunnel entry and the window pre-point the vehicle faces the crossing, measures the jambs in depth (5 frames, median, both jambs), corrects its lateral position estimate to the measured opening, side-steps onto the centre line, re-measures, and keeps re-centring on the opening while it is still > 0.55 m away. PF corrections pause through the crossing and the PF is re-seeded at the gate-corrected pose afterwards. If the opening is not measured consistently within 12 s, or disagrees with the believed position by > 0.25 m, the vehicle **holds** (`gate_refused`), it does not cross blind. | Window: 0.914 m square in the OBJ (0.871 m on the 5 cm grid); prop-tip span 0.588 m, so 0.14-0.16 m per side when perfectly centred. Sim runs 3/4: PX4/VIO estimate 0.16-0.20 m off truth. Offline here: belief was 5-8 cm off at both gates; after measured centring, **truth** was within 2 cm of the opening centre in every case. |
-| **Stop distance is a budget.** Speed is capped so that `reach + 0.10 + v*0.6 s + v^2/(2*0.25)` fits before the nearest depth return in the body corridor; otherwise the segment is shortened or the vehicle holds. Segment chords are re-checked on the live grid at the hard inflation; a vehicle already inside it may only move to increasing clearance. | `0.6 s` / `0.25 m/s^2` are conservative assumptions, **not measured** on hardware (the workspace diagnostic assumed 0.8 s / 0.15 m/s^2). |
+| **Stop distance is a budget.** Speed is capped so that `reach + 0.10 + v*0.6 s + v^2/(2*0.25)` fits before the nearest depth return in the body corridor; otherwise the segment is shortened or the vehicle holds. Segment chords are re-checked on the live grid at the hard inflation, sized to the real reach (0.294 + 0.10 m); a vehicle already inside it may only move to increasing clearance. This applies on gate legs too; a return that drops inside stereo minimum range (0.4 m) is remembered for 3 s, not forgotten. Repeated stops without progress go to HOLD (replans every 2 s, gives up after 20 s). | `0.6 s` / `0.25 m/s^2` are conservative assumptions, **not measured** on hardware (the workspace diagnostic assumed 0.8 s / 0.15 m/s^2). |
 | **Size is the 7-inch airframe.** Prop reach 0.294 m = max over rotors of hypot(x,y) + 7 in/2, rotor XY from `px4/params/07_airframe_geometry.params`. Used for the corridor guard and offline contact scoring. The planner graph still uses the course file's 0.28 m + 0.12 m (0.40 m): that is reach 0.294 + 0.106 m margin. | 7-inch props confirmed by the team, 2026-11-07. Raising the planner radius to 0.294 + 0.12 makes the window route infeasible on the 5 cm grid (0.412 < 0.414 m); the measured crossing replaces that margin at the window instead. |
 | **Land on the pad.** Centre within 0.10 m, descend at 0.15 m/s (< `LNDMC_Z_VEL_MAX` 0.25) with xy station keeping; depth is waived only in this phase (stereo is blind < 0.4 m); odometry/tracking/state/PX4 land state stay required. | CP5 is "land and disarm with the whole drone inside the pad's outer ring". The interface's 0.3 m floor clamps pose setpoints only, not twist. |
 
@@ -48,16 +48,28 @@ turn by `yaw_rate * yaw_slip_s` (1.0 s used): a crude stand-in for the run010 me
 
 | Policy | Cases | Landed | Contact | Min clearance | Time | Pad error |
 |---|---|---|---|---|---|---|
-| **safe** (seeds 0-3 x slip {0, 1.0} x start error {0, 0.10 m + 2 deg}) | 16 | **16** | **0** | 0.335-0.364 m | 156-170 s | 0.09-0.13 m |
+| **safe** (seeds 0-3 x slip {0, 1.0} x start error {0, 0.10 m + 2 deg}) | 16 | **16** | **0** | 0.350-0.391 m | 142-149 s | 0.09-0.13 m |
 | live carrot follower, slip 1.0 (seeds 0, 1) | 2 | 0 | **2** (maze M1 corner, t ~ 8-10 s) | 0.292 m | - | - |
 | live carrot follower, no slip (seeds 0, 1) | 2 | 1 | 1 (M1 corner) | 0.292 / 0.300 m | 67 s | 0.06 m |
 
 The carrot follower's offline contact point (-2.24, 2.27)-(-2.24, 2.30) is the same M1 corner as
 run010's real contact (-2.18, 2.30).
 
+## Review fixes (independent code review, 2026-11-07)
+
+Fixed after an adversarial review of the first commit: gate legs had no obstacle stop and a return inside
+0.4 m vanished from the scan (now stopped and remembered); a low-valid depth frame on the final descent
+could still latch FAULT through `reject()` (waived streams no longer trip); pad entry needed <= 0.10 m and
+a flow-through could skip the pad (now <= 0.30 m, or route done); the gate-alignment timeout counted
+turning and side-steps (restarts per round); velocity used course-frame differences, so PF/gate frame
+corrections looked like motion (now odometry deltas) and BRAKE had no timeout (3 s); two no-progress
+livelocks (now HOLD after 3); the tunnel flew at window speed; `turn_rate_deg` unvalidated; flow-through
+segments carried full speed into an unconfirmed vertex (now always ramp down); the live hard band used the
+old 0.28 m radius (now the 0.294 m reach). Regression tests in `tests/test_safe_policy.py`.
+
 ## Known limits and risks (read before flying)
 
-1. **Time.** 156-170 s offline against a 180 s limit that starts when the drone leaves the mark and
+1. **Time.** 142-149 s offline against a 180 s limit that starts when the drone leaves the mark and
    stops on disarm. Hardware will be slower if VIO, depth or holds misbehave. `time_limit_s` 175: past
    it the vehicle holds where it is (the pilot then lands; the run is scored on checkpoints reached).
    If time is short, the levers are `v_tight`/`v_open` (straight segments only) and `turn_rate_deg`,

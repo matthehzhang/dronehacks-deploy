@@ -58,6 +58,8 @@ class InputSafety:
 
     def reject(self, stream, reason):
         self.errors[stream] = reason
+        if stream in self.waived:
+            return                 # recorded for status; the current phase does not need this stream
         self.healthy_since = None
         if self.active:
             self.trip(reason)

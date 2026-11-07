@@ -125,3 +125,51 @@ def test_depth_waiver_on_descent_keeps_every_other_stream_required(waived, actio
     s2.active, s2.waived = True, frozenset({'depth'})
     assert s2.evaluate(10.0, 10.0, offboard=True, armed=True, landed=False, link=True,
                        position_valid=True) == 'stop'       # odometry is never waived
+
+
+def test_waived_stream_reject_does_not_trip_the_fault():
+    s = InputSafety()
+    s.active, s.waived = True, frozenset({'depth'})
+    s.reject('depth', 'depth: valid fraction 0.05 below 0.30')     # close to the floor on descent
+    assert s.fault is None
+    s.reject('odom', 'odom: stale')
+    assert s.fault == 'odom: stale'
+
+
+def scan_of(ranges_ahead):
+    from kestrel_nav.coursenav.scan import Scan
+    r = np.asarray(ranges_ahead, float)
+    return Scan(bearing=np.zeros(len(r)), range=r, sigma=np.full(len(r), 0.02))
+
+
+@pytest.fixture(scope='module')
+def gate_mission():
+    return SafeMission(MissionParams(landed_z_m=0.067))
+
+
+def test_gate_leg_stops_for_an_obstacle_and_remembers_it_inside_stereo_range(gate_mission):
+    from kestrel_nav.livenav.mission import Command, Observation
+    m = gate_mission
+    m.T = (0.0, 0.0, 0.0)
+    m.vel_course = np.zeros(2)
+    xy = np.array([0.0, 0.0])
+    m.seg = dict(a=xy.copy(), b=np.array([2.0, 0.0]), dir=np.array([1.0, 0.0]), heading=0.0, v=0.12,
+                 gate='window_post', line_pt=xy.copy(), ahead_mem=None)
+    m._phase('GO', 10.0)
+    m.align_meta = {}                                 # no re-centring in this unit test
+    obs = Observation(now=10.0, odom_xyz=(0, 0, 0.7), odom_yaw=0.0, offboard_active=True)
+    # 0.6 m ahead leaves 0.21 m of room: it may still creep (it stops 0.394 m short)
+    m.scan_nav = scan_of([0.6])
+    cmd = m._drive(10.0, obs, (0.0, 0.0, 0.0), Command())
+    assert m.phase == 'GO' and 0 < math.hypot(cmd.vx, cmd.vy) <= 0.12 + 0.06
+    # 0.45 m ahead: room 0.056 m < min segment -> stop
+    m.scan_nav = scan_of([0.45])
+    cmd = m._drive(10.0, obs, (0.0, 0.0, 0.0), Command())
+    assert m.phase == 'BRAKE' and math.hypot(cmd.vx, cmd.vy) == 0.0
+    # same segment, the return now inside stereo minimum range (dropped from the scan): still a stop
+    m.seg = dict(a=xy.copy(), b=np.array([2.0, 0.0]), dir=np.array([1.0, 0.0]), heading=0.0, v=0.12,
+                 gate='window_post', line_pt=xy.copy(), ahead_mem=(10.0, 0.55))
+    m._phase('GO', 10.5)
+    m.scan_nav = scan_of([])
+    cmd = m._drive(10.5, obs, (0.1, 0.0, 0.0), Command())
+    assert m.phase == 'BRAKE' and math.hypot(cmd.vx, cmd.vy) == 0.0

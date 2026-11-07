@@ -20,7 +20,6 @@ import math
 import rclpy
 
 from .live_mission import LiveMissionNode
-from .livenav.navgrid import NavParams
 from .livenav.replanner import ReplanParams
 from .livenav.safe import REACH_M, SafeMission, SafeParams
 
@@ -41,10 +40,12 @@ class SafeMissionNode(LiveMissionNode):
         )
         if not 0 < sp.v_gate <= sp.v_tight <= sp.v_open <= 0.5:
             raise ValueError('speeds must satisfy 0 < v_gate_window <= v_tight <= v_open <= 0.5 m/s')
+        if not 0 < sp.turn_rate <= math.radians(45):
+            raise ValueError('turn_rate_deg must be in (0, 45] (PX4 MPC_YAWRAUTO_MAX 45 deg/s)')
         if not 0 < sp.land_vz < 0.25:
             raise ValueError('land_vz must be below PX4 LNDMC_Z_VEL_MAX (0.25 m/s)')
         self.sp = sp
-        return SafeMission(mp, NavParams(), ReplanParams(), sp, course_file=course_file)
+        return SafeMission(mp, None, ReplanParams(), sp, course_file=course_file)
 
     def announce_mission(self, mp, fp):
         plan, sp = self.mission.plan, self.sp
