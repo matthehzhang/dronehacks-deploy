@@ -121,6 +121,8 @@ def start_navigator(run_dir):
     import os
     import subprocess
     args = [sys.executable, "-m", "coursenav.nav_node", "--ros-args", "-p", f"route_file:={run_dir / 'route.json'}"]
+    if os.environ.get("KESTREL_NICE_NAV"):                 # skybeta: never compete with refnav's setpoint loop
+        args = ["nice", "-n", str(int(os.environ["KESTREL_NICE_NAV"]))] + args
     deployment = Path("/etc/flyx/onboard.yaml")           # sim clock selection, like the localizer
     if deployment.is_file():
         args += ["--params-file", str(deployment)]
@@ -374,6 +376,7 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
               "only after readiness, time and clearance checks; otherwise remain landed", flush=True)
     if nav_legs is not None:
         route_doc["nav_legs"] = nav_legs
+        route_doc["start_xy"] = [float(sx), float(sy)]   # skybeta: the navigator pre-plans each leg from its start
         route_doc["gate_lines"] = p.get("gate_lines", [])
         route_doc["navigation"] = {k: v for k, v in navcfg.items() if k not in ("mode", "refnav")}
     (run_dir / "route.json").write_text(json.dumps(route_doc, indent=1))
@@ -400,6 +403,14 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
     extra = ["-p", "correction_topic:=/coursenav/px4_correction"] if nav_mode != "path" else []
     extra += ["-p", f"trace_file:={run_dir / 'flight_trace.jsonl'}"]
     nav_proc = start_navigator(run_dir) if nav_mode == "path" else None
+    if nav_proc is not None:                    # skybeta: refnav (and so arming) only after the paths exist
+        ready, t_wait = run_dir / "navigator_ready", time.monotonic()
+        while not ready.exists() and nav_proc.poll() is None and time.monotonic() - t_wait < 300.0:
+            if int(time.monotonic() - t_wait) % 10 == 0:
+                print(f"waiting for the navigator to pre-plan the legs ({time.monotonic() - t_wait:.0f} s)", flush=True)
+            time.sleep(1.0)
+        print(f"navigator: {'ready' if ready.exists() else 'NOT ready (planning in flight)'} after "
+              f"{time.monotonic() - t_wait:.0f} s", flush=True)
     if a.event_start:
         extra += ["-p", "accept_armed_start:=true"]
     extra += [x for x in a.ros_args if x != "--"]

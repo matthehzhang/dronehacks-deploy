@@ -1,10 +1,10 @@
 """group119 (workspace origin/group119 @ 749bca0) flying on skybeta: refnav + coursenav + fly_course.py,
 vendored unchanged, with refnav's px4_output:=skybeta (twist through the organizer flight interface).
 
-    ros2 launch kestrel_nav group119.launch.py
-    ros2 launch kestrel_nav group119.launch.py chicane:=gate_b
+    ros2 launch kestrel_nav refnav_skybeta.launch.py
+    ros2 launch kestrel_nav refnav_skybeta.launch.py chicane:=gate_b
 
-/etc/skybeta/drone.env:  COMPETITOR_PKG=kestrel_nav  COMPETITOR_LAUNCH=group119.launch.py
+/etc/skybeta/drone.env:  COMPETITOR_PKG=kestrel_nav  COMPETITOR_LAUNCH=refnav_skybeta.launch.py
 
 Start-up order on the drone: drone on the launch mark, stack up. Wait for refnav's "arm" phase in the
 log (it streams a hold setpoint; the interface needs a team setpoint within 1 s of the switch), THEN the
@@ -60,9 +60,9 @@ def generate_launch_description():
                                  ['use_sim_time:=', L('use_sim_time')]], cwd=str(ROOT), additional_env=env,
                             output='screen', name='skybeta_health')
     localizer = ExecuteProcess(
-        cmd=['python3', '-m', 'coursenav.loc_node', '--ros-args', '--params-file', str(ROOT / 'onboard/config/common.yaml'),
+        cmd=['nice', '-n', '5', 'python3', '-m', 'coursenav.loc_node', '--ros-args', '--params-file', str(ROOT / 'onboard/config/common.yaml'),
              '-p', ['depth_topic:=', L('depth_topic')], '-p', ['depth_info_topic:=', L('depth_info_topic')],
-             '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'height_source:=local_position',
+             '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'height_source:=local_position', '-p', 'publish_zero_drift:=true', '-p', 'adaptive_hz:=4.0',
              '-p', ['landed_z_m:=', L('landed_z')]],
         cwd=str(ROOT), additional_env=env, output='screen', name='localizer')
     fly_env = dict(env)
@@ -74,6 +74,7 @@ def generate_launch_description():
              '-p', ['arm_wait_s:=', L('arm_wait_s')], '-p', ['wait_s:=', L('wait_s')],
              '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'path_turn_hold:=true'],
         cwd=str(ROOT), additional_env={**fly_env, 'KESTREL_USE_SIM_TIME': L('use_sim_time'),
-                                       'KESTREL_DECLARED_HEADING_DEG': L('declared_heading_deg')},
+                                       'KESTREL_DECLARED_HEADING_DEG': L('declared_heading_deg'),
+                                       'KESTREL_NICE_NAV': '5'},
         output='screen', name='fly_course')
     return LaunchDescription(declared + [flight_interface, host_depth, health, localizer, fly])
