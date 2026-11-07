@@ -57,20 +57,18 @@ def test_pad_landing_centres_footprint_and_faces_a_pad_side():
     assert sent[-1][2] == 0.0                       # not descending until centred and square
 
 
-def test_path_leg_turn_waits_for_the_first_path():
-    """Gazebo e313281: the navigator's first path arrived 2 s after the leg-1 turn ended; the turn used the
-    straight bearing to the stop (163 deg NED) and faced a divider. With path_turn_wait_s the turn holds."""
+def test_path_leg_turn_without_a_path_keeps_heading():
+    """Gazebo e313281: the first maze path arrived after the leg-1 turn, which faced the stop bearing (163 deg NED)
+    into a divider; 7733cd0's blocking wait deadlocked. path_turn_hold: no turn toward the stop, go waits."""
     from refnav import core as C
-    p = C.Params(route=[(5.0, -1.0)], track_mode="path", path_turn_wait_s=30.0, legs=[{"mode": "cruise"}])
+    p = C.Params(route=[(5.0, -1.0)], track_mode="path", path_turn_hold=True, legs=[{"mode": "cruise"}])
     m = C.Mission(p)
     m.phase, m.t_phase, m.leg, m.sp = "turn", 0.0, 0, [0.0, 0.0, -0.7, 0.0]
     m.targets, m.leg_heading = [(-4.8, 1.5)], 2.84
     v = C.Vehicle(pos=(0.0, 0.0, -0.7), heading=0.0, pos_ok=True, armed=True, nav_state=C.NAV_OFFBOARD, landed=False)
-    m.p.yaw_rate_dps = 30.0
     m.t_last = 0.0
     m.health.bad_for = lambda now: 0.0                        # supervision inputs healthy (not under test)
     m.depth_t, m._depth_silent_s = 1.0, (lambda now: 0.0)
     m.step(1.0, v)
-    assert m.phase == "turn" and abs(m.sp[3]) < 1e-9          # heading held: no turn toward the stop bearing
-    m.step(31.5, v)
-    assert m.phase == "land" and "no navigator path" in m.land_reason
+    assert abs(m.sp[3]) < 1e-9 and m.leg_heading == 0.0       # heading kept, no swing toward the stop
+    assert m.phase in ("turn", "check")

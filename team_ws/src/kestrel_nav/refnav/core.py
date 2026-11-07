@@ -151,10 +151,11 @@ class Params:
                                                 # motion holds and the setpoint is the path point beside the
                                                 # aircraft; it advances again inside half the tube
     path_stale_s: float = 1.0                   # path mode: a path older than this stops forward motion
-    path_turn_wait_s: float = 0.0               # path mode, > 0: a path leg's turn waits (heading held) for the
-                                                # navigator's first path, landing after this long (kestral_nav934am:
-                                                # the first maze path took ~24 s; the turn had used the straight
-                                                # bearing to the leg's stop and faced a divider). 0 = old behaviour
+    path_turn_hold: bool = False                # path mode: a path leg's turn with no path yet keeps the current
+                                                # heading instead of the straight bearing to the leg's STOP; check and
+                                                # go then wait for the path as they always do (kestral_nav934am: the
+                                                # first maze path arrived after the turn, which faced a divider).
+                                                # A blocking wait in the turn deadlocked with the navigator. False = old
     capture_m: float = 0.10                     # pose mode: closer than this to a stopping leg's end -> hold the end
     arrive_speed_mps: float = 0.0               # > 0: arrival ALSO needs the measured speed below this ...
     arrive_settle_s: float = 0.3                # ... for this long (no arriving while still moving: run 1 overshoot)
@@ -861,17 +862,14 @@ class Mission:
         elif ph == "hover":
             if now - self.t_phase >= p.hover_s:
                 self._next_leg(now, out, v)
-        elif ph == "turn" and p.path_turn_wait_s > 0 and self._path_leg() and not self._path_fresh(now) \
-                and self.path_stop_done < 0 and self.path_s == 0.0:
-            self.counts["path_waits"] += 1
-            if now - self.t_phase > p.path_turn_wait_s:
-                self._land(now, out, f"no navigator path for leg {self.leg + 1} within {p.path_turn_wait_s:.0f} s")
-            elif self.counts["path_waits"] == 1 or int(now - self.t_phase) % 10 == 0 and now - self.t_phase > 1.0:
-                out.events.append(f"turn: waiting for the navigator's path for leg {self.leg + 1} "
-                                  f"({now - self.t_phase:.0f} s, lands after {p.path_turn_wait_s:.0f} s)")
         elif ph == "turn":
             if (self._path_leg() and self._path_fresh(now) and self.path_stop_done < 0 and self.path_s == 0.0):
                 self.leg_heading = self._path_at(p.path_lookahead_m)[1]   # face where the path first goes
+            elif (p.path_turn_hold and self._path_leg() and self.path_stop_done < 0 and self.path_s == 0.0):
+                if self.leg_heading != self.sp[3]:
+                    out.events.append(f"turn: no path yet for leg {self.leg + 1}: keeping the heading "
+                                      "(not the straight bearing to the stop); go waits for the path")
+                self.leg_heading = self.sp[3]
             err = _wrap(self.leg_heading - self.sp[3])
             if p.yaw_accel_dps2 > 0:
                 out.yawspeed = self._slew_yaw(err, dt)

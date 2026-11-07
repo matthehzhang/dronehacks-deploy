@@ -37,8 +37,6 @@ ARGUMENTS = [
     ('landed_z', '0.10', 'landed body-origin height above the floor: PX4 dist_bottom 0.100 m on skybeta-14 (no distance_sensor topic there)'),
     ('localizer_timeout', '120.0', 'fly_course: how long to wait for the localizer to converge on the mark'),
     ('use_sim_time', 'false', 'true only in a simulator that publishes /clock'),
-    ('path_turn_wait_s', '90.0', "refnav: a path leg's turn waits for the navigator's first path (planning took ~24 s in "
-                                 "Gazebo); lands if none arrives in this long"),
     ('declared_heading_deg', '0.0', "navigator: flight frame heading vs the VIO origin. 0 on skybeta (the organizer bridge "
                                      "permutes cuVSLAM's start-relative ENU odometry directly); 90 was the FlyX lab bridge"),
 ]
@@ -74,7 +72,7 @@ def generate_launch_description():
              '-p', 'px4_output:=skybeta', '-p', ['depth_topic:=', L('depth_topic')],
              '-p', ['depth_info_topic:=', L('depth_info_topic')],
              '-p', ['arm_wait_s:=', L('arm_wait_s')], '-p', ['wait_s:=', L('wait_s')],
-             '-p', ['use_sim_time:=', L('use_sim_time')], '-p', ['path_turn_wait_s:=', L('path_turn_wait_s')]],
+             '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'path_turn_hold:=true'],
         cwd=str(ROOT), additional_env={**fly_env, 'KESTREL_USE_SIM_TIME': L('use_sim_time'),
                                        'KESTREL_DECLARED_HEADING_DEG': L('declared_heading_deg')},
         output='screen', name='fly_course')
