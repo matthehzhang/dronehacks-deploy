@@ -452,6 +452,11 @@ class RefNav(Node):
         diagnostic = getattr(self, 'diagnostic_enabled', False)
         if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
             self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+        if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+                and self.mission.phase == "land"):
+            # skybeta: no AUTO_LAND exists; the interface descent + PX4's auto-disarm (COM_DISARM_LAND) IS the
+            # landing, so the disarm after it confirms touchdown like AUTO_LAND -> disarmed does on the lab
+            self.mission.land_auto_seen = True
         out = (self.mission.step(now, self.v, wall_now=time.monotonic()) if self.return_enabled or diagnostic
                else self.mission.step(now, self.v))
         if diagnostic and getattr(self.mission, 'protocol_tick', None) is not None:

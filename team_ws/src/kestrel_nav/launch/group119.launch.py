@@ -29,6 +29,9 @@ ARGUMENTS = [
     ('depth_topic', '/kestrel_nav/depth', 'depth image for refnav and the localizer (host_depth)'),
     ('depth_info_topic', '/kestrel_nav/depth/camera_info', ''),
     ('depth_max_hz', '8.0', 'host_depth rate cap'),
+    ('depth_max_range_m', '12.0', "host_depth range cap. refnav counts a corridor ray as OBSERVED if it returns any depth "
+                                  "(its obstacle points stop at 6 m, the localizer's at 4 m): the hall beyond the "
+                                  "see-through nets is 6-9 m away and at the old 6 m cap every such ray read unobserved"),
     ('arm_wait_s', '600.0', 'refnav: how long the arm phase waits for the pilot to arm and switch to Position'),
     ('wait_s', '900.0', 'refnav: how long it waits for readiness before giving up'),
     ('landed_z', '0.10', 'landed body-origin height above the floor: PX4 dist_bottom 0.100 m on skybeta-14 (no distance_sensor topic there)'),
@@ -51,7 +54,8 @@ def generate_launch_description():
                      'auto_offboard_on_arm': L('auto_offboard_on_arm'),
                      'odometry_topic': '/visual_slam/tracking/odometry'}])
     host_depth = Node(package='kestrel_nav', executable='host_depth', name='host_depth', output='screen',
-                      prefix='nice -n 5', parameters=[{'depth_topic': L('depth_topic'), 'max_hz': L('depth_max_hz')}])
+                      prefix='nice -n 5', parameters=[{'depth_topic': L('depth_topic'), 'max_hz': L('depth_max_hz'),
+                                   'max_range_m': L('depth_max_range_m')}])
     health = ExecuteProcess(cmd=['python3', '-m', 'refnav.skybeta_health', '--ros-args', '-p',
                                  ['use_sim_time:=', L('use_sim_time')]], cwd=str(ROOT), additional_env=env,
                             output='screen', name='skybeta_health')
