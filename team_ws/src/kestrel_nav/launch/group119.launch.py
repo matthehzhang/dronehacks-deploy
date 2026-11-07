@@ -34,6 +34,8 @@ ARGUMENTS = [
     ('landed_z', '0.10', 'landed body-origin height above the floor: PX4 dist_bottom 0.100 m on skybeta-14 (no distance_sensor topic there)'),
     ('localizer_timeout', '120.0', 'fly_course: how long to wait for the localizer to converge on the mark'),
     ('use_sim_time', 'false', 'true only in a simulator that publishes /clock'),
+    ('declared_heading_deg', '0.0', "navigator: flight frame heading vs the VIO origin. 0 on skybeta (the organizer bridge "
+                                     "permutes cuVSLAM's start-relative ENU odometry directly); 90 was the FlyX lab bridge"),
 ]
 
 
@@ -67,6 +69,7 @@ def generate_launch_description():
              '-p', ['depth_info_topic:=', L('depth_info_topic')],
              '-p', ['arm_wait_s:=', L('arm_wait_s')], '-p', ['wait_s:=', L('wait_s')],
              '-p', ['use_sim_time:=', L('use_sim_time')]],
-        cwd=str(ROOT), additional_env={**fly_env, 'KESTREL_USE_SIM_TIME': L('use_sim_time')},
+        cwd=str(ROOT), additional_env={**fly_env, 'KESTREL_USE_SIM_TIME': L('use_sim_time'),
+                                       'KESTREL_DECLARED_HEADING_DEG': L('declared_heading_deg')},
         output='screen', name='fly_course')
     return LaunchDescription(declared + [flight_interface, host_depth, health, localizer, fly])
