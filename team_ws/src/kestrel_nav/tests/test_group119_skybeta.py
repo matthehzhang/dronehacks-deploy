@@ -36,3 +36,22 @@ def test_group119_plans_from_the_venue_launch_mark():
 def test_landing_descent_triggers_px4_land_detector():
     from refnav.skybeta import LAND_VZ
     assert LAND_VZ >= 1.1 * 0.25          # MulticopterLandDetector in_descend, fleet LNDMC_Z_VEL_MAX 0.25
+
+
+def test_pad_landing_centres_footprint_and_faces_a_pad_side():
+    import math
+    from types import SimpleNamespace as NS
+    from refnav import skybeta as sk
+    sent = []
+    node = NS(mission=NS(targets=[(1.0, 1.0), (5.0, -2.0)], home=(0.0, 0.0, 0.0, math.radians(3.0))),
+              get_logger=lambda: NS(info=lambda s: None))
+    out = sk.SkybetaOutput.__new__(sk.SkybetaOutput)
+    out.node, out.land_xy, out.land_yaw = node, None, None
+    out._send = lambda *a: sent.append(a) or a
+    v = NS(pos=(5.06, -2.03, -0.7), heading=math.radians(131.0), armed=True, vel=(0.0, 0.0, 0.0))
+    out.publish(0.0, NS(commands=['land'], stream=False, setpoint=None), v)
+    # nearest pad side to 131 deg relative to home 3 deg is 3 + 90*1 = 93 deg... or 183: |131-93|=38 < |131-183|=52
+    assert math.degrees(out.land_yaw) == pytest.approx(93.0)
+    c, s = math.cos(out.land_yaw), math.sin(out.land_yaw)
+    assert out.land_xy == pytest.approx((5.0 + 0.035 * c, -2.0 + 0.035 * s))
+    assert sent[-1][2] == 0.0                       # not descending until centred and square
