@@ -151,6 +151,10 @@ class Params:
                                                 # motion holds and the setpoint is the path point beside the
                                                 # aircraft; it advances again inside half the tube
     path_stale_s: float = 1.0                   # path mode: a path older than this stops forward motion
+    path_turn_wait_s: float = 0.0               # path mode, > 0: a path leg's turn waits (heading held) for the
+                                                # navigator's first path, landing after this long (kestral_nav934am:
+                                                # the first maze path took ~24 s; the turn had used the straight
+                                                # bearing to the leg's stop and faced a divider). 0 = old behaviour
     capture_m: float = 0.10                     # pose mode: closer than this to a stopping leg's end -> hold the end
     arrive_speed_mps: float = 0.0               # > 0: arrival ALSO needs the measured speed below this ...
     arrive_settle_s: float = 0.3                # ... for this long (no arriving while still moving: run 1 overshoot)
@@ -857,6 +861,14 @@ class Mission:
         elif ph == "hover":
             if now - self.t_phase >= p.hover_s:
                 self._next_leg(now, out, v)
+        elif ph == "turn" and p.path_turn_wait_s > 0 and self._path_leg() and not self._path_fresh(now) \
+                and self.path_stop_done < 0 and self.path_s == 0.0:
+            self.counts["path_waits"] += 1
+            if now - self.t_phase > p.path_turn_wait_s:
+                self._land(now, out, f"no navigator path for leg {self.leg + 1} within {p.path_turn_wait_s:.0f} s")
+            elif self.counts["path_waits"] == 1 or int(now - self.t_phase) % 10 == 0 and now - self.t_phase > 1.0:
+                out.events.append(f"turn: waiting for the navigator's path for leg {self.leg + 1} "
+                                  f"({now - self.t_phase:.0f} s, lands after {p.path_turn_wait_s:.0f} s)")
         elif ph == "turn":
             if (self._path_leg() and self._path_fresh(now) and self.path_stop_done < 0 and self.path_s == 0.0):
                 self.leg_heading = self._path_at(p.path_lookahead_m)[1]   # face where the path first goes
