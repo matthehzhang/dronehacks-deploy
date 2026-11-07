@@ -42,6 +42,7 @@ from .livenav.navgrid import NavParams
 from .livenav.pad import PadDetector, level_cam_rotation
 from .livenav.replanner import ReplanParams
 from .livenav.safety import InputSafety, SafetyParams, corridor_error
+from .livenav.land_safety import Px4LandSafety
 
 PX4_QOS = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                      history=HistoryPolicy.KEEP_LAST, depth=1)
@@ -69,6 +70,7 @@ class LiveMissionNode(Node):
             name: type(value)(dp(name, value).value)
             for name, value in vars(defaults).items()
         }))
+        self.land_guard = Px4LandSafety(self.safety.p)
         # --- mission ---
         mp = MissionParams(
             use_pf=bool(dp('use_pf', True).value),
@@ -119,16 +121,18 @@ class LiveMissionNode(Node):
         self.create_subscription(CameraInfo, self.mono_info_topic, self.mono_info_cb, qos_profile_sensor_data)
         self.create_subscription(Image, self.mono_topic, self.mono_cb, qos_profile_sensor_data)
         try:
-            from px4_msgs.msg import DistanceSensor, VehicleAttitude, VehicleLocalPosition
+            from px4_msgs.msg import DistanceSensor, VehicleAttitude, VehicleLocalPosition, VehicleLandDetected
+            from skybeta_flight_interface.topics import resolve_endpoints
+            endpoints = resolve_endpoints()
             self.create_subscription(VehicleAttitude, '/fmu/out/vehicle_attitude', self.att_cb, PX4_QOS)
-            # skybeta-14 (2026-11-07): the agent bridges no /fmu/out/distance_sensor; the rangefinder
-            # reaches us as EKF2's dist_bottom in vehicle_local_position, spelled WITHOUT _v1 on this
-            # firmware although vehicle_status carries _v1. Subscribe to both spellings.
+            # Use the organizer's installed-message version resolver, one stream per source.
+            # Local position also supplies the PX4 clock reference for raw landing state.
             self.create_subscription(DistanceSensor, '/fmu/out/distance_sensor', self.rf_cb, PX4_QOS)
-            for name in ('/fmu/out/vehicle_local_position', '/fmu/out/vehicle_local_position_v1'):
-                self.create_subscription(VehicleLocalPosition, name, self.lpos_cb, PX4_QOS)
+            self.create_subscription(VehicleLocalPosition, endpoints['vehicle_local_position'], self.lpos_cb, PX4_QOS)
+            self.create_subscription(VehicleLandDetected, endpoints['vehicle_land_detected'], self.land_cb, PX4_QOS)
+            self.get_logger().info(f"Raw land: {endpoints['vehicle_land_detected']}; clock: {endpoints['vehicle_local_position']}")
         except ImportError:
-            self.get_logger().warning('px4_msgs not importable: scan levelling uses a level attitude')
+            self.get_logger().warning('PX4 messages/topic resolver unavailable: raw land readiness remains blocked')
         # --- diagnostics out ---
         self.status_pub = self.create_publisher(String, '/kestrel_nav/live_status', 5)
         self.path_pub = self.create_publisher(Path, '/kestrel_nav/path', 5)
@@ -152,6 +156,7 @@ class LiveMissionNode(Node):
         self.interface_frozen = False
         self.odom_frame = None
         self.landed = None
+        self.interface_landed = None
         self.clamped = []
         self.K_depth = None
         self.K_mono = None
@@ -239,7 +244,7 @@ class LiveMissionNode(Node):
         local = st.get('local_enu')
         self.position_valid = (isinstance(local, list) and len(local) == 3
                                and all(isinstance(v, (float, int)) and math.isfinite(v) for v in local))
-        self.landed = st.get('landed')
+        self.interface_landed = st.get('landed')
         self.clamped = st.get('clamped') or []
         if self.clamped:
             self.info_once(f"clamped:{','.join(self.clamped)}",
@@ -264,8 +269,22 @@ class LiveMissionNode(Node):
 
     def lpos_cb(self, m):
         """EKF2 height above ground (rangefinder-aided): the body origin's height for the scan band."""
+        self.land_guard.observe_reference(float(m.timestamp)*1e-6, self.now_s(), self.monotonic_s())
+        self._check_land_callback()
         if m.dist_bottom_valid and 0.0 < m.dist_bottom < 5.0:
             self.height = (self.now_s(), float(m.dist_bottom))
+
+    def land_cb(self, m):
+        if self.land_guard.observe_land(float(m.timestamp)*1e-6, m.landed, self.now_s(), self.monotonic_s()):
+            self.landed = self.land_guard.landed
+        self._check_land_callback()
+
+    def _check_land_callback(self):
+        error = self.land_guard.error(self.now_s(), self.monotonic_s())
+        if error:
+            self.safety.healthy_since = None
+            if self.safety.active:
+                self.safety.trip(error)  # a later callback cannot hide a fault between ticks
 
     def rf_cb(self, m):
         if 0 < m.current_distance <= m.max_distance:
@@ -414,7 +433,8 @@ class LiveMissionNode(Node):
     def tick(self):
         now = self.now_s()
         action = self.safety.evaluate(now, self.monotonic_s(), offboard=self.offboard_active,
-                                      armed=self.armed, landed=self.landed, link=self.px4_link,
+                                      armed=self.armed, landed=self.land_guard.landed, link=self.px4_link,
+                                      land_error=self.land_guard.error(now, self.monotonic_s()),
                                       position_valid=self.position_valid, frozen=self.interface_frozen)
         if self.safety.stream_error('depth', now, self.monotonic_s()):
             self.clear_depth()
@@ -461,7 +481,9 @@ class LiveMissionNode(Node):
         st.update(counts=self.counts, scan_age=round(self.now_s() - self.pts_t, 2) if self.pts_t > -math.inf else None,
                   height=self.height[1] if self.height else None, offboard=self.offboard_active, clamped=self.clamped,
                   pad_fix=self.pad_fix, safety_action=self.safety.action,
-                  safety_reason=self.safety.reason, safety_fault=self.safety.fault)
+                  safety_reason=self.safety.reason, safety_fault=self.safety.fault,
+                  interface_landed=self.interface_landed,
+                  raw_land=self.land_guard.status(self.now_s(), self.monotonic_s()))
         self.status_pub.publish(String(data=json.dumps(st, default=str)))
 
 

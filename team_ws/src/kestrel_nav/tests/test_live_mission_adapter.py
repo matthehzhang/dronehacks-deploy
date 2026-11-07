@@ -12,6 +12,7 @@ import pytest
 from kestrel_nav.livenav.follower import FollowParams
 from kestrel_nav.livenav.mission import Command
 from kestrel_nav.livenav.safety import InputSafety
+from kestrel_nav.livenav.land_safety import Px4LandSafety
 
 
 def header(now):
@@ -73,6 +74,8 @@ def node(monkeypatch):
     n.twist_pub = NS(publish=n.messages.append)
     n.get_logger = lambda: NS(info=lambda s: None)
     n.safety = InputSafety()
+    n.land_guard = Px4LandSafety(n.safety.p)
+    n.interface_landed = None
     n.mission = MissionDouble()
     n.position = n.yaw = n.odom_frame = None
     n.offboard_active = n.armed = n.px4_link = n.position_valid = False
@@ -104,8 +107,12 @@ def depth(now, valid=True):
     return NS(header=header(now), encoding='16UC1', height=48, width=64, step=128, data=data.tobytes())
 
 
-def feed(n, now, offboard=False, skip=()):
+def feed(n, now, offboard=False, skip=(), landed=None):
     n._now = now
+    if 'reference' not in skip:
+        n.lpos_cb(NS(timestamp=round((now-90)*1e6), dist_bottom_valid=False, dist_bottom=0.))
+    if 'land' not in skip:
+        n.land_cb(NS(timestamp=round((now-90)*1e6), landed=not offboard if landed is None else landed))
     if 'odom' not in skip:
         n.odom_cb(odom(now))
     if 'tracking' not in skip:
@@ -118,6 +125,8 @@ def feed(n, now, offboard=False, skip=()):
 
 
 def ready(n):
+    feed(n, 99.8)
+    n.tick()
     for t in np.arange(100, 101.21, .2):
         feed(n, float(t))
         n.tick()
@@ -126,8 +135,7 @@ def ready(n):
 
 def start(n):
     ready(n)
-    feed(n, 101.3, offboard=True)
-    n.landed = True  # pilot's Offboard ground handover
+    feed(n, 101.3, offboard=True, landed=True)
     n.tick()
     assert n.safety.action == 'run'
     assert n.messages[-1].twist.linear.x == .2
@@ -215,8 +223,7 @@ def test_blank_depth_clears_old_scan_and_stops(node):
 @pytest.mark.parametrize('velocity', [(0, .2, 0), (-.2, 0, 0)])
 def test_unobserved_sideways_and_reverse_commands_are_not_published(node, velocity):
     ready(node)
-    feed(node, 101.3, offboard=True)
-    node.landed = True
+    feed(node, 101.3, offboard=True, landed=True)
     node.mission.velocity = velocity
     node.tick()
     assert last_twist(node) == (0, 0, 0, 0)
@@ -248,3 +255,67 @@ def test_exception_in_mission_is_a_latched_stop(node):
     node.tick()
     assert last_twist(node) == (0, 0, 0, 0)
     assert 'injected planner failure' in node.safety.fault
+
+
+@pytest.mark.parametrize('missing', ['land', 'reference'])
+def test_wrapper_landed_cannot_qualify_without_raw_source(node, missing):
+    for t in np.arange(100, 103, .2):
+        feed(node, float(t), skip=(missing,))
+        node.tick()
+    assert node.interface_landed is True
+    assert not node.messages and node.mission.calls == 0
+    assert 'raw land' in node.safety.reason
+
+
+def test_raw_airborne_overrides_wrapper_ground_flag(node):
+    for t in np.arange(100, 103, .2):
+        feed(node, float(t), landed=False)
+        node.tick()
+    assert node.interface_landed is True and node.land_guard.landed is False
+    assert not node.messages
+
+
+def test_raw_land_expiry_stops_despite_live_wrapper_and_reference(node):
+    start(node)
+    calls = node.mission.calls
+    for t in np.arange(101.5, 104.11, .2):
+        feed(node, float(t), offboard=True, skip=('land',))
+        node.tick()
+    assert node.mission.calls > calls
+    assert 'raw land' in node.safety.fault
+    assert last_twist(node) == (0, 0, 0, 0)
+    stopped = node.mission.calls
+    feed(node, 104.2, offboard=True)
+    node.tick()
+    assert node.mission.calls == stopped
+
+
+def test_reference_expiry_stops_despite_live_wrapper_and_land(node):
+    start(node)
+    feed(node, 102, offboard=True, skip=('reference',))
+    node.tick()
+    assert 'reference' in node.safety.fault
+    assert last_twist(node) == (0, 0, 0, 0)
+
+
+def test_bad_raw_land_between_ticks_stays_latched(node):
+    start(node)
+    node._now = 101.4
+    node.land_cb(NS(timestamp=12_000_000, landed=True))  # future PX4 source timestamp
+    feed(node, 101.5, offboard=True)
+    node.tick()
+    assert 'future' in node.safety.fault
+    assert last_twist(node) == (0, 0, 0, 0)
+
+
+def test_preflight_bad_land_between_ticks_restarts_qualification(node):
+    ready(node)
+    node._now = 101.3
+    node.land_cb(NS(timestamp=12_000_000, landed=True))
+    assert node.safety.healthy_since is None
+    feed(node, 101.4)
+    node.tick()
+    assert node.safety.action == 'silent' and not node.safety.fault
+    feed(node, 101.6, offboard=True, landed=True)
+    node.tick()
+    assert node.safety.action == 'stop' and node.mission.calls == 0

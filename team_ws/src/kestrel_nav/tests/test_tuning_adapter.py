@@ -141,3 +141,20 @@ def test_map_only_configuration_refused_by_physical_ros_adapter(tuning_node, tmp
     tuning_node.declare_parameter = lambda *args: NS(value=str(path))
     with pytest.raises(ValueError, match='map_only geometry'):
         tuning_node.make_mission(None, None, None)
+
+
+def test_raw_land_trace_distinguishes_source_clock_wrapper_and_duplicates(tuning_node):
+    n = tuning_node
+    n.lpos_cb(NS(timestamp=10_000_000, dist_bottom_valid=False, dist_bottom=0.))
+    n.land_cb(NS(timestamp=10_000_000, landed=True))
+    n._now = 100.1
+    n.land_cb(NS(timestamp=10_000_000, landed=False))
+    n.state_cb(NS(data=json.dumps(dict(stamp=100.1, offboard_active=False, armed=False,
+                                      landed=False, px4_link=True, frozen=False, local_enu=[0., 0., .7]))))
+    data = rows(n)
+    raw = [r for r in data if r['kind'] == 'land']
+    assert [r['source_accepted'] for r in raw] == [True, False]
+    assert raw[0]['source_stamp'] == 10. and raw[0]['frame_id'] == 'px4_clock'
+    assert raw[1]['t_ros'] == 100.1 and raw[1]['source_timestamp_us'] == 10_000_000
+    assert data[-1]['interface_landed'] is False
+    assert data[-1]['raw_land']['landed'] is True

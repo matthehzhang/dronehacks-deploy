@@ -266,3 +266,32 @@ This command starts readiness publication and may accept the pilot's subsequent
 handover; it is not a read-only configuration check. It was not run during
 development. To analyze an actual recorded run later, use `fit_tuning.py` on its
 JSONL file and review the validity gates before interpreting fitted values.
+
+### Raw landing-state freshness
+
+Both `live_mission` and `tune_mission` require raw PX4 `VehicleLandDetected`
+messages independently of the `/skybeta/state` wrapper. The wrapper republishes
+its cached landed flag with a new timestamp; that alone cannot establish fresh
+ground state. Raw landed state now decides ground readiness. Two advancing raw
+samples and the normal continuous healthy-input qualification are required.
+The interface authority watchdog remains **1.0 s**.
+
+`land_max_age_s` defaults to **2.6 s** for both source age and receipt age.
+This is an initial policy informed by simulator cadence, **not a measured
+hardware maximum gap**. Measure hardware cadence props-off before qualification.
+A separate live `VehicleLocalPosition` timestamp reference has a **0.5 s**
+deadline (`px4_reference_max_age_s`). Topic names use the organizer's installed
+PX4 message-version resolver; no organizer code or PX4 parameters were changed.
+
+The guard retains the smallest observed ROS-minus-PX4 clock offset, rejects
+old/future captures, and never refreshes receipts from duplicate timestamps.
+Clock rewinds or large forward reference jumps require a ground restart.
+Independent monotonic receipt deadlines still expire when ROS time pauses.
+At startup the clock anchor assumes live PX4 data: common delay or coordinated
+replay of both PX4 streams is not observable from these timestamps alone.
+
+A raw-state failure prevents readiness; after activation it latches a stop.
+Zero twist is sent only while interface authority is still valid; lost authority
+stops publication. Diagnostic traces contain raw landing/reference source
+stamps, callback times, ages, and the wrapper flag separately, so transport delay
+can be inspected without treating wrapper heartbeats as raw measurements.

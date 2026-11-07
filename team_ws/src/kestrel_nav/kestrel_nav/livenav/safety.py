@@ -14,6 +14,8 @@ class SafetyParams:
     tracking_max_age_s: float = 0.5
     depth_max_age_s: float = 0.5
     state_max_age_s: float = 1.0
+    land_max_age_s: float = 2.6  # initial finite policy; hardware cadence must be measured
+    px4_reference_max_age_s: float = 0.5
     future_tolerance_s: float = 0.05
     qualify_s: float = 1.0
     min_depth_valid_fraction: float = 0.3
@@ -22,7 +24,8 @@ class SafetyParams:
 
     def __post_init__(self):
         for name in ('odom_max_age_s', 'tracking_max_age_s', 'depth_max_age_s',
-                     'state_max_age_s', 'future_tolerance_s', 'qualify_s'):
+                     'state_max_age_s', 'land_max_age_s', 'px4_reference_max_age_s',
+                     'future_tolerance_s', 'qualify_s'):
             value = getattr(self, name)
             if not math.isfinite(value) or value <= 0:
                 raise ValueError(f'{name} must be finite and positive')
@@ -90,7 +93,8 @@ class InputSafety:
             return f'{stream}: stale receipt or clock discontinuity'
         return None
 
-    def evaluate(self, ros_now, now, *, offboard, armed, landed, link, position_valid, frozen=False):
+    def evaluate(self, ros_now, now, *, offboard, armed, landed, link, position_valid, frozen=False,
+                 land_error=None):
         """Return silent / ready (zero twist) / run / stop (latched zero twist).
 
         Loss of fresh authority means silence. Known Offboard plus a sensor fault
@@ -115,7 +119,7 @@ class InputSafety:
             self.reason = self.fault
             self.action = 'stop' if offboard and armed else 'silent'
             return self.action
-        error = next((e for s in ('odom', 'tracking', 'depth')
+        error = land_error or next((e for s in ('odom', 'tracking', 'depth')
                       if (e := self.stream_error(s, ros_now, now))), None)
         if not position_valid:
             error = error or 'PX4 local position invalid'

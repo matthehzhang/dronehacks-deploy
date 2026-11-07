@@ -119,7 +119,22 @@ class TuningNode(LiveMissionNode):
     def state_cb(self, msg):
         super().state_cb(msg)
         self.record('state', offboard_active=self.offboard_active, armed=self.armed,
-                    clamped=self.clamped, safety=self.safety.action)
+                    clamped=self.clamped, safety=self.safety.action, interface_landed=self.interface_landed,
+                    raw_land=self.land_guard.status(self.now_s(), self.monotonic_s()))
+
+    def land_cb(self, msg):
+        before = self.land_guard.sample
+        super().land_cb(msg)
+        self.record('land', float(msg.timestamp)*1e-6, 'px4_clock',
+                    source_timestamp_us=int(msg.timestamp), landed=msg.landed,
+                    source_accepted=self.land_guard.sample != before,
+                    raw_land=self.land_guard.status(self.now_s(), self.monotonic_s()))
+
+    def lpos_cb(self, msg):
+        super().lpos_cb(msg)
+        self.record('land_clock_reference', float(msg.timestamp)*1e-6, 'px4_clock',
+                    source_timestamp_us=int(msg.timestamp),
+                    raw_land=self.land_guard.status(self.now_s(), self.monotonic_s()))
 
     def tracking_cb(self, msg):
         super().tracking_cb(msg)
