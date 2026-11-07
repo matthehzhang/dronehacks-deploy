@@ -167,6 +167,8 @@
     "move_max_m": 0.5,
     "min_leg_m": 0.3,
     "collinear_deg": 12.0,
+    "keep_path_clearance_m": 0.6,
+    "_keep_path_clearance_note": "planner._simplify_idx: shortcuts keep the clearance of the A* sub-path they replace, capped at 0.6 m = the A* prefer_m, less half a cell (ported from workspace matthew930am 6f3db09). 0 restores greedy shortcuts.",
     "passage_min_frac": 0.4,
     "_note": "Leg-end rule (planner.fix_leg_ends): no leg may end where a mapped surface lies within face_min_m along the next heading (the OAK's 0.4 m blind range put flight E's depth at 5 % valid facing the barrier at 0.47 m) or within arc_min_m anywhere in the in-place turn's arc; via points are moved back along their incoming leg up to move_max_m. Legs shorter than min_leg_m and corners under collinear_deg are merged. passage_min_frac: a straight leg with a roof and walls on both sides over this fraction is a passage (tunnel mode). overrun_min_m: no mapped surface within this distance beyond a leg's end along the leg's own heading (refnav's leg_end_margin_m 0.25 + 0.15 slack), else refnav calls the leg blocked. face_relaxed_m: a via point that cannot be moved to give face_min_m (maze corners: the divider end is 0.6-0.8 m ahead of the next leg) may face a surface down to this, which still clears the camera's blind range (0.4 m + the 0.12 m camera offset) by a margin.",
     "overrun_min_m": 0.4,

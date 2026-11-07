@@ -102,7 +102,8 @@ def test_gate_b_crossing_direction_is_searched_not_typed_in(course):
     assert "cross_deg" not in doc["chicane_options"]["gate_b"]
     n, info = planner.gate_crossing(doc, "gate_b", obst, clearance)
     assert info["feasible"] and abs(info["chosen_deg"]) <= 30.0 and info["chosen_deg"] != 0.0
-    assert math.degrees(math.atan2(n[1], n[0])) == pytest.approx(180.0, abs=25.0)
+    # wrapped: -180 and +180 are the same heading (ported from workspace 11c3531)
+    assert abs(abs(math.degrees(math.atan2(n[1], n[0]))) - 180.0) <= 25.0
 
 
 def test_the_chicane_is_chosen_by_score_and_the_window_wins(course):

@@ -6,7 +6,7 @@ from kestrel_nav.livenav.mission import MissionParams
 from kestrel_nav.livenav.safe import SafeMission, REACH_M
 seed = int(sys.argv[1]) if len(sys.argv) > 1 else 0
 m = SafeMission(MissionParams(landed_z_m=0.067, time_limit_s=175))
-f = OfflineFlight(m, SimConfig(seed=seed, prop_radius_m=REACH_M, max_time_s=185))
+f = OfflineFlight(m, SimConfig(seed=seed, spawn=tuple(m.doc['start']['xy']), prop_radius_m=REACH_M, max_time_s=185))
 orig = m._align_step
 truth_at = []
 def spy(now, obs, pose_c, cmd):

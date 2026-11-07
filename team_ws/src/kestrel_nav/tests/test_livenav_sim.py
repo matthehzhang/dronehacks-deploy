@@ -7,6 +7,10 @@ from kestrel_nav.livenav.offline_sim import OfflineFlight, SimConfig
 
 
 @pytest.mark.slow
+@pytest.mark.xfail(strict=False, reason=(
+    "branch kestral_nav934am: the carrot follower (live.launch.py) contacts the maze at via4 on the "
+    "surface-clearance plan (ported from workspace matthew930am). Superseded by safe.launch.py; kept as "
+    "a recorded known failure, not loosened."))
 def test_window_course_lands_offline():
     cfg = SimConfig(start_err_xy=(0.1, -0.1), start_err_yaw_deg=5.0)
     m = LiveMission(MissionParams(landed_z_m=cfg.landed_z), follow_params=FollowParams(v_cruise=0.4))

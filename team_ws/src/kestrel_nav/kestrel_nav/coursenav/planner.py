@@ -369,7 +369,7 @@ def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=N
     # keep every goal; shortcut between them with a little extra clearance where it exists
     out_idx = _simplify_idx(path, obst, clearance, min_clear, keep, extra=doc.get("prefer_extra_clearance_m", 0.05),
                             min_leg=float(pol.get("min_leg_m", 0.2)), collinear_deg=float(pol.get("collinear_deg", 0.0)),
-                            blocked=blocked)
+                            blocked=blocked, keep_path_clearance_m=float(pol.get("keep_path_clearance_m", 0.0)))
     wps = []
     for k in out_idx:
         meta = names[k] or {"name": f"via{len(wps)}", "mode": "cruise"}
@@ -407,10 +407,19 @@ def _seg_ok(grid, clearance, blocked, p, q, need):
     return blocked is None or segment_free(blocked, p, q)
 
 
-def _furthest(path, grid, clearance, i, need, keep, blocked=None):
+def _clear_pts(grid, clearance, pts):
+    ij = grid.ij(np.asarray(pts, float))
+    ok = grid.inside(ij)
+    out = np.zeros(len(ij))
+    out[ok] = clearance[ij[ok, 0], ij[ok, 1]]
+    return out
+
+
+def _furthest(path, grid, clearance, i, need, keep, blocked=None, need_ik=None):
     j = i + 1
     for k in range(i + 1, len(path)):
-        if k > i + 1 and not _seg_ok(grid, clearance, blocked, path[i], path[k], need):
+        n_k = need if need_ik is None else need_ik(i, k, need)
+        if k > i + 1 and not _seg_ok(grid, clearance, blocked, path[i], path[k], n_k):
             break
         j = k
         if k in keep:
@@ -418,21 +427,38 @@ def _furthest(path, grid, clearance, i, need, keep, blocked=None):
     return j
 
 
-def _simplify_idx(path, grid, clearance, min_clear, keep, extra=0.05, min_leg=0.2, collinear_deg=0.0, blocked=None):
+def _simplify_idx(path, grid, clearance, min_clear, keep, extra=0.05, min_leg=0.2, collinear_deg=0.0, blocked=None,
+                  keep_path_clearance_m=0.0):
     """Greedy line-of-sight shortcutting. Prefers segments with min_clear + extra; where the
     passage cannot give that (a gate), accepts min_clear rather than emitting cell-sized hops.
     A shortcut never crosses a blocked cell (keep-outs such as the boulders, which lie below the
     flight band and so are invisible to the clearance field: found offline 2026-11-06, a planned
     leg crossed boulder 3). Then drops non-goal points that would make a leg shorter than min_leg,
     and (collinear_deg > 0) non-goal points whose heading change is smaller than that, where the
-    merged leg keeps clearance."""
+    merged leg keeps clearance.
+
+    keep_path_clearance_m > 0: a shortcut must also keep the clearance of the A* sub-path it
+    replaces, up to this cap (the A* prefer_m: beyond it A* itself does not centre), less half a
+    cell (the A* path is resolved only to its cells). Greedy shortcutting otherwise pulls every leg
+    to min_clear + extra wherever that is shorter, even in a corridor that offers more (window plan,
+    2026-11-07: a 0.400 m maze segment where 0.45 m was available)."""
     keep = set(keep) | {0, len(path) - 1}
+    if keep_path_clearance_m > 0:
+        c_path = np.minimum(_clear_pts(grid, clearance, path), keep_path_clearance_m) - grid.res / 2
+
+        def need_ik(i, k, base):
+            return max(base, float(c_path[min(i, k):max(i, k) + 1].min()))
+    else:
+        def need_ik(i, k, base):
+            return base
     out = [0]
     i = 0
     while i < len(path) - 1:
-        j = _furthest(path, grid, clearance, i, min_clear + extra, keep, blocked)
+        j = _furthest(path, grid, clearance, i, min_clear + extra, keep, blocked, need_ik)
         if j == i + 1 and j not in keep:
-            j = _furthest(path, grid, clearance, i, min_clear, keep, blocked)
+            j = _furthest(path, grid, clearance, i, min_clear, keep, blocked, need_ik)
+        if j == i + 1 and j not in keep and keep_path_clearance_m > 0:
+            j = _furthest(path, grid, clearance, i, min_clear, keep, blocked)   # no cell-sized hops
         out.append(j)
         i = j
     changed = True
@@ -446,7 +472,7 @@ def _simplify_idx(path, grid, clearance, min_clear, keep, extra=0.05, min_leg=0.
             h1 = math.atan2(path[b][1] - path[a][1], path[b][0] - path[a][0])
             h2 = math.atan2(path[c][1] - path[b][1], path[c][0] - path[b][0])
             straightish = collinear_deg > 0 and abs(math.degrees(_wrap(h2 - h1))) < collinear_deg
-            if (short or straightish) and _seg_ok(grid, clearance, blocked, path[a], path[c], min_clear):
+            if (short or straightish) and _seg_ok(grid, clearance, blocked, path[a], path[c], need_ik(a, c, min_clear)):
                 del out[n]
                 changed = True
                 break

@@ -66,12 +66,58 @@ class Grid2D:
         return ndimage.distance_transform_edt(~self.occ) * self.res
 
 
-def plan_grids(cmap: CourseMap, doc, cruise_z=None):
-    """-> (obstacle band, blocked = inflated obstacles | keep-outs, clearance field metres)."""
+SURFACE_SAMPLE_M = 0.01
+_EXACT = {}
+
+
+def surface_clearance(doc, cmap: CourseMap, zlo, zhi, spacing=SURFACE_SAMPLE_M):
+    """Metres from every cell CENTRE to the nearest published surface in [zlo, zhi] (floor marking
+    excluded, as in CourseMap.band), measured on the OBJ's triangles instead of the voxel raster.
+    -> array like Grid2D.distance(), or None when the map is not provably the published layout.
+
+    Why: the voxel EDT measures cell centre to occupied-cell centre, which errs by up to
+    res*sqrt(2)/2 = 3.5 cm either way at 5 cm cells. At the window (0.914 m wide in the OBJ, so
+    0.457 m centre clearance) the raster read 0.412 m and refused a 0.414 m requirement; elsewhere
+    it can read up to 3.5 cm too much. Bound used here: triangles are sampled every `spacing` m
+    (barycentric, objmap.sample_triangles), so any surface point lies within spacing*sqrt(2)/2 of a
+    sample; that is subtracted, making the field a lower bound on the true clearance.
+    Only an unmodified published map (meta source/obj_sha256 match, no simulated 'world') uses it."""
+    import hashlib
+    meta = getattr(cmap, "meta", {}) or {}
+    try:
+        obj = resolve(doc, "obj")
+    except KeyError:
+        return None
+    if meta.get("source") != "published OBJ" or "world" in meta or not obj.is_file():
+        return None
+    sha = hashlib.sha256(obj.read_bytes()).hexdigest()
+    if sha != meta.get("obj_sha256"):
+        return None
+    key = (sha, float(cmap.res), tuple(cmap.origin[:2]), cmap.shape[:2], round(zlo, 4), round(zhi, 4), spacing)
+    if key not in _EXACT:
+        from scipy.spatial import cKDTree
+        from .objmap import load_obj, sample_triangles
+        tri = [V[F] for name, (V, F) in load_obj(obj).items() if not name.startswith(FLOOR_MARKING_PREFIXES)]
+        P = sample_triangles(np.concatenate(tri), spacing)
+        P = P[(P[:, 2] >= zlo) & (P[:, 2] <= zhi)][:, :2]
+        nx, ny = cmap.shape[:2]
+        centres = cmap.origin[:2] + (np.stack(np.meshgrid(np.arange(nx), np.arange(ny), indexing="ij"), -1)
+                                     .reshape(-1, 2) + 0.5) * cmap.res
+        d, _ = cKDTree(P).query(centres, k=1)
+        _EXACT[key] = np.maximum(d - spacing * np.sqrt(2.0) / 2.0, 0.0).reshape(nx, ny)
+    return _EXACT[key].copy()
+
+
+def plan_grids(cmap: CourseMap, doc, cruise_z=None, surface=True):
+    """-> (obstacle band, blocked = inflated obstacles | keep-outs, clearance field metres).
+    The clearance field comes from the published surfaces when the map is the published layout
+    (surface_clearance) and `surface` is set, else from the voxel raster."""
     z = doc["cruise_z_m"] if cruise_z is None else cruise_z
     band = doc.get("plan_band_m", 0.25)
     obst = Grid2D(cmap.band(z - band, z + band), cmap.origin[:2].copy(), cmap.res)
-    dist = obst.distance()
+    dist = surface_clearance(doc, cmap, z - band, z + band) if surface else None
+    if dist is None:
+        dist = obst.distance()
     v = doc["vehicle"]
     blocked = dist < (v["radius_m"] + v["margin_m"])
     for ko in doc.get("keepout", []):

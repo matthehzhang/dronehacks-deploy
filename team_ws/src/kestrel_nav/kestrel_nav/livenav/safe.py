@@ -63,24 +63,23 @@ class SafeParams(FollowParams):
     stop_m: float = 0.45                      # depth is blind under ~0.4 m (stereo minimum range)
     reactive_ramp_m: float = 0.30
     # speeds: slow everywhere, slowest where it is tight
-    v_open: float = 0.35          # segment whose map clearance is >= clear_open_m everywhere
-    v_tight: float = 0.25
-    v_gate: float = 0.12          # wall-opening crossings (the window); passages use clearance speeds
-    clear_open_m: float = 0.55
+    v_cap: float = 0.30           # 930am: 2x the only speed flown in the steady profile (no data beyond)
+    tube_response_s: float = 0.44  # 930am run015: per-leg p90 of steady cross-track p95 / speed
+    v_gate: float = 0.20          # extra cap on wall-opening crossings (the window); tube speed applies too
     reach_m: float = REACH_M
     # stopping budget (assumptions, not measured; the workspace diagnostic assumed 0.8 s / 0.15 m/s^2)
-    a_brake: float = 0.25         # commanded deceleration, m/s^2
+    a_brake: float = 0.5          # commanded deceleration, m/s^2
     response_delay_s: float = 0.6
     front_buffer_m: float = 0.10  # always stop at least reach + this short of a return ahead
     # turning in place
-    turn_rate: float = math.radians(30)       # well under MPC_YAWRAUTO_MAX 45 deg/s
+    turn_rate: float = math.radians(35)       # well under MPC_YAWRAUTO_MAX 45 deg/s
     turn_kp: float = 3.0
     heading_hold_rate: float = math.radians(6)  # the only yaw allowed while translating (run010: 27 deg/s)
     flow_turn_max: float = math.radians(12)     # a vertex turning less than this is flown through, not stopped at
-    yaw_tol_go: float = math.radians(4)
+    yaw_tol_go: float = math.radians(3)
     settle_s: float = 0.5         # still (< settle_speed) this long before measuring an opening
     pre_turn_dwell_s: float = 0.2 # still this long before turning in place
-    post_turn_dwell_s: float = 0.3  # heading on target this long before translating
+    post_turn_dwell_s: float = 0.0  # 930am run015: a 2 s post-turn settle did not change set-off drift  # heading on target this long before translating
     settle_speed: float = 0.05
     settle_timeout_s: float = 6.0
     # station keeping and cross-track (bounded creep; see creep_mps)
@@ -123,11 +122,6 @@ class SafeMission(LiveMission):
     def __init__(self, params=None, nav_params: NavParams = None, replan_params: ReplanParams = None,
                  safe_params: SafeParams = None, course_file=None):
         sp = safe_params or SafeParams()
-        if nav_params is None:
-            # Live validity band = the REAL prop reach + 0.10 m. NavGrid adds hard_margin_m to the course
-            # file's 0.28 m radius; the 7-inch airframe reaches 0.294 m, so the margin grows by 0.014 m.
-            # (Planning inflation stays radius + 0.12 = 0.40 m: reach + 0.106 m. See docs/SAFE_POLICY.md.)
-            nav_params = NavParams(hard_margin_m=0.10 + max(0.0, sp.reach_m - 0.28))
         super().__init__(params, nav_params, replan_params, sp, course_file=course_file)
         self.sp = sp
         self.phase = "IDLE"
@@ -144,6 +138,41 @@ class SafeMission(LiveMission):
         self.events = []
 
     # ------------------------------------------------------------------ gate geometry from the plan
+    def load_doc(self, course_file=None):
+        """The course document with the vehicle radius raised to the real 7-inch prop reach, as on
+        workspace matthew930am: planning needs reach + 0.12 m (0.414 m), the live hard band reach +
+        0.10 m. Feasible on the surface-measured clearance field (the window's centre is 0.457 m)."""
+        doc = super().load_doc(course_file)
+        # The course file's sim_profile spawn (FlyX training world: 0.2 m north of the mark) is not the
+        # venue start: on the drone the aircraft sits on the launch mark itself. Plan from the mark.
+        doc["start"].pop("spawn_xy", None)
+        v = doc["vehicle"]
+        v["radius_m"] = max(float(v["radius_m"]), REACH_M)
+        return doc
+
+    def _plan_course(self):
+        """Plan from the start pose; if it lies inside the planning inflation (the launch mark is ~0.40 m
+        from the barrier, under reach + 0.12 = 0.414 m), plan from the nearest free point within 0.3 m.
+        The course<-odom anchor stays the real start (the drone sits there); the first leg then moves
+        to increasing clearance, which the live chord rule allows."""
+        doc = self.doc
+        sx, sy = doc["start"]["xy"] if self.p.start_xy is None else self.p.start_xy
+        start = np.array([float(sx), float(sy)])
+        free = start
+        if self.grid.is_blocked(start):
+            free = self.grid.nearest_free(start, max_m=0.3)
+            if free is None:
+                raise ValueError(f"start {start.round(3).tolist()} has no free planning cell within 0.3 m")
+        keep = self.p.start_xy
+        self.p.start_xy = (float(free[0]), float(free[1]))
+        try:
+            plan = super()._plan_course()
+        finally:
+            self.p.start_xy = keep
+        plan["start_course"] = (float(start[0]), float(start[1]), plan["start_course"][2])
+        plan["start_plan_xy"] = [round(float(v), 3) for v in free]
+        return plan
+
     def _align_meta(self):
         """goal name -> {centre, dir, meta} for every crossing leg that has a measurable opening."""
         wps = self.plan["waypoints"]
@@ -268,6 +297,13 @@ class SafeMission(LiveMission):
             self.hold_since = now
         return self._cmd(cmd, np.zeros(2), 0.0, why)
 
+    def _tube_speed(self, a, b, cap):
+        """930am leg rule: tube = (leg clearance - reach) / 2 (the other half is left for estimation
+        error), speed = tube / 0.44 s (the speed whose p90 tracking error fills the tube), <= cap."""
+        sp = self.sp
+        tube = max(0.0, (self._seg_clearance(a, b) - sp.reach_m) / 2.0)
+        return tube, max(0.05, min(cap, sp.v_cap, tube / sp.tube_response_s))
+
     def _stop(self, now, xy, phase="BRAKE", note=""):
         self.anchor = np.asarray(xy, float).copy()
         self.seg = None
@@ -299,12 +335,10 @@ class SafeMission(LiveMission):
             if float((b - xy) @ d) <= sp.arrive_tol_m and goal is not self.goals[-1]:
                 rp.advance()                     # past the crossing goal along the track: leg done
                 return self._next_segment(now, pose_c)
-            if goal.crosses is not None:
-                v = sp.v_gate                    # a wall opening (the window)
-            else:                                # a passage (the tunnel): its own clearance decides
-                v = sp.v_open if self._seg_clearance(xy, b) >= sp.clear_open_m else sp.v_tight
+            # the line is centred on the measured opening: its clearance is the map's centre line
+            tube, v = self._tube_speed(line_pt, b, sp.v_gate if goal.crosses is not None else sp.v_cap)
             return dict(a=xy.copy(), b=b, dir=d, heading=math.atan2(d[1], d[0]), v=v, gate=goal.name,
-                        line_pt=line_pt)
+                        line_pt=line_pt, tube=tube)
         path = rp.plan(xy, now)
         if path is None or rp.blocked:
             return "BLOCKED"
@@ -322,8 +356,7 @@ class SafeMission(LiveMission):
                 return self._next_segment(now, pose_c)
             b = goal.xy.copy()
         d = (b - xy) / max(1e-9, math.dist(b, xy))
-        clear = self._seg_clearance(xy, b)
-        v = sp.v_gate if goal.crosses is not None else (sp.v_open if clear >= sp.clear_open_m else sp.v_tight)
+        tube, v = self._tube_speed(xy, b, sp.v_gate if goal.crosses is not None else sp.v_cap)
         # flow through b only when the path continues past it almost straight (no gate, no stop)
         flow = False
         idx = next((i for i, q in enumerate(path) if np.allclose(q, b)), None)
@@ -333,7 +366,7 @@ class SafeMission(LiveMission):
                 turn = abs(wrap(math.atan2(e[1], e[0]) - math.atan2(d[1], d[0])))
                 flow = turn <= sp.flow_turn_max
         return dict(a=xy.copy(), b=b, dir=d, heading=math.atan2(d[1], d[0]), v=v, gate=None, line_pt=xy.copy(),
-                    flow=flow)
+                    flow=flow, tube=tube)
 
     # ------------------------------------------------------------------ gate alignment
     def _align_step(self, now, obs, pose_c, cmd):
@@ -385,7 +418,7 @@ class SafeMission(LiveMission):
         good = [f for f in a["frames"] if f]
         m = combine(good) if len(good) >= (sp.align_frames + 1) // 2 else None
         a["frames"] = []
-        if m is None or m["lateral_spread_m"] > sp.align_spread_max_m or m["two_edge_frames"] == 0:
+        if m is None or m["lateral_spread_m"] > sp.align_spread_max_m:
             a["misses"] = a.get("misses", 0) + 1
             if a["misses"] >= 3:
                 return self._align_fail(now, xy, cmd, f"opening not measured consistently ({m})")
@@ -402,7 +435,10 @@ class SafeMission(LiveMission):
         self._shift_course(corr * left)
         xy = xy + corr * left
         self.cross_offset = 0.0
-        if abs(lat) <= sp.align_tol_m:
+        # one jamb in view (the other out of the field of view): good enough to side-step toward the
+        # opening (it is placed from the seen jamb and the map width), never to declare it centred
+        two_edges = m["two_edge_frames"] >= (sp.align_frames + 1) // 2
+        if abs(lat) <= sp.align_tol_m and two_edges:
             self.aligned_for = rp.k
             self.align = None
             self._stop(now, xy, "SETTLE", "centred on the opening")
@@ -480,6 +516,9 @@ class SafeMission(LiveMission):
             seg["a"] = xy.copy()
             if seg["gate"] is None:
                 seg["line_pt"] = xy.copy()
+                # the replanner just certified this chord (A* + hard fallback); only NEW live evidence
+                # blocking it later stops the segment (re-refusing a certified chord livelocked offline)
+                seg["chord_clear_at_go"] = not self._chord_blocked(xy, seg["b"])
             seg["ahead_mem"] = None
             self._phase("GO", now)
         if self.phase == "GO":
@@ -487,7 +526,7 @@ class SafeMission(LiveMission):
             left = np.array([-d[1], d[0]])
             remaining = float((seg["b"] - xy) @ d)
             # live checks: the chord ahead on the live grid, the depth scan in the body corridor
-            if seg["gate"] is None and self._chord_blocked(xy, seg["b"]):
+            if seg["gate"] is None and seg.get("chord_clear_at_go") and self._chord_blocked(xy, seg["b"]):
                 return self._no_progress(now, xy, cmd, "segment blocked on the live grid")
             if now - self.t_phase > 1.0:
                 self.no_progress = 0
@@ -522,6 +561,14 @@ class SafeMission(LiveMission):
             if seg["gate"] is not None:
                 self._recentre(obs, pose_c, seg)
                 cross = float((xy - seg["line_pt"]) @ left)
+            # 930am tube gate: off the leg by more than the tube -> no forward motion until back inside half
+            tube = seg.get("tube") or 0.0
+            if tube > 0 and abs(cross) > tube:
+                seg["tube_hold"] = True
+            elif seg.get("tube_hold") and abs(cross) <= tube / 2.0:
+                seg["tube_hold"] = False
+            if seg.get("tube_hold"):
+                v = 0.0
             v_ct = float(np.clip(-sp.ct_kp * cross, -sp.creep_mps, sp.creep_mps))
             herr = wrap(seg["heading"] - pose_c[2])
             yr = float(np.clip(sp.turn_kp * herr, -sp.heading_hold_rate, sp.heading_hold_rate))

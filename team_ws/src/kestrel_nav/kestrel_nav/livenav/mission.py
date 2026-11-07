@@ -100,7 +100,7 @@ class LiveMission:
     def __init__(self, params: MissionParams = None, nav_params: NavParams = None,
                  replan_params: ReplanParams = None, follow_params: FollowParams = None, course_file=None):
         self.p = params or MissionParams()
-        self.doc = load_course(course_file) if course_file else load_course()
+        self.doc = self.load_doc(course_file)
         self.cmap = CourseMap.load(resolve(self.doc, "map"))
         self.grid = NavGrid(self.cmap, self.doc, nav_params)
         self.follower = Follower(follow_params)
@@ -138,6 +138,9 @@ class LiveMission:
         self.z_odom_cruise = self.p.cruise_z_m - self.p.landed_z_m
         self.log = []
         self.fault = None
+
+    def load_doc(self, course_file=None):
+        return load_course(course_file) if course_file else load_course()
 
     # ------------------------------------------------------------------ planning
     def _plan_course(self):

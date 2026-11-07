@@ -7,7 +7,7 @@ safety-first course policy built on livenav's planning, localizer and live grid.
 yaw while translating), depth-measured centring on the tunnel mouth and the window (no measurement, no
 crossing), stopping-distance budget against the depth view, the 7-inch prop reach (0.294 m), and an
 autonomous descent onto the pad. See **[docs/SAFE_POLICY.md](docs/SAFE_POLICY.md)** for the rules, the
-evidence behind each, offline results (16/16 landed, 0 contacts, 142-149 s) and the open risks. It has
+evidence behind each, offline results (16/16 landed from the launch mark, 0 contacts, 150-168 s); matched to workspace matthew930am's steady-profile rules and the open risks. It has
 not flown. `live.launch.py` and `tune.launch.py` are unchanged.
 
 ## Branch `diagnostic` (inherited)

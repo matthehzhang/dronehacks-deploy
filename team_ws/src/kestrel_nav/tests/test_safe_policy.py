@@ -52,9 +52,9 @@ def test_leg_frame_rotation_keeps_a_centred_opening_centred():
 def test_stopping_budget_grows_with_speed():
     p = SafeParams()
     assert stop_distance(0.0, p) == 0.0
-    assert stop_distance(0.35, p) > stop_distance(0.25, p) > stop_distance(0.12, p)
-    # at the open speed the vehicle stops inside what a 2 m depth view shows
-    assert p.reach_m + p.front_buffer_m + stop_distance(p.v_open, p) < 2.0
+    assert stop_distance(0.30, p) > stop_distance(0.20, p) > stop_distance(0.12, p)
+    # at the cap speed the vehicle stops inside what a 2 m depth view shows
+    assert p.reach_m + p.front_buffer_m + stop_distance(p.v_cap, p) < 2.0
 
 
 def fly(slip=0.0, seed=0, **params):
@@ -67,7 +67,7 @@ def fly(slip=0.0, seed=0, **params):
         trace.append((m.state, math.hypot(cmd.vx, cmd.vy), cmd.yaw_rate))
         return cmd
     m.step = recording
-    res = OfflineFlight(m, SimConfig(seed=seed, prop_radius_m=REACH_M, yaw_slip_s=slip, max_time_s=185.0)).run()
+    res = OfflineFlight(m, SimConfig(seed=seed, spawn=tuple(m.doc['start']['xy']), prop_radius_m=REACH_M, yaw_slip_s=slip, max_time_s=185.0)).run()
     return m, res, trace
 
 

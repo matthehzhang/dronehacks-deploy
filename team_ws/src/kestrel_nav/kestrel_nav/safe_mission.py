@@ -31,15 +31,14 @@ class SafeMissionNode(LiveMissionNode):
     def make_mission(self, mp, fp, course_file):
         dp = self.declare_parameter
         sp = SafeParams(
-            v_open=float(dp('v_open', SafeParams.v_open).value),
-            v_tight=float(dp('v_tight', SafeParams.v_tight).value),
+            v_cap=float(dp('v_cap', SafeParams.v_cap).value),
             v_gate=float(dp('v_gate_window', SafeParams.v_gate).value),
             turn_rate=math.radians(float(dp('turn_rate_deg', math.degrees(SafeParams.turn_rate)).value)),
             land_vz=float(dp('land_vz', SafeParams.land_vz).value),
             gate_requires_measurement=bool(dp('gate_requires_measurement', True).value),
         )
-        if not 0 < sp.v_gate <= sp.v_tight <= sp.v_open <= 0.5:
-            raise ValueError('speeds must satisfy 0 < v_gate_window <= v_tight <= v_open <= 0.5 m/s')
+        if not 0 < sp.v_gate <= sp.v_cap <= 0.5:
+            raise ValueError('speeds must satisfy 0 < v_gate_window <= v_cap <= 0.5 m/s')
         if not 0 < sp.turn_rate <= math.radians(45):
             raise ValueError('turn_rate_deg must be in (0, 45] (PX4 MPC_YAWRAUTO_MAX 45 deg/s)')
         if not 0 < sp.land_vz < 0.25:
@@ -51,7 +50,7 @@ class SafeMissionNode(LiveMissionNode):
         plan, sp = self.mission.plan, self.sp
         self.get_logger().info(
             f"SAFE policy ready: chicane {plan.get('chicane')}, {len(self.mission.goals)} goals, {plan['length_m']} m; "
-            f"stop-turn-go at {sp.v_tight}/{sp.v_open} m/s (window {sp.v_gate}), turns {math.degrees(sp.turn_rate):.0f} deg/s "
+            f"stop-turn-go, tube speeds <= {sp.v_cap} m/s (window <= {sp.v_gate}), turns {math.degrees(sp.turn_rate):.0f} deg/s "
             f"in place; prop reach {REACH_M:.3f} m; gates {'measured or refused' if sp.gate_requires_measurement else 'map fallback'}; "
             f"lands on the pad. Waiting for Offboard.")
 

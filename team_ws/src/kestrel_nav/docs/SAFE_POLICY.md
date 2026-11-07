@@ -26,7 +26,7 @@ never has to touch the sticks on a good run. **Any stick input ends the run (rul
 
 | Rule | Evidence it comes from |
 |---|---|
-| **Never yaw while translating.** Every corner is a stop: brake, hold, turn in place at <= 30 deg/s (PX4 `MPC_YAWRAUTO_MAX` is 45), settle, then go straight. While moving, yaw is only a heading hold (<= 6 deg/s). A vertex turning < 12 deg is flown through with that heading hold. | Run010 (cloud sim, 2026-11-07): contact at maze divider M1 while yawing ~27 deg/s and translating 0.15 m/s. Truth velocity swung toward the nose, PX4's estimate did not; 12.3 cm cross-track, 0.268 m truth clearance. Run004: 14 cm lost to tracking on a moving corner at M3. |
+| **Never yaw while translating.** Every corner is a stop: brake, hold, turn in place at <= 35 deg/s to within 3 deg (PX4 `MPC_YAWRAUTO_MAX` is 45), settle, then go straight. While moving, yaw is only a heading hold (<= 6 deg/s). A vertex turning < 12 deg is flown through with that heading hold. | Run010 (cloud sim, 2026-11-07): contact at maze divider M1 while yawing ~27 deg/s and translating 0.15 m/s. Truth velocity swung toward the nose, PX4's estimate did not; 12.3 cm cross-track, 0.268 m truth clearance. Run004: 14 cm lost to tracking on a moving corner at M3. |
 | **Face where you go.** Translation only along the body axis (plus <= 0.06 m/s cross-track), so the forward depth camera watches the swept corridor. | The OAK-D sees forward only; sideways and reverse motion is unobserved. |
 | **Close the position loop on VIO.** Twist setpoints computed from cuVSLAM odometry (through the PF-corrected course frame), not pose setpoints. | Run010: VIO position followed truth while PX4's velocity estimate lagged the slide. Interface: a pose setpoint has no speed limit (flown at `MPC_XY_VEL_MAX` 12 m/s) and never expires; a twist is capped at 1.5 m/s and expires to hold after 1 s. |
 | **Hold where you stopped.** After every stop the station-keeping anchor is the current position, never the waypoint. | Run008: a stale hold target pulled the vehicle 10 cm sideways. |
@@ -35,9 +35,9 @@ never has to touch the sticks on a good run. **Any stick input ends the run (rul
 | **Size is the 7-inch airframe.** Prop reach 0.294 m = max over rotors of hypot(x,y) + 7 in/2, rotor XY from `px4/params/07_airframe_geometry.params`. Used for the corridor guard and offline contact scoring. The planner graph still uses the course file's 0.28 m + 0.12 m (0.40 m): that is reach 0.294 + 0.106 m margin. | 7-inch props confirmed by the team, 2026-11-07. Raising the planner radius to 0.294 + 0.12 makes the window route infeasible on the 5 cm grid (0.412 < 0.414 m); the measured crossing replaces that margin at the window instead. |
 | **Land on the pad.** Centre within 0.10 m, descend at 0.15 m/s (< `LNDMC_Z_VEL_MAX` 0.25) with xy station keeping; depth is waived only in this phase (stereo is blind < 0.4 m); odometry/tracking/state/PX4 land state stay required. | CP5 is "land and disarm with the whole drone inside the pad's outer ring". The interface's 0.3 m floor clamps pose setpoints only, not twist. |
 
-Speeds: 0.35 m/s on straight segments whose map clearance is >= 0.55 m, 0.25 m/s elsewhere,
-0.12 m/s through the window. All launch arguments (`v_open`, `v_tight`, `v_gate_window`,
-`turn_rate_deg`, `land_vz`, `gate_requires_measurement`).
+Speeds: each leg flies at min(0.30, tube / 0.44 s), tube = (leg clearance - 0.294) / 2 (930am rule):
+maze 0.15-0.20, tunnel and chicane 0.30, window crossing 0.13 m/s. Launch arguments: `v_cap`,
+`v_gate_window`, `turn_rate_deg`, `land_vz`, `gate_requires_measurement`.
 
 ## Offline evidence (`tools/safe_offline.py`, results in `safe_policy_offline.jsonl`)
 
@@ -48,12 +48,35 @@ turn by `yaw_rate * yaw_slip_s` (1.0 s used): a crude stand-in for the run010 me
 
 | Policy | Cases | Landed | Contact | Min clearance | Time | Pad error |
 |---|---|---|---|---|---|---|
-| **safe** (seeds 0-3 x slip {0, 1.0} x start error {0, 0.10 m + 2 deg}) | 16 | **16** | **0** | 0.350-0.391 m | 142-149 s | 0.09-0.13 m |
+| **safe** (seeds 0-3 x slip {0, 1.0} x start error {0, 0.10 m + 2 deg}) | 16 | **16** | **0** | 0.350-0.391 m | 150-168 s | 0.09-0.15 m |
 | live carrot follower, slip 1.0 (seeds 0, 1) | 2 | 0 | **2** (maze M1 corner, t ~ 8-10 s) | 0.292 m | - | - |
 | live carrot follower, no slip (seeds 0, 1) | 2 | 1 | 1 (M1 corner) | 0.292 / 0.300 m | 67 s | 0.06 m |
 
 The carrot follower's offline contact point (-2.24, 2.27)-(-2.24, 2.30) is the same M1 corner as
 run010's real contact (-2.18, 2.30).
+
+## Matched to workspace `matthew930am` (steady course profile, flown in the cloud sim as run013/run015)
+
+Kestral now uses 930am's flown-evidence rules, ported to the hardware twist interface:
+
+| From 930am | Here |
+|---|---|
+| 11c3531: planning clearance measured from the published OBJ surfaces (1 cm samples, lower bound), not the 5 cm raster (raster was up to 4.1 cm optimistic, and read the 0.914 m window as 0.412 m) | `coursenav/course.py` `surface_clearance`, used by `plan_grids` (and so NavGrid's prior) only for the unmodified published map |
+| 6f3db09: planner shortcuts keep the clearance of the A* path they replace (cap 0.6 m) | `coursenav/planner.py`, `leg_policy.keep_path_clearance_m = 0.6` |
+| 7-inch reach 0.294 m in planning: need reach + 0.12 = 0.414 m | `SafeMission.load_doc` raises the radius to the reach (safe mission only); hard live band reach + 0.10 m. Plan: window, 20 legs, 17.68 m, min 0.42 m |
+| Per-leg speed = min(0.30, tube / 0.44 s), tube = (leg clearance - reach) / 2 (run015 p90 tracking error / speed) | `_tube_speed`: maze 0.15-0.20, tunnel and chicane 0.30, window crossing 0.13 m/s |
+| Tube gate: off the leg by more than the tube -> no forward motion until back inside half | in GO, forward speed 0 while latched; cross-track correction continues |
+| Turn in place to within 3 deg at 35 deg/s; no post-turn settle (run015: settle did not reduce set-off drift); brake 0.5 m/s^2 | `yaw_tol_go`, `turn_rate`, `post_turn_dwell_s`, `a_brake` |
+
+Kept from this branch (not in 930am): depth-measured opening centring (also from one jamb, to side-step;
+both jambs to declare centred), live chord re-check only on NEW evidence after a segment starts,
+obstacle memory inside stereo minimum range, autonomous pad descent through the flight interface.
+
+**Start pose.** The course file's `sim_profile` spawn (FlyX training world, 0.2 m north of the mark)
+is dropped: on the drone the aircraft sits on the launch mark, and the course frame anchors there. The
+mark is ~0.40 m from the barrier, inside the 0.414 m planning inflation, so the path starts at the nearest
+free point (6 cm north) and the first leg moves away from the barrier. The offline matrix spawns on the
+mark. (Found by the Gazebo sim session, 2026-11-07.)
 
 ## Review fixes (independent code review, 2026-11-07)
 
@@ -69,7 +92,7 @@ old 0.28 m radius (now the 0.294 m reach). Regression tests in `tests/test_safe_
 
 ## Known limits and risks (read before flying)
 
-1. **Time.** 142-149 s offline against a 180 s limit that starts when the drone leaves the mark and
+1. **Time.** 150-168 s offline (from the launch mark) against a 180 s limit that starts when the drone leaves the mark and
    stops on disarm. Hardware will be slower if VIO, depth or holds misbehave. `time_limit_s` 175: past
    it the vehicle holds where it is (the pilot then lands; the run is scored on checkpoints reached).
    If time is short, the levers are `v_tight`/`v_open` (straight segments only) and `turn_rate_deg`,

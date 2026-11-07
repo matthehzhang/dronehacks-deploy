@@ -14,7 +14,7 @@ def run(policy, seed, slip, err, shift=0.0, group=''):
     mp = MissionParams(landed_z_m=0.067, time_limit_s=175.0)
     m = SafeMission(mp) if policy == 'safe' else LiveMission(mp)
     ex, ey = (err * math.cos(seed), err * math.sin(seed)) if err else (0.0, 0.0)
-    cfg = SimConfig(seed=seed, prop_radius_m=REACH_M, yaw_slip_s=slip, max_time_s=185.0,
+    cfg = SimConfig(seed=seed, spawn=tuple(m.doc['start']['xy']), prop_radius_m=REACH_M, yaw_slip_s=slip, max_time_s=185.0,
                     start_err_xy=(ex, ey), start_err_yaw_deg=2.0 * err / 0.1 * (1 if seed % 2 else -1) if err else 0.0,
                     shift_group=group, shift_m=(shift, 0.0) if group else (0.0, 0.0))
     t0 = time.time()

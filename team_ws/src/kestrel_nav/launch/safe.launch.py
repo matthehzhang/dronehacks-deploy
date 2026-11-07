@@ -2,7 +2,7 @@
 autonomous pad descent. Branch kestral_nav934am; see docs/SAFE_POLICY.md (repo root of the package).
 
     ros2 launch kestrel_nav safe.launch.py
-    ros2 launch kestrel_nav safe.launch.py v_tight:=0.2 v_open:=0.3        # slower still
+    ros2 launch kestrel_nav safe.launch.py v_cap:=0.2                      # slower still
     ros2 launch kestrel_nav safe.launch.py mission:=false                  # flight interface only
 
 Point the stack at it from /etc/skybeta/drone.env:
@@ -33,10 +33,9 @@ ARGUMENTS = [
     ('cruise_z_m', '0.8', 'body height above the floor in flight'),
     ('landed_z_m', '0.10', 'body origin above the floor when landed: PX4 dist_bottom read 0.100 m on skybeta-14, landed, 2026-11-07'),
     ('descend_to_z_m', '0.3', 'descend to this height above the odom origin over the pad (interface floor)'),
-    ('v_open', '0.35', 'straight-segment speed where map clearance >= 0.55 m, m/s'),
-    ('v_tight', '0.25', 'straight-segment speed elsewhere, m/s'),
-    ('v_gate_window', '0.12', 'speed through a wall opening (the window), m/s'),
-    ('turn_rate_deg', '30.0', 'in-place turn rate, deg/s (never while translating)'),
+    ('v_cap', '0.30', 'speed cap; each leg flies at min(cap, tube / 0.44 s), tube = (clearance - reach) / 2'),
+    ('v_gate_window', '0.20', 'extra speed cap through a wall opening (the window), m/s'),
+    ('turn_rate_deg', '35.0', 'in-place turn rate, deg/s (never while translating)'),
     ('land_vz', '0.15', 'descent speed onto the pad, m/s (below LNDMC_Z_VEL_MAX 0.25)'),
     ('gate_requires_measurement', 'true', 'refuse a crossing whose opening was not measured in depth'),
     ('time_limit_s', '175.0', 'stop driving after this long in Offboard (rule: 3 min from leaving the mark)'),
@@ -82,7 +81,7 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('mission')),
         parameters=[{k: LaunchConfiguration(k) for k in (
             'chicane', 'start_x', 'start_y', 'start_yaw_deg', 'cruise_z_m', 'landed_z_m', 'descend_to_z_m',
-            'v_open', 'v_tight', 'v_gate_window', 'turn_rate_deg', 'land_vz', 'gate_requires_measurement', 'time_limit_s', 'depth_topic', 'depth_info_topic', 'mono_topic',
+            'v_cap', 'v_gate_window', 'turn_rate_deg', 'land_vz', 'gate_requires_measurement', 'time_limit_s', 'depth_topic', 'depth_info_topic', 'mono_topic',
             'mono_info_topic', 'camera_from_tf', 'camera_x', 'camera_y', 'camera_z', 'camera_pitch', 'min_altitude_m',
             'odom_max_age_s', 'tracking_max_age_s', 'depth_max_age_s', 'state_max_age_s', 'land_max_age_s',
             'px4_reference_max_age_s', 'future_tolerance_s',
