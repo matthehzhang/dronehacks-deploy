@@ -147,6 +147,7 @@ class Params:
     path_lookahead_m: float = 0.35              # path mode: heading looks this far (+ 0.5 s of speed) ahead
     path_heading_lead_deg: float = 180.0        # path mode: the heading never leads the current tangent by more
                                                 # (run010: 50 deg of heading preview into a corner; 180 = off)
+    path_lat_accel_max_mps2: float = 0.0        # > 0: path mode lateral feed-forward v^2*kappa clamped to this
     path_tube_gate: bool = False                # path mode: outside the path's tube (navigator, per point) forward
                                                 # motion holds and the setpoint is the path point beside the
                                                 # aircraft; it advances again inside half the tube
@@ -452,6 +453,11 @@ class Mission:
         heading = _np.arctan2(d[:, 1], d[:, 0])
         dh = _np.angle(_np.exp(1j * _np.diff(heading)))
         kappa = _np.concatenate([dh / _np.maximum(seg, 1e-6), [0.0]])
+        # a stop-and-turn corner is turned in place, not flown as an arc: its heading kink is not curvature
+        # (run024: kappa ~13 1/m there gave a 0.54 m/s^2 lateral feed-forward leaving the corner, which
+        # pushed the aircraft 0.2 m toward M1)
+        for i in stops:
+            kappa[max(int(i) - 2, 0):int(i) + 3] = 0.0
         if self.path is None or self.path.get("pid") != pid or self.path.get("leg") != leg:
             self.path_s, self.path_stop_done = 0.0, -1
         tb = None
@@ -1247,7 +1253,13 @@ class Mission:
         s_now, seg_i = self._path_project(v.pos)
         self.path_s = max(self.path_s - 0.05, s_now)            # progress: no jumping back along the path
         L = float(P["s"][-1])
-        nxt = [i for i in P["stops"] if i > self.path_stop_done and P["s"][i] > self.path_s - 0.05]
+        # every interior stop not yet executed stays ahead: progress may not run past it. run026 (and run022)
+        # skipped 7 of 12 maze corner stops: near a U-turn the projection jumped onto the segment beyond the
+        # corner, the old filter (s[i] > path_s - 0.05) dropped the stop, and the corner was flown yawing
+        # while moving (run026's M3 minimum, 0.268 m)
+        nxt = [i for i in P["stops"] if i > self.path_stop_done]
+        if nxt:
+            self.path_s = min(self.path_s, float(P["s"][nxt[0]]))
         s_stop = float(P["s"][nxt[0]]) if nxt else L            # brake to the next interior stop, else the end
         remaining = s_stop - self.path_s
         look = self.path_s + p.path_lookahead_m + 0.5 * self.v_cmd
@@ -1283,7 +1295,9 @@ class Mission:
         if p.path_tube_gate and P.get("tube") is not None:
             tube = float(P["tube"][min(max(seg_i, 0), len(P["tube"]) - 1)])
             across = math.hypot(v.pos[0] - pt[0], v.pos[1] - pt[1])
-            if not self.tube_hold and across > tube:
+            if tube <= 0.005:
+                pass        # no slack known at this point (run024: a 0.000 m tube right after the climb): no gate
+            elif not self.tube_hold and across > tube:
                 self.tube_hold = True
                 self.counts["tube_holds"] += 1
                 out.events.append(f"tube: {across:.3f} m off the path on leg {self.leg + 1} > {tube:.3f} m: "
@@ -1315,6 +1329,8 @@ class Mission:
             a_along = 0.0
         a_along = self._consistent_accel(max(-a_b, min(a_up, a_along)), v_ref, v_along, dt, a_b)
         a_lat = v_ref ** 2 * kap
+        if p.path_lat_accel_max_mps2 > 0:                       # never more than the navigator planned arcs for
+            a_lat = max(-p.path_lat_accel_max_mps2, min(p.path_lat_accel_max_mps2, a_lat))
         captured = remaining <= p.capture_m
         if captured:
             end = P["pts"][nxt[0]] if nxt else P["pts"][-1]
@@ -1383,13 +1399,12 @@ class Mission:
         return max(self.v_cmd, v_along) if v_along is not None else self.v_cmd
 
     def _consistent_accel(self, a, v_ref, v_along, dt, a_b):
-        """Acceleration feed-forward consistent with the velocity command: never more than the command's
-        actual growth this tick ((v_ref - last command) / dt), and never positive while the aircraft is
-        already more than 0.03 m/s faster than the command."""
+        """Acceleration feed-forward consistent with the velocity command: never positive while the
+        aircraft is already more than 0.03 m/s faster than the command. (Also capping it at the command's
+        growth per tick was tried and dropped: offline on the reference course at 0.6 m/s it removed the
+        profile's planned shaping and produced a contact, 0.279 m vs 0.325 m without the cap.)"""
         if v_ref <= 0.0:
             return 0.0
-        if dt > 0:
-            a = min(a, max((v_ref - self.v_cmd) / dt, -a_b))
         if v_along is not None and v_along > v_ref + 0.03:
             a = min(a, 0.0)
         return a

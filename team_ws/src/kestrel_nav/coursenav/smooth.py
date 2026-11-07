@@ -45,6 +45,10 @@ class SmoothParams:
     slow_clear_m: float = 0.30      # within need + this of an obstacle, the cap falls ...
     slow_min_mps: float = 0.25      # ... linearly towards this at exactly `need`
     stop_turn_deg: float = 100.0    # corners sharper than this are always stop-and-turn
+    center_stops: bool = False      # move each stop-and-turn vertex to the highest-clearance point of its corner
+                                    # region (center_stop_vertices), so the in-place turn has the most room
+    center_face_min_m: float = 0.8  # ... never facing the next leg's first surface closer than this (or than the
+                                    # original vertex did): leg_policy face_min_m, the depth camera rule
     arc_min_tube_m: float = 0.0     # > 0 (with reach_m): a corner is flown as an arc only if every point of the
                                     # arc keeps a tube (clearance - reach) / 2 of at least this; else stop-and-turn.
                                     # An arc yaws while moving, which adds cross-track error the tube must hold
@@ -67,6 +71,7 @@ class Path:
     clearance: np.ndarray           # (N,) obstacle clearance along the path (m)
     stops: list = field(default_factory=list)   # indices of sharp corners flown as stop-and-turn
     tube: np.ndarray = None         # (N,) cross-track tube (m) for refnav's gate, when reach_m > 0
+    stop_vertices: list = field(default_factory=list)   # the input polyline's vertices that became stops
 
     @property
     def length(self):
@@ -230,7 +235,7 @@ def smooth(poly, grid, clearance, p: SmoothParams = None, keep_sharp=()):
     d = np.gradient(P, axis=0)
     heading = np.arctan2(d[:, 1], d[:, 0])
     clr = _clear_at(grid, clearance, P)
-    return Path(P, s, K, heading, np.zeros(len(P)), clr, stop_idx)
+    return Path(P, s, K, heading, np.zeros(len(P)), clr, stop_idx, stop_vertices=sorted(stops))
 
 
 def facing_room(grid, p, heading, max_m=3.0, step=None):
@@ -297,6 +302,50 @@ def speed_profile(path: Path, p: SmoothParams = None, v_start=0.0, v_end=0.0, st
     return path
 
 
+def center_stop_vertices(poly, stop_vertices, grid, clearance, p: SmoothParams, fixed=()):
+    """Move each stop vertex (not an endpoint, not in `fixed`) to the point of greatest clearance in its
+    corner region: within half the shorter adjacent segment (so it stays the same corner). A candidate
+    must keep both adjacent segments at the full requirement (need_m) and no worse than before, and must
+    face the outgoing leg's first surface no closer than min(center_face_min_m, the original vertex's
+    facing room). Pure geometry from the clearance field; no positions are stored.
+    -> (new polyline, number of vertices moved)."""
+    poly = np.array(poly, float)
+    moved = 0
+    for k in sorted(stop_vertices):
+        if k <= 0 or k >= len(poly) - 1 or k in fixed:
+            continue
+        a, v0, b = poly[k - 1], poly[k], poly[k + 1]
+        radius = 0.5 * min(np.linalg.norm(v0 - a), np.linalg.norm(b - v0))
+        if radius < grid.res:
+            continue
+        c0 = float(_clear_at(grid, clearance, v0)[0])
+        seg_need = max(p.need_m, min(segment_min_clearance(grid, clearance, a, v0),
+                                     segment_min_clearance(grid, clearance, v0, b)))
+        face0 = facing_room(grid, v0, math.atan2(b[1] - v0[1], b[0] - v0[0]))
+        face_need = min(p.center_face_min_m, face0)
+        i0, j0 = grid.ij(v0)
+        r = int(math.ceil(radius / grid.res))
+        best, best_c = None, c0 + 1e-6
+        for i in range(i0 - r, i0 + r + 1):
+            for j in range(j0 - r, j0 + r + 1):
+                q = grid.xy(np.array([i, j]))
+                if np.linalg.norm(q - v0) > radius or not grid.inside(np.array([i, j])):
+                    continue
+                cq = float(clearance[i, j])
+                if cq <= best_c:
+                    continue
+                if (segment_min_clearance(grid, clearance, a, q) < seg_need
+                        or segment_min_clearance(grid, clearance, q, b) < seg_need):
+                    continue
+                if facing_room(grid, q, math.atan2(b[1] - q[1], b[0] - q[0])) < face_need:
+                    continue
+                best, best_c = q, cq
+        if best is not None:
+            poly[k] = best
+            moved += 1
+    return poly, moved
+
+
 def build(poly, grid, clearance, p: SmoothParams = None, keep=(), keep_sharp=(), v_start=0.0, v_end=0.0):
     """A* polyline -> pruned, corner-smoothed, speed-profiled Path. `keep`: vertex indices of the
     input polyline that must stay (goals); `keep_sharp`: input indices that must stay sharp stops."""
@@ -307,4 +356,9 @@ def build(poly, grid, clearance, p: SmoothParams = None, keep=(), keep_sharp=(),
     # map keep_sharp onto the pruned polyline (kept vertices survive pruning by construction)
     sharp = [int(np.argmin(np.linalg.norm(pruned - poly[i], axis=1))) for i in keep_sharp]
     path = smooth(pruned, grid, clearance, p, keep_sharp=sharp)
+    if p.center_stops and path.stop_vertices:
+        fixed = {int(np.argmin(np.linalg.norm(pruned - poly[i], axis=1))) for i in keep}
+        centred, n = center_stop_vertices(pruned, path.stop_vertices, grid, clearance, p, fixed=fixed)
+        if n:
+            path = smooth(centred, grid, clearance, p, keep_sharp=sharp)
     return speed_profile(path, p, v_start=v_start, v_end=v_end, stop_caps=stop_approach_caps(path, grid, p))

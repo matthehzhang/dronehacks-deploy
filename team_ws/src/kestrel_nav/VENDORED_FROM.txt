@@ -1,1 +1,1 @@
-749bca0cd50cc673ed4a0f431e9bd63b9a6fbef3  origin/group119  (first port, kestral_nav934am)
+9363bd8db93af75ae545bd0bad837e0cd2051bb8  origin/group154  (vendored by port-to-skybeta 2026-11-07T15:09:32-06:00)
