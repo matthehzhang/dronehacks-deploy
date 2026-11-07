@@ -1,0 +1,123 @@
+total 24
+drwxr-xr-x   2 root root  4096 Nov  6 13:36 .
+drwxr-xr-x 150 root root 12288 Nov  6 13:36 ..
+-rw-r--r--   1 root root  2401 Nov  6 13:36 drone.env
+-rw-r--r--   1 root root   760 Nov  6 13:36 status-agent.env
+--- drone.env
+# /etc/skybeta/drone.env -- one per drone, written once at provisioning time.
+#
+#   sudo install -D -m 0644 host/drone.env.example /etc/skybeta/drone.env
+#   sudoedit /etc/skybeta/drone.env
+#
+# Read by host/run.sh and host/doctor.sh (see host/drone_env.sh). Plain KEY=VALUE:
+# values are taken literally -- no $VAR or $(...) expansion; `~/` is the only
+# shorthand. Anything set in the caller's environment, or as a positional
+# argument to host/run.sh, overrides this file.
+
+# --- identity ---------------------------------------------------------------
+DRONE_ID=14
+TEAM=unassigned
+
+# --- DDS isolation ------------------------------------------------------------
+# One domain per drone. Convention: ROS_DOMAIN_ID = DRONE_ID (1..99).
+# The flight controller's UXRCE_DDS_DOM_ID MUST be set to the same number
+# (QGC -> Parameters, then reboot the FC), or the agent connects and no /fmu
+# topic ever shows up in this domain.
+ROS_DOMAIN_ID=14
+
+# local    DDS stays on this Jetson (loopback + shared memory). The default, and
+#          what every drone should fly with: nothing reaches the WiFi.
+#          Needs UXRCE_DDS_PTCFG=2 on the FC (it is in the 02 parameter file):
+#          with 0, the agent's PX4 participant is not on loopback and the stack
+#          never sees /fmu/*.
+# network  DDS on every interface, so a laptop on the same network (and the same
+#          ROS_DOMAIN_ID) can run rviz2 / ros2 topic echo against this drone.
+#          The per-drone domain still keeps it apart from the other drones, but
+#          30 Hz stereo images will now go over the air. Use for debugging only.
+SKYBETA_DDS_SCOPE=local
+
+# --- camera mount -------------------------------------------------------------
+# base_link -> oak_parent_frame, FLU body frame: metres and radians. Measure it on
+# this airframe; see docs/fleet_guide.md step 7 and CLAUDE.md bug #9.
+CAMERA_X=0.1053
+CAMERA_Y=0
+CAMERA_Z=0.0304
+CAMERA_ROLL=0
+CAMERA_PITCH=0
+CAMERA_YAW=0
+
+# --- team code ----------------------------------------------------------------
+# Host directory bind-mounted at /root/team_ws in every container. Survives
+# container restarts and image updates. Default: ~/team_ws of whoever runs host/run.sh.
+TEAM_WS=~/team_ws
+
+# What the stack's `competitor` window launches. Point these at your own package
+# in ~/team_ws/src once it exists.
+COMPETITOR_PKG=competitor_example
+COMPETITOR_LAUNCH=competitor.launch.py
+# /etc/skybeta/status-agent.env -- read by skybeta-status.service and skybeta-ros-status.service.
+# Written by drone/install.sh from its flags; every key has a built-in default.
+
+# skybeta checkout on this drone (provisioned drones: ~/skybeta; the bench: ~/Downloads/skybeta)
+SKYBETA_REPO_DIR=/home/dronehacks/skybeta
+# /status port on the Tailscale IPv4 (the tailnet policy opens tcp:8765 to the admin only)
+SKYBETA_STATUS_PORT=8765
+# sidecar -> agent handoff dir (tmpfs, from /etc/tmpfiles.d/skybeta-status.conf)
+SKYBETA_STATUS_RUNDIR=/run/skybeta-status
+# seconds between `host/doctor.sh --no-uart` runs (min 20)
+SKYBETA_DOCTOR_PERIOD_S=60
+# 1 = also serve on 127.0.0.1 (lets teams `curl localhost:8765/status`); default off
+SKYBETA_STATUS_ALSO_LOCALHOST=0
+--- docker images
+IMAGE                                                                           ID             DISK USAGE   CONTENT SIZE   EXTRA
+127.0.0.1:5000/skybeta:0.3.1                                                    3d6836fb2d30       42.7GB         13.2GB        
+127.0.0.1:5000/skybeta:0.3.2                                                    4126fe3e4023       42.7GB         13.2GB   U    
+nvcr.io/nvidia/isaac/ros:aarch64-ros2_humble_4c0c55dddd2bbcc3e8d5f9753bee634c   dd032d9aa0a4       40.3GB         12.6GB        
+skybeta:0.3.0                                                                   6688685e1623       42.6GB         13.2GB        
+skybeta:0.3.1                                                                   3d6836fb2d30       42.7GB         13.2GB        
+skybeta:0.3.2                                                                   4126fe3e4023       42.7GB         13.2GB   U    
+--- compose/systemd
+# /etc/systemd/system/skybeta-stack.service
+# skybeta-stack.service -- the full skybeta stack (MicroXRCEAgent, OAK-D + cuVSLAM,
+# PX4 odometry bridge, competitor) started at boot, so the FC has VIO position
+# aiding whenever the drone is powered.
+#
+# Template: rendered and installed by host/autostart.sh (dronehacks / /home/dronehacks/skybeta are
+# filled in). Edit this file and re-run `sudo host/autostart.sh enable`, not the
+# copy in /etc/systemd/system.
+[Unit]
+Description=skybeta stack (uXRCE agent + cuVSLAM VIO + PX4 bridge), started at boot
+Documentation=file:///home/dronehacks/skybeta/docs/fleet_guide.md
+After=docker.service
+Requires=docker.service
+# Retry forever: the camera or docker may need a few attempts after a cold boot.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=dronehacks
+WorkingDirectory=/home/dronehacks/skybeta
+ExecStart=/bin/bash /home/dronehacks/skybeta/host/stack_service.sh
+# Belt and braces: never leave a stack container behind when the service ends.
+ExecStopPost=-/usr/bin/docker rm -f skybeta-stack
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=40
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
+--- state files
+hostname
+tailscale
+repo
+identity
+provision
+prereqs
+uart_patch
+power
+pull
+doctor
+--- head rev
+baf21fd8e7f817f90db9d9d664080317203e5073
+0
