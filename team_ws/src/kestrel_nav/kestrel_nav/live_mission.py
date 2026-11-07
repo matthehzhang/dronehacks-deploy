@@ -68,7 +68,7 @@ class LiveMissionNode(Node):
             pf_sigma_yaw_deg=float(dp('pf_sigma_yaw_deg', 4.0).value),
             scan_rmax_m=float(dp('scan_rmax_m', 4.0).value),
             cruise_z_m=float(dp('cruise_z_m', 0.8).value),
-            landed_z_m=float(dp('landed_z_m', 0.15).value),
+            landed_z_m=float(dp('landed_z_m', 0.10).value),
             descend_to_z_odom=float(dp('descend_to_z_m', 0.3).value),
             time_limit_s=float(dp('time_limit_s', 170.0).value),
             chicane=str(dp('chicane', 'auto').value),
@@ -110,9 +110,14 @@ class LiveMissionNode(Node):
         self.create_subscription(CameraInfo, self.mono_info_topic, self.mono_info_cb, qos_profile_sensor_data)
         self.create_subscription(Image, self.mono_topic, self.mono_cb, qos_profile_sensor_data)
         try:
-            from px4_msgs.msg import DistanceSensor, VehicleAttitude
+            from px4_msgs.msg import DistanceSensor, VehicleAttitude, VehicleLocalPosition
             self.create_subscription(VehicleAttitude, '/fmu/out/vehicle_attitude', self.att_cb, PX4_QOS)
+            # skybeta-14 (2026-11-07): the agent bridges no /fmu/out/distance_sensor; the rangefinder
+            # reaches us as EKF2's dist_bottom in vehicle_local_position, spelled WITHOUT _v1 on this
+            # firmware although vehicle_status carries _v1. Subscribe to both spellings.
             self.create_subscription(DistanceSensor, '/fmu/out/distance_sensor', self.rf_cb, PX4_QOS)
+            for name in ('/fmu/out/vehicle_local_position', '/fmu/out/vehicle_local_position_v1'):
+                self.create_subscription(VehicleLocalPosition, name, self.lpos_cb, PX4_QOS)
         except ImportError:
             self.get_logger().warning('px4_msgs not importable: scan levelling uses a level attitude')
         # --- diagnostics out ---
@@ -190,6 +195,11 @@ class LiveMissionNode(Node):
 
     def att_cb(self, m):
         self.att = tuple(float(v) for v in m.q)
+
+    def lpos_cb(self, m):
+        """EKF2 height above ground (rangefinder-aided): the body origin's height for the scan band."""
+        if m.dist_bottom_valid and 0.0 < m.dist_bottom < 5.0:
+            self.height = (self.now_s(), float(m.dist_bottom))
 
     def rf_cb(self, m):
         if 0 < m.current_distance <= m.max_distance:

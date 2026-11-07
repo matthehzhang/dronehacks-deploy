@@ -1,0 +1,67 @@
+# PROPOSED camera config for skybeta-14: the organizers' oakd_vslam.yaml plus on-device StereoDepth.
+#
+# NOT APPLIED. This file is the reviewed change; team_ws/tools/enable_depth.sh copies it over
+# ~/skybeta/src/oakd_vslam_bringup/config/oakd_vslam.yaml, restarts the stack, and verifies that
+# /oak/left/image_raw still runs at 30 Hz (cuVSLAM's input) and /oak/stereo/image_raw appears.
+#
+# Why the organizers' file has no depth: with pipeline_gen.i_pipeline_type: stereo the depthai v3
+# driver instantiates only the two mono sensors. RGBD instantiates the StereoDepth node; left/right
+# raw topics stay on through their own i_publish_topic (Luxonis v3 parameter reference), and the
+# colour sensor is kept off the wire (rgb.i_publish_topic: false) because the OAK-D-S2's XLink link
+# saturates near 143 MB/s and the mono pair already uses 118 MB/s at 1024x640 @30.
+#
+# Depth is produced at 640x400 @15 Hz (about 8 MB/s), aligned to the LEFT lens (socket 1, CAM_B)
+# so its frame is oak_left_camera_optical_frame, the frame kestrel_nav already has a TF for.
+# Risks to measure on the bench: VPU load dropping the mono pair below 30 Hz; USB headroom.
+/oak:
+  ros__parameters:
+    driver:
+      i_enable_ir: false
+
+    pipeline_gen:
+      i_pipeline_type: RGBD
+      i_enable_imu: true
+      i_nn_type: none
+
+    rgb:
+      i_publish_topic: false          # colour sensor stays off the USB link
+
+    left:
+      i_publish_topic: true
+      i_enable_lazy_publisher: false
+      i_width: 1024
+      i_height: 640
+      i_fps: 30.0
+
+    right:
+      i_publish_topic: true
+      i_enable_lazy_publisher: false
+      i_width: 1024
+      i_height: 640
+      i_fps: 30.0
+
+    stereo:
+      i_publish_topic: true
+      i_aligned: true
+      i_board_socket_id: 1            # CAM_B = left: depth in oak_left_camera_optical_frame
+      i_width: 640
+      i_height: 400
+      i_fps: 15.0
+      i_depth_preset: ROBOTICS
+      i_subpixel: true
+      i_extended_disp: false
+      i_lrc_threshold: 10
+      i_publish_left_rect: false
+      i_publish_right_rect: false
+      i_output_disparity: false
+      i_low_bandwidth: false
+
+    imu:
+      i_acc_freq: 200
+      i_gyro_freq: 200
+      i_message_type: IMU
+      i_sync_method: LINEAR_INTERPOLATE_ACCEL
+      i_batch_report_threshold: 1
+      i_max_batch_reports: 10
+      i_enable_rotation: false
+      i_enable_mag: false

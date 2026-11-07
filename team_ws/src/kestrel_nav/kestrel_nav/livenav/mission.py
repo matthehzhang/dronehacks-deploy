@@ -34,7 +34,7 @@ from .replanner import ReplanParams, Replanner, goals_from_plan
 @dataclass
 class MissionParams:
     cruise_z_m: float = 0.8           # body height above the floor (course file default)
-    landed_z_m: float = 0.15          # body origin above the floor when landed (MEASURE)
+    landed_z_m: float = 0.10          # body origin above the floor when landed: PX4 dist_bottom on skybeta-14, 2026-11-07
     descend_to_z_odom: float = 0.3    # interface floor on the drone; the sim adapter may land instead
     climb_rate_mps: float = 0.35
     descend_rate_mps: float = 0.25

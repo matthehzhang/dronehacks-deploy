@@ -34,7 +34,7 @@ ARGUMENTS = [
     ('start_y', 'nan', ''),
     ('start_yaw_deg', 'nan', ''),
     ('cruise_z_m', '0.8', 'body height above the floor in flight'),
-    ('landed_z_m', '0.15', 'body origin above the floor when landed (MEASURE)'),
+    ('landed_z_m', '0.10', 'body origin above the floor when landed: PX4 dist_bottom read 0.100 m on skybeta-14, landed, 2026-11-07'),
     ('descend_to_z_m', '0.3', 'descend to this height above the odom origin over the pad (interface floor)'),
     ('v_cruise', '0.4', 'cruise speed, m/s'),
     ('v_gate', '0.25', 'speed through the tunnel and the window, m/s'),
