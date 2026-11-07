@@ -194,3 +194,22 @@ def test_no_path_inside_the_margin_escapes_to_free_space():
     assert math.dist(seg['b'], xy) <= m.sp.escape_max_m and not m.grid.is_blocked(seg['b'])
     assert m.grid.clearance_at(seg['b']) > m.grid.clearance_at(xy)
     assert seg['v'] <= 0.08
+
+
+def test_fresh_empty_scan_is_free_space_not_missing_depth():
+    """Gazebo @ 603582c: facing the open net, a fresh frame had no in-band returns; it was treated as
+    missing depth and the mission faulted. Only a missing/stale scan may hold for depth."""
+    from kestrel_nav.livenav.mission import Observation
+    m = SafeMission(MissionParams(landed_z_m=0.067))
+    sx, sy, syaw = m.plan['start_course']
+    m.set_transform((sx, sy), syaw)                        # odom == course for this test
+    m.t_offboard, m.state = 0.0, 'FLY'
+    m._phase('BRAKE', 0.0)
+    odom = (sx, sy, m.z_odom_cruise)
+    empty = Observation(now=1.0, odom_xyz=odom, odom_yaw=syaw, offboard_active=True,
+                        pts_level=np.zeros((0, 3)), height_m=0.8, pts_t=0.99)
+    cmd = m.step(empty)
+    assert cmd.state == 'FLY' and 'waiting for depth' not in cmd.note
+    stale = Observation(now=2.0, odom_xyz=odom, odom_yaw=syaw, offboard_active=True,
+                        pts_level=None, height_m=0.8, pts_t=-math.inf)
+    assert 'waiting for depth' in m.step(stale).note

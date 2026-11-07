@@ -735,7 +735,10 @@ class SafeMission(LiveMission):
             self.scan_pf = scan_from_points(obs.pts_level, obs.height_m, zlo=p.scan_band_lo,
                                             zhi=p.scan_band_hi, rmax=p.scan_rmax_m)
         depth_wait = False
-        if self.state in ('FLY', 'PAD', 'HOLD') and (self.scan_nav is None or not len(self.scan_nav)):
+        # A FRESH scan with no returns in the flight band is observed free space (e.g. facing the open net
+        # with the room beyond depth range: Gazebo @ 603582c faulted there). Only a missing/stale scan is
+        # missing data; the node's corridor-coverage check guards against an unobserved view.
+        if self.state in ('FLY', 'PAD', 'HOLD') and self.scan_nav is None:
             # brief depth loss (real OAK: 66-100 ms gaps, VIO stalls up to 430 ms; sim stalls ~1 s): hold
             # position and wait; only depth_lost_abort_s of continuous loss latches the fault (930am: 5 s)
             self._depth_lost = getattr(self, "_depth_lost", None) or now
