@@ -180,3 +180,17 @@ def test_gate_leg_stops_for_an_obstacle_and_remembers_it_inside_stereo_range(gat
     m.scan_nav = scan_of([])
     cmd = m._drive(10.5, obs, (0.1, 0.0, 0.0), Command())
     assert m.phase == 'BRAKE' and math.hypot(cmd.vx, cmd.vy) == 0.0
+
+
+def test_no_path_inside_the_margin_escapes_to_free_space():
+    """Gazebo run (40a9628): the climb ended 11 cm west of the mark, inside the 0.414 m margin; live returns
+    left A* no path and the mission held until the time limit. Now: a short slow escape leg."""
+    m = SafeMission(MissionParams(landed_z_m=0.067))
+    xy = np.array([-2.625, 0.925])
+    assert m.grid.is_blocked(xy)
+    m.replanner.plan = lambda xy_, now: (setattr(m.replanner, 'blocked', True), None)[1]
+    seg = m._next_segment(0.0, (xy[0], xy[1], math.pi / 2))
+    assert isinstance(seg, dict) and seg.get('escape')
+    assert math.dist(seg['b'], xy) <= m.sp.escape_max_m and not m.grid.is_blocked(seg['b'])
+    assert m.grid.clearance_at(seg['b']) > m.grid.clearance_at(xy)
+    assert seg['v'] <= 0.08

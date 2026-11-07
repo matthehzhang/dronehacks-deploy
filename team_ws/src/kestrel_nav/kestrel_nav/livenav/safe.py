@@ -93,7 +93,9 @@ class SafeParams(FollowParams):
     pad_enter_m: float = 0.30     # stopped this close to the pad goal -> DESCEND (which centres to pad_over_m)
     brake_timeout_s: float = 3.0  # still "moving" after this: hold position where the vehicle is
     no_progress_max: int = 3      # segments ending in a stop without progress, in a row -> HOLD and recheck
-    obstacle_memory_s: float = 3.0  # a return that drops inside stereo minimum range is remembered this long
+    obstacle_memory_s: float = 3.0
+    escape_max_m: float = 0.30    # no path from inside the planning margin: step to the nearest free cell this close
+    v_escape: float = 0.08  # a return that drops inside stereo minimum range is remembered this long
     # gate alignment
     align_frames: int = 5
     align_tol_m: float = 0.03
@@ -313,6 +315,25 @@ class SafeMission(LiveMission):
                 self.vel_course = 0.6 * self.vel_course + 0.4 * v
         self._last_odom_xy = (now, p)
 
+    def _escape_segment(self, xy):
+        """Inside the planning margin with no path (a climb drifted toward a wall, or live returns
+        thickened it): a short slow leg to the nearest margin-free cell, only if clearance never
+        decreases along it. Then the next segment replans from free space."""
+        sp = self.sp
+        g = self.grid
+        if not g.is_blocked(xy):
+            return None
+        target = g.nearest_free(xy, max_m=sp.escape_max_m)
+        if target is None or math.dist(target, xy) < 0.02 or self._chord_blocked(xy, target):
+            return None
+        pts = [xy + t * (target - xy) for t in np.linspace(0.0, 1.0, 8)]
+        clear = [g.clearance_at(q) for q in pts]
+        if any(b < a - 0.01 for a, b in zip(clear, clear[1:])):
+            return None
+        d = (target - xy) / math.dist(target, xy)
+        return dict(a=xy.copy(), b=np.asarray(target, float), dir=d, heading=math.atan2(d[1], d[0]),
+                    v=sp.v_escape, gate=None, line_pt=xy.copy(), flow=False, tube=0.0, escape=True)
+
     def _no_progress(self, now, xy, cmd, why):
         """Stop. The same refusal a few times in a row (no progress between them) -> HOLD, which
         replans every hold_recheck_s and gives up after blocked_abort_s."""
@@ -368,6 +389,11 @@ class SafeMission(LiveMission):
                         line_pt=line_pt, tube=tube)
         path = rp.plan(xy, now)
         if path is None or rp.blocked:
+            esc = self._escape_segment(xy)
+            if esc is not None:
+                self.events.append((now, "ESCAPE", "ESCAPE", f"no path ({rp.last_reason[:60]}); stepping "
+                                    f"{math.dist(esc['b'], xy):.2f} m to free space"))
+                return esc
             return "BLOCKED"
         # first vertex far enough away; the path starts at the vehicle
         b = None
@@ -722,13 +748,22 @@ class SafeMission(LiveMission):
                        and not getattr(self, "gate_refused", None))
             if recheck:
                 path = rp.plan(xy, now)
-                if path is not None and not rp.blocked:
-                    self._set("FLY", now, "path clear again")
+                if (path is not None and not rp.blocked) or self._escape_segment(xy) is not None:
+                    self._set("FLY", now, "path clear again" if path is not None else "escaping to free space")
                     self._phase("SETTLE", now)
                 else:
                     self.t_state = now
+            elif (self.hold_since is not None and now - self.hold_since >= p.blocked_abort_s
+                  and not getattr(self, "gate_refused", None)):
+                # blocked for good: land straight down where it is rather than burn the clock in the air
+                self.land_here = xy.copy()
+                self.pad_source = "ABORT: landing in place (no path)"
+                self.events.append((now, "ABORT", "DESCEND", self.pad_source))
+                self._set("DESCEND", now, self.pad_source)
         if self.state == "DESCEND":
-            if self.land_yaw is None:
+            if self.land_yaw is None and getattr(self, "land_here", None) is not None:
+                self.land_yaw = pose_c[2]
+            elif self.land_yaw is None:
                 if self.pad_fuser.n < self.p.pad_min_fixes:
                     self.pad_source = "CAD FALLBACK (pad not detected)"
                     self.events.append((now, "PAD", "FALLBACK", "landing on the course-file pad coordinates"))
@@ -740,7 +775,8 @@ class SafeMission(LiveMission):
                                     yaw_deg=round(math.degrees(self.land_yaw), 1))))
             # footprint centre (0.035 m behind the body origin) over the pad centre
             cl, sl = math.cos(self.land_yaw), math.sin(self.land_yaw)
-            goal_xy = np.asarray(self.goals[-1].xy, float) - FOOTPRINT_CENTRE_X_M * np.array([cl, sl])
+            goal_xy = (np.asarray(self.land_here, float) if getattr(self, "land_here", None) is not None
+                       else np.asarray(self.goals[-1].xy, float) - FOOTPRINT_CENTRE_X_M * np.array([cl, sl]))
             self.anchor = goal_xy
             off = math.dist(xy, goal_xy)
             yerr = wrap(self.land_yaw - pose_c[2])
