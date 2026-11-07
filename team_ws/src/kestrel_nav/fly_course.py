@@ -124,6 +124,8 @@ def start_navigator(run_dir):
     deployment = Path("/etc/flyx/onboard.yaml")           # sim clock selection, like the localizer
     if deployment.is_file():
         args += ["--params-file", str(deployment)]
+    if os.environ.get("KESTREL_USE_SIM_TIME") in ("true", "false"):   # skybeta launch (kestral_nav934am)
+        args += ["-p", f"use_sim_time:={os.environ['KESTREL_USE_SIM_TIME']}"]
     env = dict(os.environ, PYTHONPATH=f"{PROJECT}:{os.environ.get('PYTHONPATH', '')}")
     log = open(run_dir / "navigator.log", "w")
     print(f"navigator: starting (log {run_dir / 'navigator.log'})", flush=True)

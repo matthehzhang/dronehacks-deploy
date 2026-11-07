@@ -276,10 +276,7 @@
     "_keep_path_clearance_note": "planner._simplify_idx: shortcuts keep the clearance of the A* sub-path they replace, capped at 0.6 m = the A* prefer_m (beyond it A* itself does not centre), less half a cell. 0 restores greedy shortcuts."
   },
   "sim_profile": {
-    "fixture_offset_m": [
-      0.0,
-      0.2
-    ],
+    "fixture_offset_m": [0.0, 0.0], "_fixture_skybeta_note": "kestral_nav934am (skybeta): the drone starts ON the launch mark (rule 7.4; the FlyX training spawn was [0.0, 0.2])",
     "_note": "SIMULATION / TRAINING ONLY. The prepared-training world spawns the aircraft 20 cm north of the launch mark (environment.json); this declared offset gives the localizer's prior and the offline tools their start. It is not competition configuration: at the venue the start is the mark itself and fly_course.py takes the start pose from the localizer.",
     "refnav": {
       "sim_stuck_land_disarm_s": 0.0

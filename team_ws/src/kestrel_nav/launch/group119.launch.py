@@ -31,6 +31,9 @@ ARGUMENTS = [
     ('depth_max_hz', '8.0', 'host_depth rate cap'),
     ('arm_wait_s', '600.0', 'refnav: how long the arm phase waits for the pilot to arm and switch to Position'),
     ('wait_s', '900.0', 'refnav: how long it waits for readiness before giving up'),
+    ('landed_z', '0.10', 'landed body-origin height above the floor: PX4 dist_bottom 0.100 m on skybeta-14 (no distance_sensor topic there)'),
+    ('localizer_timeout', '120.0', 'fly_course: how long to wait for the localizer to converge on the mark'),
+    ('use_sim_time', 'false', 'true only in a simulator that publishes /clock'),
 ]
 
 
@@ -47,17 +50,22 @@ def generate_launch_description():
                      'odometry_topic': '/visual_slam/tracking/odometry'}])
     host_depth = Node(package='kestrel_nav', executable='host_depth', name='host_depth', output='screen',
                       prefix='nice -n 5', parameters=[{'depth_topic': L('depth_topic'), 'max_hz': L('depth_max_hz')}])
-    health = ExecuteProcess(cmd=['python3', '-m', 'refnav.skybeta_health'], cwd=str(ROOT), additional_env=env,
+    health = ExecuteProcess(cmd=['python3', '-m', 'refnav.skybeta_health', '--ros-args', '-p',
+                                 ['use_sim_time:=', L('use_sim_time')]], cwd=str(ROOT), additional_env=env,
                             output='screen', name='skybeta_health')
     localizer = ExecuteProcess(
         cmd=['python3', '-m', 'coursenav.loc_node', '--ros-args', '--params-file', str(ROOT / 'onboard/config/common.yaml'),
-             '-p', ['depth_topic:=', L('depth_topic')], '-p', ['depth_info_topic:=', L('depth_info_topic')]],
+             '-p', ['depth_topic:=', L('depth_topic')], '-p', ['depth_info_topic:=', L('depth_info_topic')],
+             '-p', ['use_sim_time:=', L('use_sim_time')]],
         cwd=str(ROOT), additional_env=env, output='screen', name='localizer')
+    fly_env = dict(env)
     fly = ExecuteProcess(
         cmd=['python3', str(ROOT / 'fly_course.py'), '--event-start', '--skip-preflight', '--no-own-localizer', '--no-return',
-             '--chicane', L('chicane'), '--',
+             '--chicane', L('chicane'), '--landed-z', L('landed_z'), '--localizer-timeout', L('localizer_timeout'), '--',
              '-p', 'px4_output:=skybeta', '-p', ['depth_topic:=', L('depth_topic')],
              '-p', ['depth_info_topic:=', L('depth_info_topic')],
-             '-p', ['arm_wait_s:=', L('arm_wait_s')], '-p', ['wait_s:=', L('wait_s')]],
-        cwd=str(ROOT), additional_env=env, output='screen', name='fly_course')
+             '-p', ['arm_wait_s:=', L('arm_wait_s')], '-p', ['wait_s:=', L('wait_s')],
+             '-p', ['use_sim_time:=', L('use_sim_time')]],
+        cwd=str(ROOT), additional_env={**fly_env, 'KESTREL_USE_SIM_TIME': L('use_sim_time')},
+        output='screen', name='fly_course')
     return LaunchDescription(declared + [flight_interface, host_depth, health, localizer, fly])

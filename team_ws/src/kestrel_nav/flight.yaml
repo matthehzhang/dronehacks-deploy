@@ -1,0 +1,10 @@
+/**:
+  ros__parameters:
+    # Physical companion default. The simulator's deployment file selects its clock.
+    use_sim_time: false
+    depth_topic: /camera/depth/image_raw
+    depth_info_topic: /camera/depth/camera_info
+    health_topic: /estimator/healthy
+    base_frame: base_link
+    control_topic: /refnav/control
+    status_topic: /refnav/status
