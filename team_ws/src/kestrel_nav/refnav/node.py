@@ -214,9 +214,34 @@ class RefNav(Node):
     def _now(self):
         return self.get_clock().now().nanoseconds * 1e-9
 
+    EV_YAW_GRACE_S = 2.0
+    RESET_MAX_HEADING = math.radians(10.0)      # larger EKF resets in flight: refnav's NED targets are no longer trusted
+    RESET_MAX_XY_M = 0.30
+
+    def _check_reset(self, m):
+        """skybeta: refnav keeps targets, home and path in PX4's local frame and has no reset handling (the lab's
+        NED vision rarely resets). A small reset is absorbed by the position/heading loops; a LARGE one (Gazebo
+        REALISM, after a 330 ms EV freeze: heading_reset 2->3 with 1.570 -> -2.029 rad) means the frame no longer
+        describes the world: land in place through refnav's own landing rather than fly on stale targets."""
+        cur = (getattr(m, 'xy_reset_counter', None), getattr(m, 'heading_reset_counter', None))
+        prev = getattr(self, '_reset_counters', None)
+        self._reset_counters = cur
+        if prev is None or cur == prev or self.mission.phase not in C.AIRBORNE:
+            return
+        dh = float(getattr(m, 'delta_heading', 0.0)) if cur[1] != prev[1] else 0.0
+        dxy = (math.hypot(*[float(c) for c in getattr(m, 'delta_xy', (0.0, 0.0))[:2]]) if cur[0] != prev[0] else 0.0)
+        msg = f"EKF reset in flight: heading {math.degrees(dh):+.1f} deg, xy {dxy:.2f} m (counters {prev} -> {cur})"
+        if abs(dh) > self.RESET_MAX_HEADING or dxy > self.RESET_MAX_XY_M:
+            self.get_logger().warning(msg + ": frame no longer trusted, landing in place")
+            self.mission.request_land(msg)
+        else:
+            self.get_logger().info(msg + ": small, continuing")
+
     def _on_est_flags(self, m):
         self._yaw_align = (bool(m.cs_yaw_align), self._now())
         self._ev_yaw = (bool(getattr(m, 'cs_ev_yaw', False)), self._now())
+        if self._ev_yaw[0]:
+            self._ev_yaw_true_t = self._now()
 
     def _on_lpos(self, m):
         accepted = self._return_observe('position', m.timestamp * 1e-6,
@@ -265,8 +290,12 @@ class RefNav(Node):
             # ev_yaw_control resets yaw to EV and leaves yaw_align FALSE for FRD, so heading_good_for_control
             # never sets (deploy CLAUDE.md, drone 16 bench: "it does not gate Position mode"). The heading is
             # the fused vision yaw: accept it while EKF2 reports cs_ev_yaw (fresh) and the heading is finite.
-            ev, ev_t = getattr(self, '_ev_yaw', (False, None))
-            heading_ok = bool(ev and ev_t is not None and self._now() - ev_t <= 3.0)
+            # grace: a brief EV gap (cuVSLAM stalls 150-430 ms on drone 14) clears cs_ev_yaw for a moment; PX4 keeps
+            # fusing on its own timeout, as heading_good_for_control does not flicker on the lab
+            ev_true_t = getattr(self, '_ev_yaw_true_t', None)
+            heading_ok = bool(ev_true_t is not None and self._now() - ev_true_t <= self.EV_YAW_GRACE_S)
+        if self.px4_output == "skybeta":
+            self._check_reset(m)
         self.v.pos_ok = bool(m.xy_valid and m.z_valid and heading_ok
                              and all(math.isfinite(c) for c in (m.x, m.y, m.z, m.heading)))
 
