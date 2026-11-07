@@ -109,12 +109,12 @@ def test_both_crossings_were_centred_by_measurement(slip_flight):
     assert all(abs(e[3]['correction_m']) <= m.sp.align_max_shift_m for e in measured)
 
 
-def test_unmeasurable_opening_is_refused_not_crossed(monkeypatch):
+def test_unmeasurable_opening_is_retried_then_crossed_on_the_map(monkeypatch):
+    """930am-style: alignment that fails twice falls back to a logged map-only crossing (finish > hover)."""
     monkeypatch.setattr(safe_mod, 'find_opening_flu', lambda pts, meta, **kw: None)
     m, res, _ = fly(seed=1)
-    assert not res.collided
-    assert m.state == 'HOLD' and m.gate_refused
-    assert m.replanner.goal.name == 'tunnel_exit'          # held before the first crossing leg
+    assert not res.collided, res.result
+    assert any(e[2] == 'map-only crossing' for e in m.events)
 
 
 @pytest.mark.parametrize('waived, action', [(frozenset(), 'stop'), (frozenset({'depth'}), 'run')])

@@ -94,6 +94,17 @@ class SafeParams(FollowParams):
     brake_timeout_s: float = 3.0  # still "moving" after this: hold position where the vehicle is
     no_progress_max: int = 3      # segments ending in a stop without progress, in a row -> HOLD and recheck
     obstacle_memory_s: float = 3.0
+    # bounded localisation corrections (workspace matthew930am refnav: deadband 0.04 m, 0.05 m/s within a
+    # leg, total <= 0.8 m, sigma <= 0.10). Gazebo @ 9608f04: unbounded PF pulls (30 % per scan) put the
+    # belief 0.27 m / 7.4 deg off ground truth in the first corridor and the planner found no path.
+    corr_sigma_max_m: float = 0.10
+    corr_deadband_m: float = 0.04
+    corr_rate_mps: float = 0.05
+    corr_yaw_rate: float = math.radians(1.0)
+    corr_total_m: float = 0.8
+    corr_total_yaw: float = math.radians(10.0)
+    live_grid: bool = False       # 930am plans on the static map; live depth is the stop check on the leg
+    align_retry_s: float = 5.0    # a refused gate: hold this long, re-measure once, then cross on the map
     escape_max_m: float = 0.30    # no path from inside the planning margin: step to the nearest free cell this close
     v_escape: float = 0.08  # a return that drops inside stereo minimum range is remembered this long
     # gate alignment
@@ -142,6 +153,9 @@ class SafeMission(LiveMission):
         self.align_meta = self._align_meta()
         self.events = []
         self.pad_fuser = PadFuser(self.goals[-1].xy.copy())
+        st = self.doc["start"]                   # placement accuracy on the mark (course file: 0.05 m / 2 deg)
+        self.p.pf_sigma_xy_m = float(st.get("sigma_xy_m", self.p.pf_sigma_xy_m))
+        self.p.pf_sigma_yaw_deg = float(st.get("sigma_yaw_deg", self.p.pf_sigma_yaw_deg))
         self.pad_source = "CAD"
         self.land_yaw = None
         self.pad_ok_since = None
@@ -221,12 +235,33 @@ class SafeMission(LiveMission):
             self._last_odom = (self._last_odom[0], self._last_odom[1] + dv)
 
     def _localize(self, obs):
-        """PF as in LiveMission, except while a measured opening is the position reference."""
-        if self.pf_hold_k is None:
-            return super()._localize(obs)
-        T = self.T
-        super()._localize(obs)
-        self.T = T
+        """PF as in LiveMission, but its pull on course<-odom is BOUNDED: only when sigma <= 0.10 m,
+        outside a 4 cm deadband, at most 0.05 m/s and 1 deg/s, at most 0.8 m / 10 deg in total, never
+        during the climb, and not while a measured opening is the position reference."""
+        sp = self.sp
+        T0 = self.T
+        super()._localize(obs)                   # runs the PF; proposes a (low-passed) new T
+        Tp, self.T = self.T, T0
+        if self.pf_hold_k is not None or self.state in ("CLIMB", "WAIT") or not (self.pf_sigma <= sp.corr_sigma_max_m):
+            return
+        dt = 0.0 if getattr(self, "_corr_t", None) is None else max(0.0, obs.now - self._corr_t)
+        self._corr_t = obs.now
+        if dt <= 0.0:
+            return
+        dx, dy, dyaw = Tp[0] - T0[0], Tp[1] - T0[1], wrap(Tp[2] - T0[2])
+        d = math.hypot(dx, dy)
+        if d < sp.corr_deadband_m and abs(dyaw) < math.radians(1.0):
+            return
+        step = min(d, sp.corr_rate_mps * dt)
+        dyaw = float(np.clip(dyaw, -sp.corr_yaw_rate * dt, sp.corr_yaw_rate * dt))
+        base = getattr(self, "_T_start", None) or T0
+        self._T_start = base
+        nx = T0[0] + (dx / d * step if d > 1e-9 else 0.0)
+        ny = T0[1] + (dy / d * step if d > 1e-9 else 0.0)
+        nyaw = wrap(T0[2] + dyaw)
+        if math.hypot(nx - base[0], ny - base[1]) > sp.corr_total_m or abs(wrap(nyaw - base[2])) > sp.corr_total_yaw:
+            return
+        self.T = (nx, ny, nyaw)
 
     def _release_pf(self, now, obs):
         """Crossing done: re-seed the PF at the gate-corrected pose, so it does not pull back to the
@@ -509,10 +544,16 @@ class SafeMission(LiveMission):
             self._stop(now, xy, "SETTLE", why)
             return self._cmd(cmd, self._hold_vel(xy), 0.0, why)
         self.align = None
+        self.align_failures = getattr(self, "align_failures", 0) + 1
+        if self.align_failures >= 2:             # measured twice without success: cross on the map (930am times out too)
+            self.aligned_for, self.cross_offset = self.replanner.k, 0.0
+            self.events.append((now, "ALIGN", "map-only crossing", f"opening not measured twice: {why}"))
+            self._stop(now, xy, "SETTLE", "map-only crossing")
+            return self._cmd(cmd, self._hold_vel(xy), 0.0, "map-only crossing")
         self._stop(now, xy, "REFUSED", why)
-        self._set("HOLD", now, f"gate refused: {why}")
+        self._set("HOLD", now, f"gate not measured, retrying in {self.sp.align_retry_s:.0f} s: {why}")
         self.hold_since = now
-        self.gate_refused = why
+        self.gate_retry_at = now + self.sp.align_retry_s
         return self._cmd(cmd, self._hold_vel(xy), 0.0, why)
 
     # ------------------------------------------------------------------ the driver
@@ -700,7 +741,7 @@ class SafeMission(LiveMission):
         cmd.pose_course = pose_c
         self._update_velocity_odom(now, obs.odom_xyz[:2])
         xy = np.asarray(pose_c[:2], float)
-        if new_scan and self.scan_nav is not None and self.state in ("FLY", "PAD", "HOLD", "CLIMB"):
+        if sp.live_grid and new_scan and self.scan_nav is not None and self.state in ("FLY", "PAD", "HOLD", "CLIMB"):
             self.grid.integrate(pose_c, self.scan_nav, now)
         if now - self.t_offboard > p.time_limit_s and self.state in ("FLY", "PAD"):
             self._stop(now, xy, "BRAKE", "time limit")
@@ -743,9 +784,13 @@ class SafeMission(LiveMission):
         if self.state == "HOLD":
             self.anchor = self.anchor if self.anchor is not None else xy.copy()
             self._cmd(cmd, self._hold_vel(xy), 0.0, f"hold: {self.log[-1][3] if self.log else ''}")
-            recheck = (self.hold_since is not None and now - self.t_state >= p.hold_recheck_s
+            if getattr(self, "gate_retry_at", None) is not None and now >= self.gate_retry_at:
+                self.gate_retry_at = None
+                self._set("FLY", now, "re-measuring the opening")
+                self._phase("SETTLE", now)
+            recheck = (self.state == "HOLD" and self.hold_since is not None and now - self.t_state >= p.hold_recheck_s
                        and now - self.hold_since < p.blocked_abort_s and now - self.t_offboard <= p.time_limit_s
-                       and not getattr(self, "gate_refused", None))
+                       and getattr(self, "gate_retry_at", None) is None)
             if recheck:
                 path = rp.plan(xy, now)
                 if (path is not None and not rp.blocked) or self._escape_segment(xy) is not None:
@@ -753,8 +798,8 @@ class SafeMission(LiveMission):
                     self._phase("SETTLE", now)
                 else:
                     self.t_state = now
-            elif (self.hold_since is not None and now - self.hold_since >= p.blocked_abort_s
-                  and not getattr(self, "gate_refused", None)):
+            elif (self.state == "HOLD" and self.hold_since is not None and now - self.hold_since >= p.blocked_abort_s
+                  and getattr(self, "gate_retry_at", None) is None):
                 # blocked for good: land straight down where it is rather than burn the clock in the air
                 self.land_here = xy.copy()
                 self.pad_source = "ABORT: landing in place (no path)"
@@ -781,7 +826,14 @@ class SafeMission(LiveMission):
             off = math.dist(xy, goal_xy)
             yerr = wrap(self.land_yaw - pose_c[2])
             speed = float(np.linalg.norm(self.vel_course))
-            ready = off <= sp.pad_over_m and abs(yerr) <= sp.pad_yaw_tol and speed < 0.03
+            if getattr(self, "land_here", None) is not None:
+                ready, self.pad_ok_since = True, (self.pad_ok_since or now - sp.pad_settle_s)   # abort: straight down
+            else:
+                # odometry noise (~1 cm at 10 Hz) reads as ~0.05 m/s: settle_speed, and after 8 s centring
+                # within 2x the tolerance is accepted
+                t_desc = now - self.t_state
+                ready = ((off <= sp.pad_over_m and abs(yerr) <= sp.pad_yaw_tol and speed < sp.settle_speed)
+                         or (t_desc > 8.0 and off <= 2 * sp.pad_over_m and abs(yerr) <= 2 * sp.pad_yaw_tol))
             self.pad_ok_since = (self.pad_ok_since or now) if ready else (self.pad_ok_since if z < self.z_odom_cruise - 0.1 else None)
             descending = self.pad_ok_since is not None and now - self.pad_ok_since >= sp.pad_settle_s
             yr = 0.0 if descending else float(np.clip(sp.turn_kp * yerr, -sp.turn_rate, sp.turn_rate))

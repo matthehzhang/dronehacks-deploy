@@ -37,7 +37,7 @@ ARGUMENTS = [
     ('v_gate_window', '0.20', 'extra speed cap through a wall opening (the window), m/s'),
     ('turn_rate_deg', '35.0', 'in-place turn rate, deg/s (never while translating)'),
     ('land_vz', '0.15', 'descent speed onto the pad, m/s (below LNDMC_Z_VEL_MAX 0.25)'),
-    ('gate_requires_measurement', 'true', 'refuse a crossing whose opening was not measured in depth'),
+    ('gate_requires_measurement', 'true', 'measure the opening before crossing; after two failed measurements cross on the map (logged)'),
     ('time_limit_s', '175.0', 'stop driving after this long in Offboard (rule: 3 min from leaving the mark)'),
     ('odom_max_age_s', '0.5', 'maximum odometry capture/receipt age; bench qualification required'),
     ('tracking_max_age_s', '0.5', 'maximum successful cuVSLAM status age'),
