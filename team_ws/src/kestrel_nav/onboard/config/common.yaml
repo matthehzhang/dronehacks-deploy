@@ -1,0 +1,4 @@
+/**:
+  ros__parameters:
+    # Physical ROS default. The simulator deployment selects its clock.
+    use_sim_time: false

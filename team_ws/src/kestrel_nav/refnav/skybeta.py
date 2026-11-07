@@ -1,0 +1,82 @@
+"""refnav on the skybeta drone: refnav.core's output, unchanged, published through the organizer's flight
+interface instead of /fmu/in. Added for deploy branch kestral_nav934am; not part of upstream group119.
+
+The skybeta rules (deploy README): competitors never publish /fmu/in, never arm, never change mode. The
+pilot arms and switches to Position; skybeta_flight_interface enters Offboard (one attempt, needing a team
+setpoint within 1 s) and turns /skybeta/setpoint/twist (ENU world velocity + yaw rate, expires after 1 s,
+norm capped at 1.5 m/s) into PX4 setpoints. So:
+  * refnav's "offboard" / "arm" commands are not sent: the pilot and the interface do them;
+    run refnav with accept_armed_start (the pilot arms on the mark) and a long arm_wait_s;
+  * refnav's (n, e, d, yaw) setpoint + velocity feed-forward becomes a velocity command, the same loop
+    PX4's position controller closes:  v = v_ff + kp * (sp - pos),  yawrate = yawspeed_ff + k_yaw * (yaw_sp - yaw);
+    acceleration feed-forward cannot be carried by a twist and is dropped;
+  * refnav's "land" (PX4 AUTO_LAND on the lab) has no interface equivalent: a slow descent with xy held
+    where the landing started, until PX4's land detector disarms (COM_DISARM_LAND); "disarm" is not sent.
+Frames: PX4 local NED (refnav) <-> the interface's ENU world frame (it applies enu_to_ned: (y, x, -z)).
+"""
+import math
+
+KP_XY = 1.0          # PX4 MPC_XY_P default 0.95: the same proportional loop
+KP_Z = 1.0           # PX4 MPC_Z_P default 1.0
+KP_YAW = 2.0
+V_XY_MAX = 0.6       # m/s; refnav's legs fly <= 0.30
+V_Z_MAX = 0.5
+YAWRATE_MAX = math.radians(45.0)   # PX4 MPC_YAWRAUTO_MAX
+LAND_VZ = 0.15       # m/s down, below LNDMC_Z_VEL_MAX 0.25 so the land detector fires
+
+
+def _wrap(a):
+    return (a + math.pi) % (2 * math.pi) - math.pi
+
+
+def twist_from_setpoint(sp, vel_ff, yawspeed_ff, pos, heading):
+    """-> (vx_e, vy_n, vz_up, yawrate_enu) for the interface from a NED setpoint and the NED estimate."""
+    n, e, d, yaw = sp
+    pn, pe, pd = pos
+    vn = (vel_ff[0] if vel_ff is not None else 0.0) + KP_XY * (n - pn)
+    ve = (vel_ff[1] if vel_ff is not None else 0.0) + KP_XY * (e - pe)
+    h = math.hypot(vn, ve)
+    if h > V_XY_MAX:
+        vn, ve = vn * V_XY_MAX / h, ve * V_XY_MAX / h
+    vd = max(-V_Z_MAX, min(V_Z_MAX, KP_Z * (d - pd)))
+    yr = 0.0
+    if yaw is not None and math.isfinite(yaw) and heading is not None:
+        yr = (yawspeed_ff or 0.0) + KP_YAW * _wrap(yaw - heading)
+    yr = max(-YAWRATE_MAX, min(YAWRATE_MAX, yr))
+    return ve, vn, -vd, -yr                     # ENU: x east, y north, z up; yaw rate about up
+
+
+class SkybetaOutput:
+    def __init__(self, node):
+        from geometry_msgs.msg import TwistStamped
+        self.node = node
+        self.TwistStamped = TwistStamped
+        self.pub = node.create_publisher(TwistStamped, "/skybeta/setpoint/twist", 10)
+        self.land_xy = None                     # NED (n, e) held during the landing descent
+        self.land_yaw = None
+
+    def _send(self, vx, vy, vz, wz):
+        t = self.TwistStamped()
+        t.header.stamp = self.node.get_clock().now().to_msg()
+        t.header.frame_id = "odom"
+        t.twist.linear.x, t.twist.linear.y, t.twist.linear.z = float(vx), float(vy), float(vz)
+        t.twist.angular.z = float(wz)
+        self.pub.publish(t)
+        return dict(vx_e=vx, vy_n=vy, vz_up=vz, yawrate_enu=wz)
+
+    def publish(self, now, out, v):
+        """One tick of refnav output -> at most one twist. Returns what was published (for the trace)."""
+        if "land" in out.commands and v.pos is not None and self.land_xy is None:
+            self.land_xy, self.land_yaw = (v.pos[0], v.pos[1]), v.heading
+            self.node.get_logger().info("landing: descending in place through the flight interface "
+                                        f"at {LAND_VZ} m/s until PX4 disarms")
+        if self.land_xy is not None:
+            if v.armed is False or v.pos is None:
+                return None
+            vx, vy, _, wz = twist_from_setpoint((self.land_xy[0], self.land_xy[1], v.pos[2], self.land_yaw),
+                                                None, None, v.pos, v.heading)
+            return self._send(vx, vy, -LAND_VZ, wz)
+        if out.stream and out.setpoint is not None and v.pos is not None:
+            return self._send(*twist_from_setpoint(out.setpoint, out.velocity, getattr(out, "yawspeed", None),
+                                                   v.pos, v.heading))
+        return None
