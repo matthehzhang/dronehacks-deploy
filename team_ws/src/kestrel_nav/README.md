@@ -86,3 +86,52 @@ at that moment re-fits the course->odom transform, so VIO drift is corrected alo
 cd team_ws/src/kestrel_nav && python3 -m pytest tests -q     # 52 passed, ~20 s
 python3 -m kestrel_nav.plan_course                           # prints the 19-leg window plan
 ```
+
+---
+
+# livenav (branch `basic-obstacle-avoidance`): A* replanning on a live depth grid + velocity follower
+
+`kestrel_nav/livenav/` is a second mission that reuses coursenav's map, goal derivation, A*,
+particle-filter localizer, live occupancy grid and depth renderer, and replaces leg-by-leg
+waypoint flying with:
+
+| Module | What it does |
+|---|---|
+| `navgrid.py` | prior obstacle band (published OBJ) + live log-odds grid from this run's depth scans; only returns the prior does NOT explain become obstacles (`novel_min_m`), so VIO drift cannot thicken known walls; the net is a fence (returns beyond the enclosure are pulled onto it); two inflations: planning (radius + 0.12 m) and hard validity (radius + 0.10 m) |
+| `replanner.py` | the planner's goal sequence (maze exit, tunnel, chicane pre/post, pad), A* from the vehicle to the next goal on the live grid, replanned every second, on deviation, or when the live grid blocks the path; plain vias continue into the next goal so corners are flown through; gate crossings are straight legs (a 0.9 m window cannot be represented on the inflated grid) |
+| `follower.py` | carrot (pure-pursuit) velocity follower with lag compensation; speed = min(cruise, corner, map clearance, path-corridor scan guard, heading error); never commands a stop-and-turn beside a wall; yaw follows the motion (the camera looks where it flies) |
+| `pad.py` | landing-pad ring detector: ground-plane rectification + known-radius matched filter; sub-centimetre on synthetic frames from 2.0 to 4.5 m, blind inside 1.7 m (level camera) |
+| `mission.py` | WAIT → CLIMB → FLY → PAD → DESCEND state machine; owns the course<-odom transform, corrected by `coursenav.pf` from the full-band scan |
+| `offline_sim.py` | closed loop with a kinematic vehicle (0.45 s velocity lag), drifting VIO, ray-cast depth and synthesized pad frames. `python3 -m kestrel_nav.livenav.offline_sim --png out.png` |
+| `../live_mission.py`, `launch/live.launch.py` | the skybeta node: subscribes odometry, `/skybeta/state`, the depth image + camera_info, the left mono image, PX4 attitude and rangefinder; publishes `/skybeta/setpoint/twist` |
+
+## Offline results (2026-11-07, 13 cases, `offline_sim`)
+
+11/13 land in 54-93 s with 3-11 cm landing error (PF localizer on). Start-pose errors of 0.15 m / 5 deg,
+unmapped pillars in the open areas, 0.5 and 0.6 m/s cruise and the Gate B route all finish. The two
+non-finishes are a pillar that physically blocks a 1.0 m maze corridor (correct HOLD) and a VIO drift
+model twice the measured one that hits a maze wall before the PF converges. **Not yet exercised: the
+ring detector in the loop** — on the window route the pad is first visible from 1.7 m, inside the
+detector's blind zone, so landing accuracy there is the localizer's. **Nothing here has flown.**
+
+## Run on the drone
+
+```bash
+# /etc/skybeta/drone.env
+COMPETITOR_PKG=kestrel_nav
+COMPETITOR_LAUNCH=live.launch.py
+# then, on the ground, still:
+docker rm -f skybeta-stack
+docker exec -it skybeta-stack tmux attach -t skybeta
+```
+
+Needs the OAK depth stream enabled in the camera config (`depth_topic`, default
+`/oak/stereo/image_raw` + `camera_info`). Check before the first flight:
+
+```bash
+ros2 topic hz /oak/stereo/image_raw /oak/left/image_raw      # depth present, stereo still ~30 Hz
+ros2 topic echo /kestrel_nav/live_status --once              # plan, pf_sigma, scan_age, counts
+```
+
+Open items: measure `landed_z_m`; a frame from the real camera for the ring detector; the pilot lands
+(the interface floors altitude at `min_altitude_m`, DESCEND holds there).

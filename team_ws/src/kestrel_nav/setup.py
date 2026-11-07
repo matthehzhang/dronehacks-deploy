@@ -6,7 +6,7 @@ package_name = 'kestrel_nav'
 setup(
     name=package_name,
     version='0.1.0',
-    packages=[package_name, package_name + '.coursenav'],
+    packages=[package_name, package_name + '.coursenav', package_name + '.livenav'],
     # the course file, the published OBJ and the prebuilt voxel map travel with the package
     package_data={package_name: ['data/course/*', 'data/maps/*']},
     include_package_data=True,
@@ -28,6 +28,7 @@ setup(
             'course_mission = kestrel_nav.course_mission:main',
             'plan_course = kestrel_nav.plan_course:main',
             'localizer = kestrel_nav.coursenav.loc_node:main',
+            'live_mission = kestrel_nav.live_mission:main',
         ],
     },
 )

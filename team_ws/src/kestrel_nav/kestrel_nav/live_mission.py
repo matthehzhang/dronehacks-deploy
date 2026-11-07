@@ -1,0 +1,364 @@
+#!/usr/bin/env python3
+"""Fly the DroneHacks course on skybeta with livenav: map-primed A* replanning on a live depth grid,
+a velocity carrot follower, and ring detection for the pad.
+
+The skybeta contract (competitor guide section 1), nothing else:
+
+    subscribe  /visual_slam/tracking/odometry     where we are (ENU, cuVSLAM ``odom`` frame)
+    subscribe  /skybeta/state                     JSON: offboard_active, landed, clamped, ...
+    publish    /skybeta/setpoint/twist            ENU world velocity + yaw rate (expires after 1 s)
+    publish    /skybeta/setpoint/pose             only while waiting: hold here (lets Offboard start)
+
+Sensors read (all the airframe's own): the OAK depth image + camera_info (depth_topic, enabled by
+the team in the camera config), the OAK left mono image for the pad rings, PX4 attitude for
+levelling the scan, the downward VL53L1X through PX4 for the height of the scan band.
+
+Nothing here publishes to /fmu/in/*, arms, or changes mode. The pilot arms, then switches to
+Position; the flight interface enters Offboard once, and this node takes off (CLIMB) by commanding
+an upward twist. On the drone the interface floors altitude at min_altitude_m and has no land
+command: DESCEND goes to that floor over the pad and holds. The pilot lands.
+"""
+from __future__ import annotations
+
+import json
+import math
+
+import numpy as np
+import rclpy
+from geometry_msgs.msg import PoseStamped, TwistStamped
+from nav_msgs.msg import Odometry, Path
+from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
+from sensor_msgs.msg import CameraInfo, Image
+from std_msgs.msg import String
+
+from .coursenav.depth import decode_depth, quat_to_mat
+from .coursenav.scan import depth_points_level, level_from_px4_q
+from .livenav.follower import FollowParams
+from .livenav.mission import LiveMission, MissionParams, Observation
+from .livenav.navgrid import NavParams
+from .livenav.pad import PadDetector, level_cam_rotation
+from .livenav.replanner import ReplanParams
+
+PX4_QOS = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                     history=HistoryPolicy.KEEP_LAST, depth=1)
+R_FLU_OPT = np.array([[0.0, 0.0, 1.0], [-1.0, 0.0, 0.0], [0.0, -1.0, 0.0]])
+
+
+def yaw_of_xyzw(x, y, z, w):
+    return math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+
+
+def rpy_from_body_mount(roll, pitch, yaw):
+    cr, sr, cp, sp, cy, sy = math.cos(roll), math.sin(roll), math.cos(pitch), math.sin(pitch), math.cos(yaw), math.sin(yaw)
+    Rz = np.array([[cy, -sy, 0], [sy, cy, 0], [0, 0, 1.0]])
+    Ry = np.array([[cp, 0, sp], [0, 1.0, 0], [-sp, 0, cp]])
+    Rx = np.array([[1.0, 0, 0], [0, cr, -sr], [0, sr, cr]])
+    return Rz @ Ry @ Rx
+
+
+class LiveMissionNode(Node):
+    def __init__(self, **kwargs):
+        super().__init__('live_mission', **kwargs)
+        dp = self.declare_parameter
+        # --- mission ---
+        mp = MissionParams(
+            use_pf=bool(dp('use_pf', True).value),
+            pf_sigma_xy_m=float(dp('pf_sigma_xy_m', 0.10).value),
+            pf_sigma_yaw_deg=float(dp('pf_sigma_yaw_deg', 4.0).value),
+            scan_rmax_m=float(dp('scan_rmax_m', 4.0).value),
+            cruise_z_m=float(dp('cruise_z_m', 0.8).value),
+            landed_z_m=float(dp('landed_z_m', 0.15).value),
+            descend_to_z_odom=float(dp('descend_to_z_m', 0.3).value),
+            time_limit_s=float(dp('time_limit_s', 170.0).value),
+            chicane=str(dp('chicane', 'auto').value),
+        )
+        sx, sy, syaw = (float(dp('start_x', float('nan')).value), float(dp('start_y', float('nan')).value),
+                        float(dp('start_yaw_deg', float('nan')).value))
+        if not (math.isnan(sx) or math.isnan(sy)):
+            mp.start_xy = (sx, sy)
+        if not math.isnan(syaw):
+            mp.start_yaw_deg = syaw
+        fp = FollowParams(v_cruise=float(dp('v_cruise', 0.4).value), v_gate=float(dp('v_gate', 0.25).value),
+                          stop_m=float(dp('stop_m', 0.55).value))
+        course_file = str(dp('course_file', '').value) or None
+        self.mission = LiveMission(mp, NavParams(), ReplanParams(), fp, course_file=course_file)
+        # --- sensors ---
+        self.depth_topic = str(dp('depth_topic', '/oak/stereo/image_raw').value)
+        self.depth_info_topic = str(dp('depth_info_topic', '/oak/stereo/camera_info').value)
+        self.mono_topic = str(dp('mono_topic', '/oak/left/image_raw').value)
+        self.mono_info_topic = str(dp('mono_info_topic', '/oak/left/camera_info').value)
+        self.base_frame = str(dp('base_frame', 'base_link').value)
+        self.use_tf = bool(dp('camera_from_tf', True).value)
+        cam = [float(dp(k, v).value) for k, v in (('camera_x', 0.116), ('camera_y', 0.037), ('camera_z', 0.029),
+                                                   ('camera_roll', 0.0), ('camera_pitch', 0.0), ('camera_yaw', 0.0))]
+        self.cam_t_param = np.array(cam[:3])
+        self.cam_R_param = rpy_from_body_mount(*cam[3:]) @ R_FLU_OPT     # body FLU <- optical
+        self.rf_offset = float(dp('rangefinder_below_origin_m', 0.027).value)
+        self.pad_hz = float(dp('pad_detect_hz', 4.0).value)
+        rate_hz = float(dp('publish_rate_hz', 10.0).value)
+        self.min_alt = float(dp('min_altitude_m', 0.3).value)
+
+        # --- the contract ---
+        self.twist_pub = self.create_publisher(TwistStamped, '/skybeta/setpoint/twist', 10)
+        self.pose_pub = self.create_publisher(PoseStamped, '/skybeta/setpoint/pose', 10)
+        self.create_subscription(Odometry, '/visual_slam/tracking/odometry', self.odom_cb, 10)
+        self.create_subscription(String, '/skybeta/state', self.state_cb, 10)
+        # --- sensors in ---
+        self.create_subscription(CameraInfo, self.depth_info_topic, self.depth_info_cb, qos_profile_sensor_data)
+        self.create_subscription(Image, self.depth_topic, self.depth_cb, qos_profile_sensor_data)
+        self.create_subscription(CameraInfo, self.mono_info_topic, self.mono_info_cb, qos_profile_sensor_data)
+        self.create_subscription(Image, self.mono_topic, self.mono_cb, qos_profile_sensor_data)
+        try:
+            from px4_msgs.msg import DistanceSensor, VehicleAttitude
+            self.create_subscription(VehicleAttitude, '/fmu/out/vehicle_attitude', self.att_cb, PX4_QOS)
+            self.create_subscription(DistanceSensor, '/fmu/out/distance_sensor', self.rf_cb, PX4_QOS)
+        except ImportError:
+            self.get_logger().warning('px4_msgs not importable: scan levelling uses a level attitude')
+        # --- diagnostics out ---
+        self.status_pub = self.create_publisher(String, '/kestrel_nav/live_status', 5)
+        self.path_pub = self.create_publisher(Path, '/kestrel_nav/path', 5)
+        # --- TF (camera extrinsics) ---
+        self.tf_buffer = None
+        if self.use_tf:
+            try:
+                from tf2_ros import Buffer, TransformListener
+                self.tf_buffer = Buffer()
+                self.tf_listener = TransformListener(self.tf_buffer, self)
+            except ImportError:
+                self.get_logger().warning('tf2_ros not importable: camera pose from parameters')
+
+        # --- state ---
+        self.position = None
+        self.yaw = None
+        self.offboard_active = False
+        self.landed = None
+        self.clamped = []
+        self.K_depth = None
+        self.K_mono = None
+        self.mono_hw = None
+        self.cam_cal = {}             # frame_id -> (R_body_cam, t_body_cam)
+        self.att = None
+        self.height = None
+        self.pts = None
+        self.pts_h = 0.8
+        self.pts_t = -math.inf
+        self.pad_fix = None
+        self.pad_fix_t = -math.inf
+        self.pad_detector = None
+        self.last_pad_run = -math.inf
+        self.counts = dict(depth=0, depth_bad=0, mono=0, pad=0)
+        self.log_once = set()
+        self.create_timer(1.0 / rate_hz, self.tick)
+        self.create_timer(0.5, self.publish_status)
+        plan = self.mission.plan
+        self.get_logger().info(
+            f"livenav ready: chicane {plan.get('chicane')} ({plan.get('reason', '')[:60]}), {len(self.mission.goals)} goals, "
+            f"{plan['length_m']} m; cruise {mp.cruise_z_m} m above the floor = {self.mission.z_odom_cruise:.2f} m above odom; "
+            f"v {fp.v_cruise}/{fp.v_gate} m/s; depth from {self.depth_topic}. Waiting for Offboard.")
+
+    # ------------------------------------------------------------------ inputs
+    def now_s(self):
+        return self.get_clock().now().nanoseconds * 1e-9
+
+    def odom_cb(self, m):
+        p, q = m.pose.pose.position, m.pose.pose.orientation
+        self.position = (float(p.x), float(p.y), float(p.z))
+        self.yaw = yaw_of_xyzw(q.x, q.y, q.z, q.w)
+
+    def state_cb(self, m):
+        try:
+            st = json.loads(m.data)
+        except ValueError:
+            return
+        self.offboard_active = bool(st.get('offboard_active', False))
+        self.landed = st.get('landed')
+        self.clamped = st.get('clamped') or []
+        if self.clamped:
+            self.info_once(f"clamped:{','.join(self.clamped)}",
+                           f"flight interface is CLAMPING our setpoints ({', '.join(self.clamped)}); envelope {st.get('envelope')}")
+
+    def depth_info_cb(self, m):
+        if m.k[0] > 0:
+            self.K_depth = (m.k[0], m.k[4], m.k[2], m.k[5])
+
+    def mono_info_cb(self, m):
+        if m.k[0] > 0 and self.K_mono is None:
+            self.K_mono = (m.k[0], m.k[4], m.k[2], m.k[5])
+            self.mono_hw = (m.height, m.width)
+            self.pad_detector = PadDetector(self.K_mono, self.mono_hw)
+
+    def att_cb(self, m):
+        self.att = tuple(float(v) for v in m.q)
+
+    def rf_cb(self, m):
+        if 0 < m.current_distance <= m.max_distance:
+            tilt = 0.0
+            if self.att is not None:
+                R = level_from_px4_q(self.att)
+                tilt = math.acos(max(-1.0, min(1.0, R[2, 2])))
+            self.height = (self.now_s(), m.current_distance * math.cos(tilt) + self.rf_offset)
+
+    def camera_pose(self, frame_id):
+        """body FLU <- camera optical rotation and translation, from TF or the parameters."""
+        if frame_id in self.cam_cal:
+            return self.cam_cal[frame_id]
+        if self.tf_buffer is not None:
+            try:
+                from rclpy.time import Time
+                tf = self.tf_buffer.lookup_transform(self.base_frame, frame_id, Time())
+                r, t = tf.transform.rotation, tf.transform.translation
+                cal = (quat_to_mat(r.w, r.x, r.y, r.z), np.array([t.x, t.y, t.z]))
+                self.cam_cal[frame_id] = cal
+                self.get_logger().info(f'camera {frame_id} from TF: t={cal[1].round(3).tolist()}')
+                return cal
+            except Exception:
+                pass
+        self.info_once(f'tf:{frame_id}', f'no TF {self.base_frame} <- {frame_id}: using camera_* parameters')
+        self.cam_cal[frame_id] = (self.cam_R_param, self.cam_t_param)
+        return self.cam_cal[frame_id]
+
+    def body_height(self):
+        if self.height is not None and self.now_s() - self.height[0] < 1.0:
+            return self.height[1]
+        if self.position is not None:
+            return self.position[2] + self.mission.p.landed_z_m
+        return self.mission.p.cruise_z_m
+
+    def depth_cb(self, m):
+        if self.K_depth is None:
+            self.info_once('no_depth_info', f'no CameraInfo on {self.depth_info_topic} yet')
+            return
+        try:
+            d = decode_depth(m.encoding, m.height, m.width, m.step, bytes(m.data))
+        except ValueError as e:
+            self.counts['depth_bad'] += 1
+            self.info_once('depth_enc', str(e))
+            return
+        R_body_cam, t_body_cam = self.camera_pose(m.header.frame_id)
+        R_level = level_from_px4_q(self.att) if self.att is not None else np.eye(3)
+        self.pts = depth_points_level(d, self.K_depth, R_body_cam, t_body_cam, R_level, stride=4, border_px=16)
+        self.pts_h = self.body_height()
+        self.pts_t = self.now_s()
+        self.counts['depth'] += 1
+
+    def mono_cb(self, m):
+        self.counts['mono'] += 1
+        if self.pad_detector is None or self.mission.state not in ('FLY', 'PAD', 'DESCEND'):
+            return
+        rp = self.mission.replanner
+        if rp.k < len(self.mission.goals) - 2:
+            return                                                  # only near the end of the course
+        now = self.now_s()
+        if now - self.last_pad_run < 1.0 / self.pad_hz:
+            return
+        self.last_pad_run = now
+        try:
+            if m.encoding in ('bgr8', 'rgb8'):
+                img = np.frombuffer(m.data, np.uint8).reshape(m.height, m.step // 3, 3)[:, :m.width]
+            elif m.encoding in ('mono8', '8UC1'):
+                img = np.frombuffer(m.data, np.uint8).reshape(m.height, m.step)[:, :m.width]
+            else:
+                self.info_once('mono_enc', f'unsupported mono encoding {m.encoding}')
+                return
+        except ValueError:
+            return
+        R_body_cam, t_body_cam = self.camera_pose(m.header.frame_id)
+        roll = pitch = 0.0
+        if self.att is not None:
+            R = level_from_px4_q(self.att)
+            pitch, roll = -math.asin(max(-1.0, min(1.0, R[2, 0]))), math.atan2(R[2, 1], R[2, 2])
+        R_level_cam = level_cam_rotation(R_body_cam, roll, pitch)
+        cam_h = self.body_height() + float(t_body_cam[2])
+        det = self.pad_detector.detect(np.ascontiguousarray(img), cam_h, R_level_cam)
+        if det is not None:
+            # detector output is relative to the camera's ground point; shift to the body origin
+            self.pad_fix = (det[0] + float(t_body_cam[0]), det[1] + float(t_body_cam[1]))
+            self.pad_fix_t = now
+            self.counts['pad'] += 1
+
+    def info_once(self, key, message):
+        if key not in self.log_once:
+            self.log_once.add(key)
+            self.get_logger().info(message)
+
+    # ------------------------------------------------------------------ outputs
+    def send_twist(self, vx, vy, vz, yaw_rate):
+        t = TwistStamped()
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = 'odom'
+        t.twist.linear.x, t.twist.linear.y, t.twist.linear.z = float(vx), float(vy), float(vz)
+        t.twist.angular.z = float(yaw_rate)
+        self.twist_pub.publish(t)
+
+    def send_hold_pose(self):
+        msg = PoseStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'odom'
+        x, y, z = self.position
+        msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = float(x), float(y), float(z)
+        msg.pose.orientation.w = 0.0                     # all-zero quaternion: do not command yaw
+        self.pose_pub.publish(msg)
+
+    def publish_path(self, path_course):
+        if path_course is None or self.mission.T is None:
+            return
+        msg = Path()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'odom'
+        tx, ty, dyaw = self.mission.T
+        c, s = math.cos(dyaw), math.sin(dyaw)
+        for x, y in path_course:
+            p = PoseStamped()
+            p.header = msg.header
+            p.pose.position.x, p.pose.position.y = c * x - s * y + tx, s * x + c * y + ty
+            p.pose.position.z = self.mission.z_odom_cruise
+            p.pose.orientation.w = 1.0
+            msg.poses.append(p)
+        self.path_pub.publish(msg)
+
+    # ------------------------------------------------------------------ 10 Hz
+    def tick(self):
+        if self.position is None or self.yaw is None:
+            self.info_once('no_odom', 'no /visual_slam/tracking/odometry yet: nothing is commanded until cuVSLAM tracks')
+            return
+        now = self.now_s()
+        if self.pts_t > -math.inf and now - self.pts_t > 1.5:
+            self.info_once('depth_stale', f'depth scan is {now - self.pts_t:.1f} s old: flying on the prior map only')
+        obs = Observation(now=now, odom_xyz=self.position, odom_yaw=self.yaw, offboard_active=self.offboard_active,
+                          pts_level=self.pts if now - self.pts_t <= 1.5 else None, height_m=self.pts_h, pts_t=self.pts_t,
+                          pad_fix=self.pad_fix, pad_fix_t=self.pad_fix_t)
+        before = self.mission.state
+        cmd = self.mission.step(obs)
+        if cmd.state != before:
+            self.get_logger().info(f'{before} -> {cmd.state} {cmd.note}')
+        if cmd.state in ('WAIT', 'PAUSED'):
+            self.send_hold_pose()
+            return
+        self.send_twist(cmd.vx, cmd.vy, cmd.vz, cmd.yaw_rate)
+        if cmd.path_course is not None:
+            self.publish_path(cmd.path_course)
+
+    def publish_status(self):
+        st = self.mission.status()
+        st.update(counts=self.counts, scan_age=round(self.now_s() - self.pts_t, 2) if self.pts_t > -math.inf else None,
+                  height=self.height[1] if self.height else None, offboard=self.offboard_active, clamped=self.clamped,
+                  pad_fix=self.pad_fix)
+        self.status_pub.publish(String(data=json.dumps(st, default=str)))
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = LiveMissionNode()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
