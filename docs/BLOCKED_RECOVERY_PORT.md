@@ -81,3 +81,19 @@ range probe. Out-of-range/invalid forward stereo becomes unknown, not a near wal
 Unknown coverage can stop and eventually land the policy. The retained real-bag
 segment instead shows finite near obstacle hits and eventual Offboard exit; depth
 images were absent, so the causes of those near returns cannot be established.
+
+## Single-command start using the existing device launcher
+
+An identical package is staged at `~/policies/group154_blocked_recovery/kestrel_nav`.
+The existing device `fly.sh` supports the `group154_*` selector and was syntax checked.
+From the laptop over USB-C:
+
+```bash
+ssh -t -o HostName=192.168.55.1 dronehacks '~/team_ws/tools/fly.sh group154_blocked_recovery'
+```
+
+This is a user-invoked start: it checks disarmed telemetry, asks for sudo credentials
+if needed, saves the previous package, selects this package, restarts the stack and
+watches mission output. The agent did not invoke it or arm hardware. Pilot arming
+and mode switching are still required. The active package changes only when run.
+The preloaded localizer and OBJ hashes were verified against the local committed copy.
