@@ -306,3 +306,20 @@ before flight: hops are planned in VIO coordinates (drift), the sides of the air
 depth check during a hop, 20 s free memory assumes nothing walks into seen space unobserved. First real test
 caged or tethered, pilot on the kill switch. `docs/port-to-skybeta/assets/skybeta.patch` needs
 `scripts/refresh_patch.sh` on the machine that has the workspace checkout.
+
+
+## Continuous exploration for unobserved corridors (cram615)
+
+The legacy `corridor_wait_land_s` is ignored and removed from the course profiles.
+With recovery enabled on a path leg, healthy depth but no observed corridor for
+`corridor_explore_after_s` (default 4 s) starts the existing stationary yaw scan,
+observed-free replanning, and certified creep-hop protocol. A certified continuation
+of the original route is acceptable; this case does not require a detour.
+
+If a round times out, stalls, or finishes its back-off/recheck without a route,
+another exploration round starts, rather than landing or entering a terminal hold.
+Each round preserves the existing hop size, speed, sensing checks, and monotonic
+request IDs. Short pauses needed to settle or collect depth still occur; translation
+into unobserved space is not permitted. Genuine obstacle/block limits, no-route
+recovery, depth/estimator/position supervision, operator requests, and route-complete
+landing are unchanged. This change has controller/regression coverage, not flight qualification.
