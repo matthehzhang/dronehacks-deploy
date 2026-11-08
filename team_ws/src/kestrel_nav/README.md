@@ -18,37 +18,40 @@ alignment, detected-obstacle responses and camera-stream-loss handling are uncha
 This adds no automatic-landing trigger, velocity-validity requirement or continuous
 height veto during crossing. Holding XY still allows feedback to counter drift.
 
-At the end, the skybeta launch disables the mission's landing timeout: the existing
-0.30 m/s landing descent continues until PX4 reports disarmed. During that descent,
-a fresh PX4 `landed=true` report triggers an explicit normal
-`VEHICLE_CMD_COMPONENT_ARM_DISARM` command (`param1=0`, `param2=0`), retried once
-per second while still landed and armed. The adapter publishes this command on
-the version-resolved PX4 vehicle-command topic; motion still uses the flight
-interface. The outbound flight sends no arm/mode commands; the automatic return
-uses normal arm/Offboard commands only after the first landing and disarm.
-It prints `DISARM COMMAND SENT`, then waits for actual PX4 disarm confirmation.
-It then prints `LANDING CONFIRMED: PX4 reports DISARMED` and finishes. At 60 seconds without
-confirmation it prints `DISARM NOT CONFIRMED` and keeps landing. PX4 owns the
-normal disarm acceptance; a command being sent does not mark the mission complete.
-No force-disarm command is added. This has not been flight validated.
+The skybeta launch enables `return_home:=true`: finish the outbound route, descend
+onto the pad, **touch while still armed**, climb vertically to **2.10 m above the
+original floor reference**, follow a circular return, then land and disarm at
+this run's remembered launch position. The earlier pad-disarm/rearm/mode-request
+implementation has been removed. The adapter can only publish normal disarm
+commands; it never sends arm or mode commands. There is no straight-line return.
 
-The skybeta launch now enables `return_home:=true`. After successful pad landing
-and disarm, a separate return layer holds the pad XY/yaw target, rearms, requests
-Offboard and climbs vertically to **2.10 m above the original floor reference**.
-The climb's commanded target must finish and the measured height must remain
-within **5 cm for one second** before turning or translating toward the original
-launch position. It then flies directly home at 0.30 m/s, lands, and explicitly
-disarms again. The first landing latch is cleared before second takeoff; late
-outbound paths/corrections cannot change the return target. Recording spans both
-flights, including a delayed rearm on the pad.
+Pad contact requires an advancing PX4 `landed=false -> true` report after the
+adapter actually starts the planned pad descent. Low altitude, rangefinder
+readings and elapsed time cannot substitute. A stale/duplicate report or a
+landed report received before descent cannot start the climb. Until contact,
+the existing pad-centering/descent behavior stays in control. Fault/abort
+landings still complete normal disarm instead of starting a return.
 
-The existing outbound controller is unchanged. Return setup starts only after
-successful outbound completion, never on abort/fault landings. Invalid return
-configuration leaves the completed run on the pad. This skybeta return does not
-use the native-PX4 return's battery/localizer-confidence/map-clearance/time-budget
-qualification. Height 2.10 m is the operator-selected return height, not a checked
-clearance guarantee. Existing controller input/obstacle handling still applies.
-To fly only the committed outbound sequence, use
+After confirmed contact, the pad descent latch is cleared and the vehicle stays
+armed in Offboard. XY/yaw targets remain fixed until the climb's target finishes
+and measured altitude stays within **5 cm for one second**. The return follows
+sampled points along a circular arc with a **0.6096 m (2 ft) midpoint offset**
+from the direct pad-to-launch chord, bending toward the course's interior.
+The curve ends exactly at the remembered launch XY. Horizontal return speed is
+capped at 0.30 m/s; the commanded height stays 2.10 m until final landing.
+Late outbound paths/corrections cannot replace this locally generated curve.
+
+Final touchdown sends normal `VEHICLE_CMD_COMPONENT_ARM_DISARM` (`param1=0`,
+`param2=0`) once per second until PX4 reports disarmed. That confirmation finishes
+the mission. Invalid return configuration completes landing/disarm on the pad.
+If PX4 automatically disarms before/during the touch-and-go climb, the return
+ends without any rearm attempt. Saved fleet settings have `COM_DISARM_LAND=2`
+and `MPC_TKO_RAMP_T=3`: the actual aircraft must demonstrate the touchdown-to-lift
+transition before this can be called flight validated. No FC parameters are
+changed by this implementation. Recording continues through pad contact and
+stops after final landing/disarm. Preview: `python tools/preview_return.py`.
+
+To finish on the pad without a return, use
 `ros2 launch kestrel_nav refnav_skybeta.launch.py return_home:=false`.
 
 The user-supplied approximate window bounds **1.00-1.80 m** override alignment

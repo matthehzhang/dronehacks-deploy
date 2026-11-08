@@ -259,7 +259,7 @@ def main(argv=None):
     ap.add_argument("--start-from-mark", action="store_true",
                     help="skybeta: the start pose is the course file's launch mark and guideline heading (rule 7.4: "
                          "the drone is placed on the mark); the localizer still corrects in flight")
-    ap.add_argument("--skybeta-return", action="store_true", help="automatic hardware return after pad disarm")
+    ap.add_argument("--skybeta-return", action="store_true", help="confirmed touch-and-go and curved hardware return")
     ap.add_argument("--no-return", action="store_true",
                     help="disable the native-PX4 return; explicit --skybeta-return selects the hardware return instead")
     ap.add_argument("--nav", choices=["path", "legs", "steady"], default=None,
@@ -316,7 +316,16 @@ def skybeta_return_spec(doc):
     # return height must not prevent planning/starting the primary mission.
     config = doc.get('return')
     config = config if isinstance(config, dict) else {}
-    return dict(height_above_floor_m=config.get('cruise_z_m', 2.1), speed_mps=.3)
+    start, pad = doc.get('start', {}).get('xy'), doc.get('sequence', [{}])[-1].get('xy')
+    side = 1
+    if start is not None and pad is not None:
+        # NE-positive arc normal corresponds to the course-frame right normal.
+        # Choose the bulge toward the room's centre, away from the outside net.
+        dx, dy = start[0]-pad[0], start[1]-pad[1]
+        mid = ((start[0]+pad[0])/2, (start[1]+pad[1])/2)
+        side = 1 if -mid[0]*dy + mid[1]*dx >= 0 else -1
+    return dict(height_above_floor_m=config.get('cruise_z_m', 2.1), speed_mps=.3,
+                arc_offset_m=.6096, arc_side=side)
 
 
 def _fly(a, t0, doc, prepared, run_dir, stamp):
@@ -397,8 +406,9 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
     route_doc["land_columns"] = land_columns(doc, prepared[1], (sx, sy), syaw)
     if getattr(a, 'skybeta_return', False):
         route_doc['skybeta_return'] = skybeta_return_spec(doc)
-        print(f"skybeta return enabled: pad disarm -> rearm -> vertical climb to {route_doc['skybeta_return']['height_above_floor_m']} m "
-              "-> original launch -> landing/disarm", flush=True)
+        print(f"touch-and-go return enabled: confirmed pad contact (stay armed) -> vertical climb to "
+              f"{route_doc['skybeta_return']['height_above_floor_m']} m -> 0.6096 m curved offset -> "
+              "original launch -> landing/disarm", flush=True)
     elif doc.get("return", {}).get("enabled", True) and not getattr(a, "no_return", False):
         from coursenav.return_plan import route_spec
         route_doc["automatic_return"] = route_spec(doc, (sx, sy, syaw), height)

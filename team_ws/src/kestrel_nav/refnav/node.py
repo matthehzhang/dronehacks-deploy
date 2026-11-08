@@ -326,6 +326,8 @@ class RefNav(Node):
             return
         self.v.landed = bool(m.landed)
         self._land_received_ros_s = self._now()
+        if getattr(self, 'skybeta_return_enabled', False):
+            self.mission.on_landed(self._land_received_ros_s, self.v.landed, float(m.timestamp)*1e-6)
 
     def _return_observe(self, name, stamp, **data):
         if not self.return_enabled and not getattr(self, 'diagnostic_enabled', False):

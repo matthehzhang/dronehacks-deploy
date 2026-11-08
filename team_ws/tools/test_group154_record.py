@@ -48,12 +48,12 @@ def test_topic_filter_includes_policy_and_px4_but_no_images():
         assert not re.fullmatch(TOPICS, topic)
 
 
-def test_pad_disarm_does_not_stop_recording_while_return_is_starting():
+def test_pad_touch_does_not_stop_recording_while_return_is_climbing():
     end = EndOfRun()
     end.state({'armed': True, 'landed': False}, 0)
     for t in range(1, 15):
-        end.status({'phase': 'arm', 'mission_stage': 'return'}, t)
-        end.state({'armed': False, 'landed': True}, t)
+        end.status({'phase': 'climb', 'mission_stage': 'return'}, t)
+        end.state({'armed': True, 'landed': True}, t)
         assert end.reason(t) is None
     end.state({'armed': True, 'landed': False}, 15)
     for t in range(16, 22):
