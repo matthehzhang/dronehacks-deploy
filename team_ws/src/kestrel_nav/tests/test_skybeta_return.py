@@ -145,7 +145,8 @@ def test_full_outbound_is_identical_then_return_rearms_climbs_lands_and_disarms(
     configuration.track_mode = mode
     configuration.arrive_m = .15  # deployed path profile; capture_m is .10 m
     baseline = C.Mission(copy.deepcopy(configuration))
-    m = SkybetaReturnMission(configuration, dict(height_above_floor_m=2.1))
+    m = SkybetaReturnMission(configuration, dict(height_above_floor_m=2.1, landing_north_offset_m=.5,
+                                               launch_course_yaw_deg=90.))
     normal, normal_commands, _ = adapter(baseline)
     returning, commands, messages = adapter(m)
     v = C.Vehicle(pos=(0., 0., 0.), heading=0., vel=(0, 0, 0), pos_ok=True,
@@ -196,7 +197,8 @@ def test_full_outbound_is_identical_then_return_rearms_climbs_lands_and_disarms(
             assert tuple(out.setpoint[:2]) == climb_xy
             assert out.velocity in (None, (0., 0.))
         if m.stage == 'return' and out.phase == 'go':
-            u = -arc_start/np.linalg.norm(arc_start)
+            delta = np.array([.5, 0.]) - arc_start
+            u = delta/np.linalg.norm(delta)
             normal_axis = np.array([-u[1], u[0]])
             max_offset = max(max_offset, abs(float((np.array(v.pos[:2])-arc_start)@normal_axis)))
         for command in commands:
@@ -231,7 +233,7 @@ def test_full_outbound_is_identical_then_return_rearms_climbs_lands_and_disarms(
     assert compared > 200
     assert pad_disarm and return_arm and return_done, (m.stage, m.phase, v.pos, m.sp, m.leg, m.counts)
     assert m.result == 'complete' and v.armed is False and v.landed is True
-    assert math.dist(v.pos[:2], (0., 0.)) < .15
+    assert math.dist(v.pos[:2], (.5, 0.)) < .15
     assert sum(c.command == 400 and c.param1 == 0 for c in commands) >= 2
     assert any('RETURN HEIGHT READY' in e for e in events)
     assert any('RETURN COMPLETE' in e for e in events)
@@ -327,3 +329,21 @@ def test_deployed_return_configuration_targets_two_point_one_metres():
     doc = load_course()
     assert fly_course.skybeta_return_spec(doc)['height_above_floor_m'] == 2.1
     assert doc['cruise_z_m'] == .8
+    assert fly_course.skybeta_return_spec(doc)['landing_north_offset_m'] == .5
+
+
+@pytest.mark.parametrize('course_yaw,flight_yaw,expected', [
+    (90., 0., (.5, 0.)),
+    (90., math.pi/2, (0., .5)),
+    (0., 0., (0., -.5)),
+])
+def test_north_landing_offset_rotates_with_launch_frame(course_yaw, flight_yaw, expected):
+    m = SkybetaReturnMission(params(), dict(height_above_floor_m=2.1,
+        landing_north_offset_m=.5, launch_course_yaw_deg=course_yaw))
+    v = finished(m)
+    m.launch_pose = (0., 0., 0., flight_yaw)
+    out = m.step(.1, v)
+    assert out.phase == 'arm'
+    assert m.targets[0] == pytest.approx(expected)
+    assert m.path['pts'][-1] == pytest.approx(expected)
+    assert out.setpoint[:2] == v.pos[:2]  # Still climb above the pad first.

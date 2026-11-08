@@ -311,12 +311,17 @@ def require_sim_plan_ready(ready, process):
     raise SystemExit('Navigator did not finish preplanning within the 300 wall-second watchdog; simulation flight not started')
 
 
-def skybeta_return_spec(doc):
+def skybeta_return_spec(doc, start_pose=None):
     # Validate optional return settings only after the outbound landing. A bad
     # return height must not prevent planning/starting the primary mission.
     config = doc.get('return')
     config = config if isinstance(config, dict) else {}
-    start, pad = doc.get('start', {}).get('xy'), doc.get('sequence', [{}])[-1].get('xy')
+    start = start_pose[:2] if start_pose is not None else doc.get('start', {}).get('xy')
+    yaw = start_pose[2] if start_pose is not None else doc.get('start', {}).get('yaw_deg', 90.)
+    pad = doc.get('sequence', [{}])[-1].get('xy')
+    north = config.get('landing_north_offset_m', 0.)
+    if start is not None:
+        start = (start[0], start[1] + north)
     side = 1
     if start is not None and pad is not None:
         # NE-positive arc normal corresponds to the course-frame right normal.
@@ -325,7 +330,8 @@ def skybeta_return_spec(doc):
         mid = ((start[0]+pad[0])/2, (start[1]+pad[1])/2)
         side = 1 if -mid[0]*dy + mid[1]*dx >= 0 else -1
     return dict(height_above_floor_m=config.get('cruise_z_m', 2.1), speed_mps=.3,
-                arc_offset_m=.6096, arc_side=side)
+                arc_offset_m=.6096, arc_side=side,
+                landing_north_offset_m=north, launch_course_yaw_deg=yaw)
 
 
 def _fly(a, t0, doc, prepared, run_dir, stamp):
@@ -405,9 +411,9 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
     from coursenav.course import land_columns
     route_doc["land_columns"] = land_columns(doc, prepared[1], (sx, sy), syaw)
     if getattr(a, 'skybeta_return', False):
-        route_doc['skybeta_return'] = skybeta_return_spec(doc)
+        route_doc['skybeta_return'] = skybeta_return_spec(doc, (sx, sy, syaw))
         print(f"skybeta return enabled: pad disarm -> rearm -> vertical climb to {route_doc['skybeta_return']['height_above_floor_m']} m "
-              "-> original launch -> landing/disarm", flush=True)
+              "-> offset return landing -> landing/disarm", flush=True)
     elif doc.get("return", {}).get("enabled", True) and not getattr(a, "no_return", False):
         from coursenav.return_plan import route_spec
         route_doc["automatic_return"] = route_spec(doc, (sx, sy, syaw), height)

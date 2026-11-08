@@ -37,8 +37,9 @@ PX4 estimator parameters and its inner velocity controller are unchanged.
 On the skybeta disarm/rearm and touch-and-go branches, the existing confirmed
 pad-touchdown transition disables VIO height for the return. It aligns the
 current raw PX4 position Z with the remembered launch Z, then retains that fixed
-offset for the return's height checks and velocity commands. The return target
-keeps the original floor reference; the first return setpoint uses the new frame
+offset for the return's height checks and velocity commands. The return lands 0.50 m north (+course y) of the remembered takeoff point.
+Its curved path ends at that offset target; the outbound route is unchanged.
+The return height target keeps the original floor reference; the first return setpoint uses the new frame
 immediately. `!!!!!!!!!! RETURN HEIGHT REANCHORED ... !!!!!!!!!!` reports the
 offset, also recorded as `return_offset_ned_m` in status/trace. No extra wait,
 mission phase, landing trigger or FC parameter change is added. This assumes the

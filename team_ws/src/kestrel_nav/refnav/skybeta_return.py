@@ -1,8 +1,8 @@
-"""One automatic return on skybeta: pad disarm, vertical climb, original launch, disarm.
+"""One automatic return on skybeta: pad disarm, vertical climb, offset launch-area landing, disarm.
 
 Uses the existing flight controller and its input handling. The return has no
 battery/localizer/map-confidence/time-budget qualification from the native-PX4
-return workflow. Its destination is this run's remembered launch position.
+return workflow. Its destination is offset north of this run's remembered launch position.
 """
 from dataclasses import replace
 import math
@@ -68,16 +68,21 @@ class SkybetaReturnMission(C.Mission):
         speed = float(self.spec.get('speed_mps', .3))
         if not math.isfinite(height) or height <= 0 or not math.isfinite(speed) or speed <= 0:
             raise ValueError('invalid return height/speed')
-        points, speeds = return_arc(v.pos[:2], self.launch_pose[:2],
+        # Course north is rotated into this run's PX4 frame using launch heading.
+        north = float(self.spec.get('landing_north_offset_m', 0.))
+        angle = self.launch_pose[3] + math.radians(self.spec.get('launch_course_yaw_deg', 90.)) - math.pi/2
+        landing_xy = (self.launch_pose[0] + north*math.cos(angle),
+                      self.launch_pose[1] + north*math.sin(angle))
+        points, speeds = return_arc(v.pos[:2], landing_xy,
                                     self.spec.get('arc_offset_m', .6096), self.spec.get('arc_side', 1), speed)
         height_feedback = getattr(self, 'return_height_feedback', None)
         if height_feedback is not None:
             v = height_feedback(v, self.launch_pose[2])
         target_d = self.launch_pose[2] + self.p.landed_z_m - height
-        dn, de = self.launch_pose[0] - v.pos[0], self.launch_pose[1] - v.pos[1]
+        dn, de = landing_xy[0] - v.pos[0], landing_xy[1] - v.pos[1]
         c, s = math.cos(v.heading), math.sin(v.heading)
         params = replace(self.p, route=[(dn*c + de*s, dn*s - de*c)],
-                         legs=[dict(name='original_launch', mode='return', hold=True)],
+                         legs=[dict(name='return_landing', mode='return', hold=True)],
                          height_m=v.pos[2] - target_d, track_mode='path',
                          speed_mps=speed, climb_tol_m=.05,
                          correction_max_m=0., correction_rate_mps=0., tunnel_mode=False,
@@ -91,7 +96,7 @@ class SkybetaReturnMission(C.Mission):
             setattr(replacement, key, value)
         replacement.home = (*v.pos, v.heading)
         replacement.sp = [*v.pos, v.heading]
-        replacement.targets = [tuple(self.launch_pose[:2])]
+        replacement.targets = [landing_xy]
         replacement.on_path(now, 0, points, speeds, pid=1)
         replacement.phase = 'arm'
         replacement.t_phase = replacement.t_started = replacement.t_last = now
@@ -138,7 +143,7 @@ class SkybetaReturnMission(C.Mission):
         elif self.stage == 'return' and out.phase == 'done':
             self.stage = 'finished'
             if self.result == 'complete':
-                out.events.append('!!!!!!!!!! RETURN COMPLETE: landed and disarmed at original launch !!!!!!!!!!')
+                out.events.append('!!!!!!!!!! RETURN COMPLETE: landed and disarmed at return landing target !!!!!!!!!!')
         return out
 
     def status(self, now):

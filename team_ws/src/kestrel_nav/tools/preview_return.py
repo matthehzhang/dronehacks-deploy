@@ -11,7 +11,8 @@ import numpy as np
 
 import preview_path
 from fly_course import skybeta_return_spec
-from coursenav.course import load_course
+from coursenav.course import load_course, plan_grids, resolve
+from coursenav.objmap import CourseMap
 from refnav.skybeta_return import return_arc
 
 
@@ -27,12 +28,21 @@ def main():
     start = np.asarray(data['start']['xy'])
     pad = np.asarray(data['nav_legs'][-1]['stop'])
     spec = skybeta_return_spec(load_course())
-    points, _ = return_arc(pad[::-1], start[::-1], spec['arc_offset_m'], spec['arc_side'])
+    landing = start + [0., spec['landing_north_offset_m']]
+    points, _ = return_arc(pad[::-1], landing[::-1], spec['arc_offset_m'], spec['arc_side'])
     arc = points[:, ::-1]
     target = spec['height_above_floor_m']
     fig = plt.figure(figsize=(13, 7))
     top = fig.add_subplot(121)
     height = fig.add_subplot(122, projection='3d')
+    # Show the course map beneath the top view for physical reference.
+    doc = load_course()
+    obst, _, _ = plan_grids(CourseMap.load(resolve(doc, 'map')), doc)
+    from matplotlib.colors import ListedColormap
+    extent = [obst.origin[0], obst.origin[0] + obst.occ.shape[0]*obst.res,
+              obst.origin[1], obst.origin[1] + obst.occ.shape[1]*obst.res]
+    top.imshow(obst.occ.T, origin='lower', extent=extent,
+               cmap=ListedColormap(['#ffffff', '#c7cdd4']), alpha=.65)
     previous = start
     z = .8
     for i, record in enumerate(data['preprocessed_paths']):
@@ -46,25 +56,30 @@ def main():
         previous = np.asarray(record['stop_xy'])
     height.plot([pad[0]]*2, [pad[1]]*2, [z, .1], color='#2878c8', lw=2)
     top.plot(arc[:, 0], arc[:, 1], color='#df7a23', lw=2.5)
-    top.plot([pad[0], start[0]], [pad[1], start[1]], ':', color='#9ca6af', lw=1)
+    top.plot([pad[0], landing[0]], [pad[1], landing[1]], ':', color='#9ca6af', lw=1)
     top.annotate('2 ft offset', arc[len(arc)//2], xytext=(8, 8), textcoords='offset points')
     for ax in (top, height):
         ax.scatter(*pad, *([.1] if ax is height else []), color='#df7a23', s=55)
         ax.scatter(*start, *([.1] if ax is height else []), color='#16805d', s=65, marker='*')
     top.annotate('Pad: land + disarm\nThen rearm and climb vertically', pad, xytext=(12, -25),
                  textcoords='offset points', fontsize=9)
-    top.annotate('Original launch\nReturn landing + disarm', start, xytext=(12, 10),
+    top.annotate('Takeoff', start, xytext=(12, 10),
                  textcoords='offset points', fontsize=9)
+    top.scatter(*landing, color='#c43149', marker='X', s=75, zorder=8)
+    top.annotate('Return landing + disarm\n0.50 m north of takeoff', landing, xytext=(12, 10),
+                 textcoords='offset points', fontsize=9)
+    top.annotate('', xy=landing, xytext=start, arrowprops=dict(arrowstyle='<->', color='#c43149'))
     top.set_aspect('equal')
     top.set(xlabel='Course x / east (m)', ylabel='Course y / north (m)',
             title='Blue: outbound | orange: curved return')
     top.grid(alpha=.2)
     height.plot([pad[0]]*2, [pad[1]]*2, [.1, target], color='#df7a23', lw=3)
     height.plot(arc[:, 0], arc[:, 1], np.full(len(arc), target), color='#df7a23', lw=3)
-    height.plot([start[0]]*2, [start[1]]*2, [target, .1], color='#df7a23', lw=3)
+    height.plot([landing[0]]*2, [landing[1]]*2, [target, .1], color='#df7a23', lw=3)
     height.text(pad[0], pad[1], target+.1, f'Hold XY until {target:.2f} m\nsettles for 1 second', fontsize=9)
     height.set(xlabel='Course x (m)', ylabel='Course y (m)', zlabel='Height above floor (m)',
                zlim=(0, target+.5), title='Return: up first, curved transit, down last')
+    height.scatter(*landing, .1, color='#c43149', marker='X', s=65)
     height.view_init(elev=24, azim=35)
     fig.suptitle('Outbound completion first; return starts only after pad disarm', fontweight='bold')
     fig.text(.5, .025, f'Target geometry only. Return height {target:.2f} m is operator selected; actual arm/Offboard '

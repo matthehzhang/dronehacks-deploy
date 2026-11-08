@@ -112,6 +112,7 @@
   "return": {
     "enabled": true,
     "cruise_z_m": 2.1,
+    "landing_north_offset_m": 0.5,
     "radius_m": 0.61,
     "_note": "Automatic after confirmed pad landing/disarm, only if fresh telemetry, battery, localization, reset continuity, full-trip time and 3D map-clearance checks pass. Otherwise remain landed. 2.1 m is the operator-selected return height; physical clearance is not certified by this setting. Target is this run's remembered launch pose, checked against the derived mark; no prior-run replay.",
     "from": {
