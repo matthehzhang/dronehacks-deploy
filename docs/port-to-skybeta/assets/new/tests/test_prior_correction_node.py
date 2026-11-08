@@ -81,3 +81,14 @@ def test_unknown_prior_does_not_allow_live_free_cells_to_erase_wall(node):
     node._on_prior(message(state='dropped'));node._tick()
     assert node.nav.cleared[35,25]
     assert node.messages[-1]['plan_state']=='ready'
+
+
+def test_prior_drop_preserves_nonpublishable_preplan_for_first_failure(node):
+    reference=node.reference_path
+    node.preplan_references={0:(reference,node.nav.goals)}
+    node.reference_path=None;node.reference_leg=None
+    node._on_prior(message(state='dropped'))
+    assert not node.cache and node.nav.path is None
+    request(node,1)
+    assert node.recovery_reference is reference and node.recovery_progress==0.
+    assert node.nav.path is None  # reference alone can never authorize a command

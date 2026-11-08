@@ -91,9 +91,18 @@ def test_failed_plan_never_starts_recovery_on_ground_or_inactive_leg_phase(phase
     assert m.plan_failure is None and m.recover is None and m.replan_request is None
 
 
-def test_no_previous_valid_path_is_not_claimed_as_a_recovery_reference():
+def test_first_plan_failure_recovers_without_inventing_a_flown_backoff_path():
     m,v=cruise();m.path=None;m.plan_reference=None;fail(m)
-    assert m.plan_failure is None
+    assert m.plan_failure['reference']==(None,0.)
+    step(m,v,10.1)
+    assert m.replan_request['reference_pid'] is None
+    assert m.recover['old_path'] is None and m.recover['old_path_s']==0.
+    m._begin_backoff(10.2,C.Output('blocked'),v)
+    assert m.recover['target']==v.pos[:2]
+    rid=m.replan_request['id']
+    assert m.on_path(10.3,0,STRAIGHT,speeds(STRAIGHT),pid=1,
+                     request_id=rid,recovery_certified=True)
+    assert step(m,v,10.35).phase=='turn'
 
 
 def test_no_route_counts_against_existing_per_leg_block_limit():

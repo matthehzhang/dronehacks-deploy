@@ -135,6 +135,8 @@ class NavNode(Node):
         self.get_logger().info(f"navigator: {len(self.nav_legs)} legs ({sum(L['path'] for L in self.nav_legs)} "
                                f"path legs), cruise {sp.cruise_mps:.2f} m/s, buffer {need:.2f} m")
         self.cache = self._preplan(rd, route_file)
+        self.preplan_references = {leg: (entry[2], [g.copy() for g in entry[1]])
+                                   for leg, entry in self.cache.items()}
 
     def _preplan(self, rd, route_file):
         """kestral_nav934am (skybeta): plan every path leg BEFORE take-off, each from its leg's start (the start
@@ -198,6 +200,11 @@ class NavNode(Node):
                 else:
                     self.recovery_reference = self.reference_path if self.reference_leg == leg else None
                     self.recovery_progress = None
+                    if self.recovery_reference is None and request.get("reference_pid") is None:
+                        entry = getattr(self, "preplan_references", {}).get(leg)
+                        if entry is not None:
+                            self.recovery_reference, self.nav.goals = entry
+                            self.recovery_progress = 0.0
                 self.recovery_require_detour = request.get("require_detour") is not False
                 self.recovery_prefix = None
                 self.nav.path = None

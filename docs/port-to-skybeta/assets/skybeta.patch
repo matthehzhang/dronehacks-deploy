@@ -1,6 +1,6 @@
 diff -ruN a2/course/course_v3.json b/course/course_v3.json
---- a/course/course_v3.json	2026-11-08 03:25:44.102981608 -0600
-+++ b/course/course_v3.json	2026-11-08 03:25:44.098100667 -0600
+--- a/course/course_v3.json	2026-11-08 03:29:22.665738198 -0600
++++ b/course/course_v3.json	2026-11-08 03:29:22.660927528 -0600
 @@ -282,10 +282,7 @@
      "_keep_path_clearance_note": "planner._simplify_idx: shortcuts keep the clearance of the A* sub-path they replace, capped at 0.6 m = the A* prefer_m (beyond it A* itself does not centre), less half a cell. 0 restores greedy shortcuts."
    },
@@ -14,8 +14,8 @@ diff -ruN a2/course/course_v3.json b/course/course_v3.json
      "refnav": {
        "sim_stuck_land_disarm_s": 0.0
 diff -ruN a2/coursenav/course.py b/coursenav/course.py
---- a/coursenav/course.py	2026-11-08 03:25:44.076824284 -0600
-+++ b/coursenav/course.py	2026-11-08 03:25:44.070767905 -0600
+--- a/coursenav/course.py	2026-11-08 03:29:22.639431974 -0600
++++ b/coursenav/course.py	2026-11-08 03:29:22.631663196 -0600
 @@ -136,12 +136,45 @@
      if dist is None:
          dist = obst.distance()
@@ -66,8 +66,8 @@ diff -ruN a2/coursenav/course.py b/coursenav/course.py
  
  def scan_field(grid: Grid2D, doc):
 diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
---- a/coursenav/loc_node.py	2026-11-08 03:25:44.060982500 -0600
-+++ b/coursenav/loc_node.py	2026-11-08 03:25:44.054591166 -0600
+--- a/coursenav/loc_node.py	2026-11-08 03:29:22.619165784 -0600
++++ b/coursenav/loc_node.py	2026-11-08 03:29:22.613342384 -0600
 @@ -123,7 +123,7 @@
          self.local_band = float(dp("local_band_m", 0.35).value)
          self.prior_mon = PriorMonitor(PriorParams(drop_fit=float(dp("prior_drop_fit", 0.30).value),
@@ -205,8 +205,8 @@ diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
          msg.info.resolution = float(res)
          msg.info.width, msg.info.height = int(w), int(hgt)
 diff -ruN a2/coursenav/localgrid.py b/coursenav/localgrid.py
---- a/coursenav/localgrid.py	2026-11-08 03:25:44.047247979 -0600
-+++ b/coursenav/localgrid.py	2026-11-08 03:25:44.039920332 -0600
+--- a/coursenav/localgrid.py	2026-11-08 03:29:22.603140451 -0600
++++ b/coursenav/localgrid.py	2026-11-08 03:29:22.597952541 -0600
 @@ -53,6 +53,9 @@
          self.n = int(round(self.p.size_m / self.p.res_m))
          self.L = np.zeros((self.n, self.n), np.float32)
@@ -299,8 +299,8 @@ diff -ruN a2/coursenav/localgrid.py b/coursenav/localgrid.py
      n0, n1 = a.shape
      if abs(dx) >= n0 or abs(dy) >= n1:
 diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
---- a/coursenav/nav_node.py	2026-11-08 03:25:44.029745408 -0600
-+++ b/coursenav/nav_node.py	2026-11-08 03:25:44.021364103 -0600
+--- a/coursenav/nav_node.py	2026-11-08 03:29:22.588265344 -0600
++++ b/coursenav/nav_node.py	2026-11-08 03:29:22.582031213 -0600
 @@ -33,15 +33,16 @@
  from scipy import ndimage
  from std_msgs.msg import String
@@ -360,11 +360,13 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
          self.stats = dict(plans=0, replans=0, plan_errors=0, local_cells=0)
          latched = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                               history=HistoryPolicy.KEEP_LAST, depth=1)
-@@ -114,6 +134,32 @@
+@@ -114,6 +134,34 @@
          self.create_timer(1.0 / float(dp("rate_hz", 10.0).value), self._tick)
          self.get_logger().info(f"navigator: {len(self.nav_legs)} legs ({sum(L['path'] for L in self.nav_legs)} "
                                 f"path legs), cruise {sp.cruise_mps:.2f} m/s, buffer {need:.2f} m")
 +        self.cache = self._preplan(rd, route_file)
++        self.preplan_references = {leg: (entry[2], [g.copy() for g in entry[1]])
++                                   for leg, entry in self.cache.items()}
 +
 +    def _preplan(self, rd, route_file):
 +        """kestral_nav934am (skybeta): plan every path leg BEFORE take-off, each from its leg's start (the start
@@ -393,7 +395,7 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
  
      def _on_drift(self, m):
          try:
-@@ -123,7 +169,39 @@
+@@ -123,7 +171,44 @@
  
      def _on_status(self, m):
          try:
@@ -427,6 +429,11 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
 +                else:
 +                    self.recovery_reference = self.reference_path if self.reference_leg == leg else None
 +                    self.recovery_progress = None
++                    if self.recovery_reference is None and request.get("reference_pid") is None:
++                        entry = getattr(self, "preplan_references", {}).get(leg)
++                        if entry is not None:
++                            self.recovery_reference, self.nav.goals = entry
++                            self.recovery_progress = 0.0
 +                self.recovery_require_detour = request.get("require_detour") is not False
 +                self.recovery_prefix = None
 +                self.nav.path = None
@@ -434,7 +441,7 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
          except ValueError:
              pass
  
-@@ -133,33 +211,145 @@
+@@ -133,33 +218,145 @@
  
      def _on_local(self, m):
          o = m.info.origin.position
@@ -586,7 +593,7 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
          leg, phase = int(self.status.get("leg", 0)), self.status.get("phase")
  
          def to_ned(pts):
-@@ -167,18 +357,64 @@
+@@ -167,18 +364,64 @@
  
          targets = {j: [float(v) for v in to_ned([self.nav_legs[j]["stop"]])[0]]
                     for j in range(leg + 1, len(self.nav_legs))}
@@ -656,7 +663,7 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
                      self.stats["replans" if self.nav_leg == leg else "plans"] += 1
                      self.pid += 1
                      self.nav_leg = leg
-@@ -186,10 +422,14 @@
+@@ -186,10 +429,14 @@
                                             f"{len(self.nav.path.stops)} stop corners, est {self.nav.path.duration():.1f} s, "
                                             f"{self.stats['local_cells']} local obstacle cells, prior {self.prior_state}")
                  except PlanError as e:
@@ -672,8 +679,8 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
                             stops=list(P.stops),
                             tubes=None if P.tube is None else P.tube.round(4).tolist())
 diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
---- a/coursenav/navigator.py	2026-11-08 03:25:44.007769758 -0600
-+++ b/coursenav/navigator.py	2026-11-08 03:25:44.000838903 -0600
+--- a/coursenav/navigator.py	2026-11-08 03:29:22.569216026 -0600
++++ b/coursenav/navigator.py	2026-11-08 03:29:22.563040050 -0600
 @@ -5,16 +5,16 @@
                 exit line);
      map        prior (the published map, the "origin map": an optimisation, not the truth) + the live
@@ -995,8 +1002,8 @@ diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
 +        inside = self.prior_obst.inside(cells)
 +        return bool(not inside.all() or np.any(clear[cells[inside, 0], cells[inside, 1]] < self.need))
 diff -ruN a2/coursenav/priorstate.py b/coursenav/priorstate.py
---- a/coursenav/priorstate.py	2026-11-08 03:25:43.974031206 -0600
-+++ b/coursenav/priorstate.py	2026-11-08 03:25:43.967087566 -0600
+--- a/coursenav/priorstate.py	2026-11-08 03:29:22.539931268 -0600
++++ b/coursenav/priorstate.py	2026-11-08 03:29:22.535015521 -0600
 @@ -1,67 +1,93 @@
 -"""Is the prior map describing what the camera sees? The kill switch for the prior. PURE: no ROS.
 +"""Evidence-based prior-map status. PURE: no ROS.
@@ -1132,8 +1139,8 @@ diff -ruN a2/coursenav/priorstate.py b/coursenav/priorstate.py
 +                "drop_fit": self.p.drop_fit, "restore_fit": self.p.restore_fit,
 +                "max_fit_gap_s": self.p.max_fit_gap_s, "last_rejection": self.last_rejection}
 diff -ruN a2/fly_course.py b/fly_course.py
---- a/fly_course.py	2026-11-08 03:25:43.943525450 -0600
-+++ b/fly_course.py	2026-11-08 03:25:43.938753917 -0600
+--- a/fly_course.py	2026-11-08 03:29:22.513961291 -0600
++++ b/fly_course.py	2026-11-08 03:29:22.509682706 -0600
 @@ -30,6 +30,7 @@
  import argparse
  import json
@@ -1234,8 +1241,8 @@ diff -ruN a2/fly_course.py b/fly_course.py
          extra += ["-p", "accept_armed_start:=true"]
      extra += [x for x in a.ros_args if x != "--"]
 diff -ruN a2/refnav/core.py b/refnav/core.py
---- a/refnav/core.py	2026-11-08 03:25:43.924174295 -0600
-+++ b/refnav/core.py	2026-11-08 03:25:43.916381155 -0600
+--- a/refnav/core.py	2026-11-08 03:29:22.494990012 -0600
++++ b/refnav/core.py	2026-11-08 03:29:22.490189220 -0600
 @@ -66,7 +66,7 @@
  
  NAV_OFFBOARD = 14
@@ -1349,7 +1356,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
          seg = _np.linalg.norm(_np.diff(pts, axis=0), axis=1)
          s = _np.concatenate([[0.0], _np.cumsum(seg)])
          d = _np.gradient(pts, axis=0)
-@@ -472,10 +509,38 @@
+@@ -472,10 +509,40 @@
          self.path = dict(t=float(t), leg=int(leg), pid=pid, pts=pts, s=s, v=_np.maximum(sp, 0.0), heading=heading,
                           kappa=kappa, stops=sorted(int(i) for i in stops), tube=tb)
          self.targets[leg] = (float(pts[-1, 0]), float(pts[-1, 1]))
@@ -1375,9 +1382,11 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
 +            self.plan_reference = (self.path, self.path_s)
 +        if (state == "failed" and request_id is None and self.p.recovery_replan
 +                and self.recover is None and self.plan_failure is None
-+                and self.phase in ("turn", "check", "go") and self._path_leg()
-+                and self.plan_reference is not None and self.plan_reference[0]["leg"] == leg):
-+            self.plan_failure = {"leg": leg, "reason": str(reason), "reference": self.plan_reference}
++                and self.phase in ("turn", "check", "go") and self._path_leg()):
++            reference = self.plan_reference
++            if reference is None or reference[0]["leg"] != leg:
++                reference = (None, 0.0)
++            self.plan_failure = {"leg": leg, "reason": str(reason), "reference": reference}
 +        self.path = None
 +        if (self.sp is not None and self.last_v is not None and self.last_v.pos is not None
 +                and all(math.isfinite(c) for c in self.last_v.pos[:2])):
@@ -1388,7 +1397,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
      def _path_leg(self, leg=None):
          """Is leg `leg` flown along a navigator path (path mode, a cruise leg: no alignment, no passage)?"""
          if self.p.track_mode != "path":
-@@ -590,6 +655,7 @@
+@@ -590,6 +657,7 @@
              self.why = why
  
      def _end(self, now, out, result):
@@ -1396,7 +1405,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
          self.result = result
          self._set("done", now, out, result)
  
-@@ -597,6 +663,7 @@
+@@ -597,6 +665,7 @@
          """Land. With safe_land, a fault landing over a column that is not clear (or unknown) first
          retraces the flown path to the nearest clear column (phase retreat); immediate landings
          (no trustworthy position) and the planned landing ("route complete") descend where they are."""
@@ -1404,7 +1413,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
          if self.phase == "retreat" and not immediate:
              return                                   # already on the way to a clear column
          if (not immediate and why != "route complete" and self.p.safe_land and self.p.land_columns
-@@ -800,6 +867,8 @@
+@@ -800,6 +869,8 @@
                  self._land(now, out, f"depth silent for more than {p.depth_lost_land_s:.0f} s")
              elif p.prior_required and self.prior is not None and self.prior[1] == "dropped":
                  self._land(now, out, self._prior_dropped_why())
@@ -1413,7 +1422,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
              elif p.corridor_wait_land_s >= 0 and self.phase in ("check", "go") and self.t_check is not None \
                      and not tunnel_dark:
                  seen = self.t_check if self.corr_t is None else max(self.t_check, self.corr_t)
-@@ -890,6 +959,11 @@
+@@ -890,6 +961,11 @@
          elif ph == "turn":
              if (self._path_leg() and self._path_fresh(now) and self.path_stop_done < 0 and self.path_s == 0.0):
                  self.leg_heading = self._path_at(p.path_lookahead_m)[1]   # face where the path first goes
@@ -1425,7 +1434,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
              err = _wrap(self.leg_heading - self.sp[3])
              if p.yaw_accel_dps2 > 0:
                  out.yawspeed = self._slew_yaw(err, dt)
-@@ -938,7 +1012,7 @@
+@@ -938,7 +1014,7 @@
                  self.legs_done += 1
                  self.leg += 1
                  self._next_leg(now, out, v)
@@ -1434,7 +1443,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
              self._recover(now, dt, out, v)
          elif ph == "retreat":
              self._retreat(now, dt, out, v)
-@@ -1021,6 +1095,10 @@
+@@ -1021,6 +1097,10 @@
          self.path_s, self.path_stop_done = 0.0, -1
          self.capture_t, self.tight_since = None, None
          self.leg_blocks = 0
@@ -1445,7 +1454,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
          if self._path_leg() and self.path is not None and self.path["leg"] == self.leg:
              self.leg_heading = float(self.path["heading"][0])
          self.leg_v_end = 0.0 if (self._stops_at_end(self.leg) or self.p.track_mode == "path") else self.p.speed_mps
-@@ -1671,17 +1749,129 @@
+@@ -1671,17 +1751,129 @@
                            f"(width seen {res.get('width_m', float('nan')):.2f} m, {len(self.align_hist)} frames)")
  
      # ------------------------------------------------------------------ hold-and-recheck
@@ -1578,7 +1587,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
              if not self.depth_fresh(now):
                  return False
              clr = self._clearance(v)
-@@ -1714,6 +1904,7 @@
+@@ -1714,6 +1906,7 @@
  
      def _resume(self, now, out, v):
          r, self.recover = self.recover, None
@@ -1586,7 +1595,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
          self.counts["recoveries"] += 1
          if r["kind"] == "align":
              self._apply_alignment(now, out, G.combine(self.align_hist[-self.p.align_frames:]))
-@@ -1737,14 +1928,23 @@
+@@ -1737,14 +1930,24 @@
          if r is None:
              self._set("check", now, out)
              return
@@ -1600,7 +1609,8 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
              return
          if (r["kind"] == "blocked" and self._path_leg() and self._path_fresh(now)
 -                and r.get("pid") is not None and self.path.get("pid") != r["pid"]):
-+                and r.get("pid") is not None and self.path.get("pid") != r["pid"]
++                and ((r.get("pid") is not None and self.path.get("pid") != r["pid"])
++                     or (p.recovery_replan and r.get("pid") is None))
 +                and (not p.recovery_replan or (self.replan_request is not None
 +                     and self.path.get("request_id") == self.replan_request["id"]
 +                     and self.path.get("recovery_certified")))):
@@ -1611,7 +1621,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
              self.counts["replan_resumes"] += 1
              self.sp[0], self.sp[1] = v.pos[0], v.pos[1]
              self.clr_hist, self.corr_t = [], None
-@@ -1752,31 +1952,30 @@
+@@ -1752,31 +1955,30 @@
              self.turn_start_heading = self.sp[3]
              self._set("turn", now, out, f"re-planned while blocked on leg {self.leg + 1}: turning to the new path")
              return
@@ -1657,7 +1667,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
                  self._land(now, out, f"{r['why']}; still blocked after hold, back-off and recheck")
  
      def status(self, now):
-@@ -1794,6 +1993,11 @@
+@@ -1794,6 +1996,11 @@
                  "depth_reject": None if self.depth_reject is None else self.depth_reject[1],
                  "health_bad_s": (None if math.isinf(self.health.bad_for(now)) else round(self.health.bad_for(now), 2)),
                  "recover": None if self.recover is None else {"kind": self.recover["kind"], "stage": self.phase},
@@ -1670,8 +1680,8 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
                  "tunnel": self.tunnel_active, "align": self.align_result,
                  **self.counts}
 diff -ruN a2/refnav/node.py b/refnav/node.py
---- a/refnav/node.py	2026-11-08 03:25:43.889580271 -0600
-+++ b/refnav/node.py	2026-11-08 03:25:43.880240180 -0600
+--- a/refnav/node.py	2026-11-08 03:29:22.475586436 -0600
++++ b/refnav/node.py	2026-11-08 03:29:22.471280312 -0600
 @@ -129,17 +129,40 @@
          from px4_msgs.msg import (BatteryStatus, EstimatorStatusFlags, OffboardControlMode, TrajectorySetpoint, VehicleAttitude,
                                    VehicleCommand, VehicleLandDetected, VehicleLocalPosition, VehicleStatus)

@@ -531,9 +531,11 @@ class Mission:
             self.plan_reference = (self.path, self.path_s)
         if (state == "failed" and request_id is None and self.p.recovery_replan
                 and self.recover is None and self.plan_failure is None
-                and self.phase in ("turn", "check", "go") and self._path_leg()
-                and self.plan_reference is not None and self.plan_reference[0]["leg"] == leg):
-            self.plan_failure = {"leg": leg, "reason": str(reason), "reference": self.plan_reference}
+                and self.phase in ("turn", "check", "go") and self._path_leg()):
+            reference = self.plan_reference
+            if reference is None or reference[0]["leg"] != leg:
+                reference = (None, 0.0)
+            self.plan_failure = {"leg": leg, "reason": str(reason), "reference": reference}
         self.path = None
         if (self.sp is not None and self.last_v is not None and self.last_v.pos is not None
                 and all(math.isfinite(c) for c in self.last_v.pos[:2])):
@@ -1937,7 +1939,8 @@ class Mission:
             self._resume(now, out, v)
             return
         if (r["kind"] == "blocked" and self._path_leg() and self._path_fresh(now)
-                and r.get("pid") is not None and self.path.get("pid") != r["pid"]
+                and ((r.get("pid") is not None and self.path.get("pid") != r["pid"])
+                     or (p.recovery_replan and r.get("pid") is None))
                 and (not p.recovery_replan or (self.replan_request is not None
                      and self.path.get("request_id") == self.replan_request["id"]
                      and self.path.get("recovery_certified")))):
