@@ -1,9 +1,11 @@
-DroneHacks 2026 course (v3)
+Active course: new_course_origin.obj + new_course_origin.mtl
+Active configuration: course_v3.json
+Active localization/planning prior: ../maps/course_origin_5cm.npz
 
-dronehacks-course-v3.obj + .mtl: the full course, one named group per piece
-(walls, barrier, tunnel, boulders, landing pad, guideline, launch mark, net).
-Units: metres. Z is up. The origin is the centre of the floor; the net is
-20 x 20 ft (6.096 m) and 10 ft (3.048 m) tall.
+Imported from Downloads/new_course_origin_map.zip on 2026-11-08.
+Approximate topview_entrance revision, not a surveyed or official venue export.
+See NEW_COURSE_README.txt and new_course_manifest.json for provenance and limitations.
 
-The layout is preliminary and may change slightly before judging. Changes are
-posted on the Challenge page in Connect and announced in Slack.
+The original dronehacks-course-v3.obj, ../maps/course_v3.npz and
+course_v3_legacy.json are historical regression fixtures only. Runtime defaults
+use the new map. Recorded historical flight evidence remains unchanged.

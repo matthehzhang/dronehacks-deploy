@@ -1,0 +1,11 @@
+{
+  "localizer_xy_error_m": {
+    "samples": 376,
+    "median": 0.11723512142963854,
+    "p95": 0.31900330520235065,
+    "maximum": 0.34621258566247765
+  },
+  "method": "Diagnostic only: 5 Hz grader positions rounded to 1 mm, interpolated at localizer capture stamps. Grader update timing adds uncertainty. No evaluation poses were inputs to policy.",
+  "full_clearance_replay_available": false,
+  "replay_limitation": "Recorded /sim/truth_tf transforms have empty frame IDs, so model identity and orientation cannot be recovered authoritatively. Clearance is the live grader measurement in scorecard.json."
+}

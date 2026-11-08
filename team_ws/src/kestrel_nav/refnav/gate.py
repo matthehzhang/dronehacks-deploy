@@ -13,7 +13,7 @@ Frame: level body points (forward, right, down) in metres, relative to the body 
                (NED yaw: positive = clockwise), from the two edges' forward distances; 0.0 when the
                two edges are not on one plane (a gap between two different walls);
   dz_m         how far UP the opening's vertical centre lies (None when the sill/header were not
-               both seen, e.g. outside the vertical field of view);
+               seen; a window can use one edge plus its mapped height);
   width_m      the measured opening width;
   n_left, n_right   the number of points supporting each edge.
 """
@@ -25,7 +25,7 @@ import numpy as np
 
 
 def find_opening(points, meta, slab_m=0.4, bin_m=0.02, band_m=0.25, min_edge_pts=6, width_tol=0.35,
-                 edge_search_m=0.45):
+                 edge_search_m=0.45, height_max_m=0.30):
     """Find the opening described by meta in one frame's level points. -> dict or None.
 
     meta: {"dist_m": expected distance ahead of the opening's plane (required),
@@ -43,7 +43,10 @@ def find_opening(points, meta, slab_m=0.4, bin_m=0.02, band_m=0.25, min_edge_pts
     P = np.asarray(points, float)
     fwd, right, down = P[:, 0], P[:, 1], P[:, 2]
     slab = (fwd >= dist - slab_m) & (fwd <= dist + slab_m)
-    band = np.abs(down) <= band_m
+    # A window displaced vertically can put its sill/header inside the normal jamb band.
+    # Use the body-height strip so those surfaces are not mistaken for side jambs.
+    jamb_band = min(band_m, 0.10) if meta.get("group") == "window" else band_m
+    band = np.abs(down) <= jamb_band
     sel = slab & band
     if sel.sum() < 2 * min_edge_pts:
         return None
@@ -115,7 +118,10 @@ def find_opening(points, meta, slab_m=0.4, bin_m=0.02, band_m=0.25, min_edge_pts
     out = {"lateral_m": -centre_r, "heading_rad": heading, "width_m": seen_w, "dz_m": None,
            "n_left": n_l, "n_right": n_r, "range_m": float(np.mean(rng)), "one_edge": one_edge}
     # vertical edges: the sill (below) and header (above) between the jambs, in the same slab
-    if meta.get("dz_lo") is not None and meta.get("dz_hi") is not None:
+    if meta.get("group") == "window" and meta.get("dz_lo") is not None and meta.get("dz_hi") is not None:
+        out.update(_window_height(P, meta, r_left, r_right, out["range_m"], heading,
+                                  height_max_m, min_edge_pts))
+    elif meta.get("dz_lo") is not None and meta.get("dz_hi") is not None:
         mid = slab & (right > r_left + 0.08) & (right < r_right - 0.08)
         below = mid & (down > 0.08)
         above = mid & (down < -0.08)
@@ -129,6 +135,42 @@ def find_opening(points, meta, slab_m=0.4, bin_m=0.02, band_m=0.25, min_edge_pts
     return out
 
 
+def _window_height(points, meta, left, right, plane_range, heading, max_shift, min_hits):
+    """Use a visible window edge and mapped aperture height when its other edge is out of view.
+
+    Match the measured jamb plane, not the whole range slab (which can include the floor or
+    background). Require a wall patch with both horizontal and vertical extent. If both edges
+    are measured, their separation must agree with the map; never pick one conflicting edge.
+    """
+    height = float(meta["dz_hi"]) - float(meta["dz_lo"])
+    if not math.isfinite(height) or height <= 0 or not math.isfinite(max_shift) or max_shift <= 0:
+        return {}
+    fwd, across, down = points.T
+    normal_dist = ((fwd - plane_range) * math.cos(heading)
+                   + (across - (left + right) / 2) * math.sin(heading))
+    mid = (np.abs(normal_dist) <= 0.08) & (across > left + 0.08) & (across < right - 0.08)
+    edges = []
+    for name, mask, percentile, expected, half_height in (
+        ("sill", mid & (down > 0.08), 10, -float(meta["dz_lo"]), height / 2),
+        ("header", mid & (down < -0.08), 90, -float(meta["dz_hi"]), -height / 2),
+    ):
+        if (mask.sum() < min_hits or np.ptp(down[mask]) < 0.04
+                or np.ptp(across[mask]) < 0.15):
+            continue
+        edge = float(np.percentile(down[mask], percentile))
+        # Allow a sampling tolerance, but leave correction magnitude bounded by the controller.
+        if abs(edge - expected) > max_shift + 0.08:
+            return {}
+        edges.append((name, half_height - edge, edge))
+    if not edges:
+        return {}
+    if len(edges) == 2 and abs(edges[0][2] - edges[1][2] - height) > 0.12:
+        return {}
+    return {"dz_m": float(np.mean([e[1] for e in edges])),
+            "height_source": "+".join(e[0] for e in edges),
+            "height_m": edges[0][2] - edges[1][2] if len(edges) == 2 else height}
+
+
 def combine(estimates):
     """Median of several single-frame estimates (robust to one bad frame)."""
     ests = [e for e in estimates if e]
@@ -139,7 +181,8 @@ def combine(estimates):
         vals = [e[key] for e in ests if e.get(key) is not None]
         out[key] = float(np.median(vals)) if vals else (0.0 if key != "width_m" else float("nan"))
     dz = [e["dz_m"] for e in ests if e.get("dz_m") is not None]
-    out["dz_m"] = float(np.median(dz)) if len(dz) >= max(1, len(ests) // 2) else None
+    out["dz_m"] = (float(np.median(dz))
+                   if len(dz) >= max(1, (len(ests) + 1) // 2) and np.ptp(dz) <= 0.08 else None)
     out["n_frames"] = len(ests)
     return out
 

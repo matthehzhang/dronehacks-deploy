@@ -1,0 +1,2168 @@
+...F...FF.FFF.....FF.......FFF.F........................................ [ 21%]
+.............F..................................EE...EE....EEEEEEEEEEEEE [ 42%]
+EEEEExF................................................................. [ 63%]
+.............................................................x.......... [ 84%]
+...................................................                      [100%]
+==================================== ERRORS ====================================
+__________ ERROR at setup of test_fence_clips_returns_beyond_the_net ___________
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+__ ERROR at setup of test_live_obstacle_blocks_and_prior_walls_do_not_thicken __
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+__________________ ERROR at setup of test_goals_and_gate_legs __________________
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_________ ERROR at setup of test_replanner_routes_around_a_live_pillar _________
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+________________ ERROR at setup of test_course_odom_round_trip _________________
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_______________ ERROR at setup of test_mission_waits_then_climbs _______________
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[missing-FLY] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[missing-PAD] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[missing-HOLD] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[missing-DESCEND] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[empty-FLY] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[empty-PAD] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[empty-HOLD] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[empty-DESCEND] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[stale-FLY] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[stale-PAD] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[stale-HOLD] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[stale-DESCEND] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[future-FLY] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[future-PAD] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[future-HOLD] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+_ ERROR at setup of test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[future-DESCEND] _
+
+    @pytest.fixture(scope="module")
+    def mission():
+>       return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_livenav.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+=================================== FAILURES ===================================
+________________ test_full_course_plan_keeps_clearance[window] _________________
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = None, chicane = 'window'
+goals = [{'name': 'tunnel_entry', 'xy': [2.3114, 2.3692], 'mode': 'align', 'straight': False, ...}, {'name': 'tunnel_exit', 'x...': 'gate', 'straight': True, ...}, {'name': 'pad', 'xy': [-2.0422, -0.7925], 'mode': 'cruise', 'straight': False, ...}]
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=None, goals=None, cmap=None):
+        """-> dict(waypoints=[{name, xy, mode, clearance_m, facing_m, ...}], length_m, min_clearance_m, ...).
+        chicane None: every option is planned and the best is chosen (plan_options); the result carries
+        "chicane" and "scores"."""
+        if chicane is None and goals is None:
+            return plan_options(doc, obst, blocked, clearance, start_xy=start_xy, cmap=cmap)["plan"]
+        v = doc["vehicle"]
+        min_clear = v["radius_m"] + v["margin_m"]
+        start = list(start_xy if start_xy is not None else doc["start"]["xy"])
+        gate_info = {}
+        if goals is None:
+            goals, gate_info = expand_goals(doc, chicane, obst, clearance)
+        gate_lines = [g["gate_line"] for g in goals if "gate_line" in g]
+        gated = with_walls(blocked, gate_lines)          # A* never flies through a gate on the way to it
+        path = [np.asarray(start, float)]
+        names = [{"name": "start", "mode": "takeoff"}]
+        keep = [0]
+        for i, g in enumerate(goals):
+            p = path[-1]
+            q = np.asarray(g["xy"], float)
+            if g.get("straight"):
+                c = segment_clearance(obst, clearance, p, q)
+                if c < min_clear:
+                    raise PlanError(f"straight segment to {g['name']} has only {c:.2f} m clearance (< {min_clear:.2f})")
+                seg = [q]
+            else:
+                try:
+>                   seg = list(astar(gated, clearance, p, q))[1:]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+kestrel_nav/coursenav/planner.py:340: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+
+During handling of the above exception, another exception occurred:
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+chicane = 'window'
+
+    @pytest.mark.parametrize("chicane", ["window"])   # gate_b: refused at 0.40 m (gate rule); see the gate_b tests
+    def test_full_course_plan_keeps_clearance(course, chicane):
+        doc, cm, obst, blocked, clearance, *_ = course
+>       p = planner.plan(doc, obst, blocked, clearance, chicane=chicane, cmap=cm)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_coursenav.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/coursenav/planner.py:344: in plan
+    ungated = astar(blocked, clearance, p, q)  # raises if physically unreachable too
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+___________ test_the_chicane_is_chosen_by_score_and_the_window_wins ____________
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+
+    def test_the_chicane_is_chosen_by_score_and_the_window_wins(course):
+        doc, cm, obst, blocked, clearance, *_ = course
+        raw = load_course(derive=False)
+        assert "chicane" not in raw                                   # no fixed choice in the course file
+>       res = planner.plan_options(doc, obst, blocked, clearance, cmap=cm)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_coursenav.py:113: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = None
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+________ test_no_leg_ends_facing_a_solid_surface_inside_the_blind_range ________
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = None, chicane = 'window'
+goals = [{'name': 'tunnel_entry', 'xy': [2.3114, 2.3692], 'mode': 'align', 'straight': False, ...}, {'name': 'tunnel_exit', 'x...': 'gate', 'straight': True, ...}, {'name': 'pad', 'xy': [-2.0422, -0.7925], 'mode': 'cruise', 'straight': False, ...}]
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=None, goals=None, cmap=None):
+        """-> dict(waypoints=[{name, xy, mode, clearance_m, facing_m, ...}], length_m, min_clearance_m, ...).
+        chicane None: every option is planned and the best is chosen (plan_options); the result carries
+        "chicane" and "scores"."""
+        if chicane is None and goals is None:
+            return plan_options(doc, obst, blocked, clearance, start_xy=start_xy, cmap=cmap)["plan"]
+        v = doc["vehicle"]
+        min_clear = v["radius_m"] + v["margin_m"]
+        start = list(start_xy if start_xy is not None else doc["start"]["xy"])
+        gate_info = {}
+        if goals is None:
+            goals, gate_info = expand_goals(doc, chicane, obst, clearance)
+        gate_lines = [g["gate_line"] for g in goals if "gate_line" in g]
+        gated = with_walls(blocked, gate_lines)          # A* never flies through a gate on the way to it
+        path = [np.asarray(start, float)]
+        names = [{"name": "start", "mode": "takeoff"}]
+        keep = [0]
+        for i, g in enumerate(goals):
+            p = path[-1]
+            q = np.asarray(g["xy"], float)
+            if g.get("straight"):
+                c = segment_clearance(obst, clearance, p, q)
+                if c < min_clear:
+                    raise PlanError(f"straight segment to {g['name']} has only {c:.2f} m clearance (< {min_clear:.2f})")
+                seg = [q]
+            else:
+                try:
+>                   seg = list(astar(gated, clearance, p, q))[1:]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+kestrel_nav/coursenav/planner.py:340: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+
+During handling of the above exception, another exception occurred:
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+
+    def test_no_leg_ends_facing_a_solid_surface_inside_the_blind_range(course):
+        """Flight E's stop: the Gate B approach turned to face the barrier at 0.47 m. The chosen plan
+        has no leg end facing a solid surface within face_min_m, nor one inside the turn's arc."""
+        doc, cm, obst, blocked, clearance, *_ = course
+>       p = planner.plan(doc, obst, blocked, clearance, chicane="window", cmap=cm)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_coursenav.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/coursenav/planner.py:344: in plan
+    ungated = astar(blocked, clearance, p, q)  # raises if physically unreachable too
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+________________ test_alignment_geometry_is_measured_on_the_map ________________
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = None, chicane = 'window'
+goals = [{'name': 'tunnel_entry', 'xy': [2.3114, 2.3692], 'mode': 'align', 'straight': False, ...}, {'name': 'tunnel_exit', 'x...': 'gate', 'straight': True, ...}, {'name': 'pad', 'xy': [-2.0422, -0.7925], 'mode': 'cruise', 'straight': False, ...}]
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=None, goals=None, cmap=None):
+        """-> dict(waypoints=[{name, xy, mode, clearance_m, facing_m, ...}], length_m, min_clearance_m, ...).
+        chicane None: every option is planned and the best is chosen (plan_options); the result carries
+        "chicane" and "scores"."""
+        if chicane is None and goals is None:
+            return plan_options(doc, obst, blocked, clearance, start_xy=start_xy, cmap=cmap)["plan"]
+        v = doc["vehicle"]
+        min_clear = v["radius_m"] + v["margin_m"]
+        start = list(start_xy if start_xy is not None else doc["start"]["xy"])
+        gate_info = {}
+        if goals is None:
+            goals, gate_info = expand_goals(doc, chicane, obst, clearance)
+        gate_lines = [g["gate_line"] for g in goals if "gate_line" in g]
+        gated = with_walls(blocked, gate_lines)          # A* never flies through a gate on the way to it
+        path = [np.asarray(start, float)]
+        names = [{"name": "start", "mode": "takeoff"}]
+        keep = [0]
+        for i, g in enumerate(goals):
+            p = path[-1]
+            q = np.asarray(g["xy"], float)
+            if g.get("straight"):
+                c = segment_clearance(obst, clearance, p, q)
+                if c < min_clear:
+                    raise PlanError(f"straight segment to {g['name']} has only {c:.2f} m clearance (< {min_clear:.2f})")
+                seg = [q]
+            else:
+                try:
+>                   seg = list(astar(gated, clearance, p, q))[1:]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+kestrel_nav/coursenav/planner.py:340: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+
+During handling of the above exception, another exception occurred:
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+
+    def test_alignment_geometry_is_measured_on_the_map(course):
+        doc, cm, obst, blocked, clearance, *_ = course
+>       p = planner.plan(doc, obst, blocked, clearance, chicane="window", cmap=cm)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_coursenav.py:153: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/coursenav/planner.py:344: in plan
+    ungated = astar(blocked, clearance, p, q)  # raises if physically unreachable too
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+______ test_the_tunnel_leg_is_a_passage_by_geometry_and_a_maze_leg_is_not ______
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = None, chicane = 'window'
+goals = [{'name': 'tunnel_entry', 'xy': [2.3114, 2.3692], 'mode': 'align', 'straight': False, ...}, {'name': 'tunnel_exit', 'x...': 'gate', 'straight': True, ...}, {'name': 'pad', 'xy': [-2.0422, -0.7925], 'mode': 'cruise', 'straight': False, ...}]
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=None, goals=None, cmap=None):
+        """-> dict(waypoints=[{name, xy, mode, clearance_m, facing_m, ...}], length_m, min_clearance_m, ...).
+        chicane None: every option is planned and the best is chosen (plan_options); the result carries
+        "chicane" and "scores"."""
+        if chicane is None and goals is None:
+            return plan_options(doc, obst, blocked, clearance, start_xy=start_xy, cmap=cmap)["plan"]
+        v = doc["vehicle"]
+        min_clear = v["radius_m"] + v["margin_m"]
+        start = list(start_xy if start_xy is not None else doc["start"]["xy"])
+        gate_info = {}
+        if goals is None:
+            goals, gate_info = expand_goals(doc, chicane, obst, clearance)
+        gate_lines = [g["gate_line"] for g in goals if "gate_line" in g]
+        gated = with_walls(blocked, gate_lines)          # A* never flies through a gate on the way to it
+        path = [np.asarray(start, float)]
+        names = [{"name": "start", "mode": "takeoff"}]
+        keep = [0]
+        for i, g in enumerate(goals):
+            p = path[-1]
+            q = np.asarray(g["xy"], float)
+            if g.get("straight"):
+                c = segment_clearance(obst, clearance, p, q)
+                if c < min_clear:
+                    raise PlanError(f"straight segment to {g['name']} has only {c:.2f} m clearance (< {min_clear:.2f})")
+                seg = [q]
+            else:
+                try:
+>                   seg = list(astar(gated, clearance, p, q))[1:]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+kestrel_nav/coursenav/planner.py:340: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+
+During handling of the above exception, another exception occurred:
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+
+    def test_the_tunnel_leg_is_a_passage_by_geometry_and_a_maze_leg_is_not(course):
+        doc, cm, obst, blocked, clearance, *_ = course
+>       p = planner.plan(doc, obst, blocked, clearance, chicane="window", cmap=cm)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_coursenav.py:166: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/coursenav/planner.py:344: in plan
+    ungated = astar(blocked, clearance, p, q)  # raises if physically unreachable too
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+___________ test_leg_metadata_marks_gates_and_passages_by_name_only ____________
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = None, chicane = 'window'
+goals = [{'name': 'tunnel_entry', 'xy': [2.3114, 2.3692], 'mode': 'align', 'straight': False, ...}, {'name': 'tunnel_exit', 'x...': 'gate', 'straight': True, ...}, {'name': 'pad', 'xy': [-2.0422, -0.7925], 'mode': 'cruise', 'straight': False, ...}]
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=None, goals=None, cmap=None):
+        """-> dict(waypoints=[{name, xy, mode, clearance_m, facing_m, ...}], length_m, min_clearance_m, ...).
+        chicane None: every option is planned and the best is chosen (plan_options); the result carries
+        "chicane" and "scores"."""
+        if chicane is None and goals is None:
+            return plan_options(doc, obst, blocked, clearance, start_xy=start_xy, cmap=cmap)["plan"]
+        v = doc["vehicle"]
+        min_clear = v["radius_m"] + v["margin_m"]
+        start = list(start_xy if start_xy is not None else doc["start"]["xy"])
+        gate_info = {}
+        if goals is None:
+            goals, gate_info = expand_goals(doc, chicane, obst, clearance)
+        gate_lines = [g["gate_line"] for g in goals if "gate_line" in g]
+        gated = with_walls(blocked, gate_lines)          # A* never flies through a gate on the way to it
+        path = [np.asarray(start, float)]
+        names = [{"name": "start", "mode": "takeoff"}]
+        keep = [0]
+        for i, g in enumerate(goals):
+            p = path[-1]
+            q = np.asarray(g["xy"], float)
+            if g.get("straight"):
+                c = segment_clearance(obst, clearance, p, q)
+                if c < min_clear:
+                    raise PlanError(f"straight segment to {g['name']} has only {c:.2f} m clearance (< {min_clear:.2f})")
+                seg = [q]
+            else:
+                try:
+>                   seg = list(astar(gated, clearance, p, q))[1:]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+kestrel_nav/coursenav/planner.py:340: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+
+During handling of the above exception, another exception occurred:
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+
+    def test_leg_metadata_marks_gates_and_passages_by_name_only(course):
+        doc, cm, obst, blocked, clearance, *_ = course
+>       p = planner.plan(doc, obst, blocked, clearance, chicane="window", cmap=cm)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_coursenav.py:175: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/coursenav/planner.py:344: in plan
+    ungated = astar(blocked, clearance, p, q)  # raises if physically unreachable too
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+________________________ test_pf_finds_the_spawn_offset ________________________
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+
+    def test_pf_finds_the_spawn_offset(course):
+        """The sim spawns 0.20 m north of the launch-mark prior; the scan match must find it."""
+        doc, cm, *_, sg, dist = course
+        truth = np.array([-2.5146, 1.1144, math.pi / 2])
+        rng = np.random.default_rng(3)
+        pf = CorrectionPF(sg, dist, PFParams(), seed=3)
+        odom = np.zeros(3)
+        pf.init((*doc["start"]["xy"], math.radians(doc["start"]["yaw_deg"])), 0.3, math.radians(8), odom)
+        for _ in range(30):
+            pf.predict(odom, 0.07)
+            pf.update(odom, synth_scan(cm, truth, rng))
+        m, _ = pf.estimate(odom)
+>       assert math.hypot(m[0] - truth[0], m[1] - truth[1]) < 0.08
+E       assert 0.6521830111086601 < 0.08
+E        +  where 0.6521830111086601 = <built-in function hypot>((np.float64(-2.8275589823186484) - np.float64(-2.5146)), (np.float64(1.686588216730155) - np.float64(1.1144)))
+E        +    where <built-in function hypot> = math.hypot
+
+tests/test_coursenav.py:250: AssertionError
+__________________ test_pf_removes_vio_drift_through_the_maze __________________
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = None, chicane = 'window'
+goals = [{'name': 'tunnel_entry', 'xy': [2.3114, 2.3692], 'mode': 'align', 'straight': False, ...}, {'name': 'tunnel_exit', 'x...': 'gate', 'straight': True, ...}, {'name': 'pad', 'xy': [-2.0422, -0.7925], 'mode': 'cruise', 'straight': False, ...}]
+cmap = None
+
+    def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=None, goals=None, cmap=None):
+        """-> dict(waypoints=[{name, xy, mode, clearance_m, facing_m, ...}], length_m, min_clearance_m, ...).
+        chicane None: every option is planned and the best is chosen (plan_options); the result carries
+        "chicane" and "scores"."""
+        if chicane is None and goals is None:
+            return plan_options(doc, obst, blocked, clearance, start_xy=start_xy, cmap=cmap)["plan"]
+        v = doc["vehicle"]
+        min_clear = v["radius_m"] + v["margin_m"]
+        start = list(start_xy if start_xy is not None else doc["start"]["xy"])
+        gate_info = {}
+        if goals is None:
+            goals, gate_info = expand_goals(doc, chicane, obst, clearance)
+        gate_lines = [g["gate_line"] for g in goals if "gate_line" in g]
+        gated = with_walls(blocked, gate_lines)          # A* never flies through a gate on the way to it
+        path = [np.asarray(start, float)]
+        names = [{"name": "start", "mode": "takeoff"}]
+        keep = [0]
+        for i, g in enumerate(goals):
+            p = path[-1]
+            q = np.asarray(g["xy"], float)
+            if g.get("straight"):
+                c = segment_clearance(obst, clearance, p, q)
+                if c < min_clear:
+                    raise PlanError(f"straight segment to {g['name']} has only {c:.2f} m clearance (< {min_clear:.2f})")
+                seg = [q]
+            else:
+                try:
+>                   seg = list(astar(gated, clearance, p, q))[1:]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+kestrel_nav/coursenav/planner.py:340: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+
+During handling of the above exception, another exception occurred:
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+
+    def test_pf_removes_vio_drift_through_the_maze(course):
+        """Fly the planned maze legs with a VIO that has 5% scale error and 1 deg/m heading drift
+        (deliberately worse than the measured 2 cm p95 short-hover VIO, to exercise the correction)."""
+        doc, cm, obst, blocked, clearance, sg, dist = course
+>       p = planner.plan(doc, obst, blocked, clearance, chicane="window")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_coursenav.py:258: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/coursenav/planner.py:344: in plan
+    ungated = astar(blocked, clearance, p, q)  # raises if physically unreachable too
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+____ test_navfield_builds_fast_and_descends_through_every_stage_to_the_pad _____
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+
+    def test_navfield_builds_fast_and_descends_through_every_stage_to_the_pad(course):
+        from kestrel_nav.coursenav.navfield import NavField, stages_from_course
+        doc, cm, obst, blocked, clearance, *_ = course
+        stages = stages_from_course(doc)
+>       assert [s.name for s in stages] == ["maze_exit", "tunnel_in", "tunnel_out", "chicane", "pad"]
+E       AssertionError: assert ['tunnel_in',...icane', 'pad'] == ['maze_exit',...icane', 'pad']
+E         
+E         At index 0 diff: 'tunnel_in' != 'maze_exit'
+E         Right contains one more item: 'pad'
+E         Use -v to get more diff
+
+tests/test_coursenav.py:395: AssertionError
+___________ test_navfield_takes_gate_b_when_the_window_pays_nothing ____________
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+
+    def test_navfield_takes_gate_b_when_the_window_pays_nothing(course):
+        from kestrel_nav.coursenav.navfield import NavField, stages_from_course
+        doc, cm, obst, blocked, clearance, *_ = course
+        d = copy_doc = __import__("copy").deepcopy(doc)
+        d["chicane_options"]["window"]["points"] = 0
+        d["chicane_options"]["window"]["width_m"] = 0.3                # too narrow for the hop margins: unusable
+        stages = stages_from_course(d)
+        nf = NavField(blocked, clearance, stages)
+>       xy, st, crossed, pts = d["start"]["spawn_xy"], 0, [], []
+                               ^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'spawn_xy'
+
+tests/test_coursenav.py:423: KeyError
+_________ test_gate_b_at_course_clearance_is_refused_not_crossed_twice _________
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+
+    def test_gate_b_at_course_clearance_is_refused_not_crossed_twice(course):
+        """At 0.40 m the only way to gate_b_pre is through Gate B itself: before the gate rule, A* flew
+        through the gap the wrong way, turned in the pocket beyond it (Flight E landed there on silent
+        depth, 2026-11-06) and crossed back. A waypoint-name count did not see it; the planner must refuse
+        and say why."""
+        doc, cm, obst, blocked, clearance, *_ = course
+>       with pytest.raises(planner.PlanError, match="reachable only through gate_b"):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'reachable only through gate_b'
+E         Actual message: 'start [-2.515  0.914] is blocked or off the map'
+
+tests/test_coursenav.py:447: AssertionError
+___________________ test_window_plan_crosses_the_window_once ___________________
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = None, chicane = 'window'
+goals = [{'name': 'tunnel_entry', 'xy': [2.3114, 2.3692], 'mode': 'align', 'straight': False, ...}, {'name': 'tunnel_exit', 'x...': 'gate', 'straight': True, ...}, {'name': 'pad', 'xy': [-2.0422, -0.7925], 'mode': 'cruise', 'straight': False, ...}]
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=None, goals=None, cmap=None):
+        """-> dict(waypoints=[{name, xy, mode, clearance_m, facing_m, ...}], length_m, min_clearance_m, ...).
+        chicane None: every option is planned and the best is chosen (plan_options); the result carries
+        "chicane" and "scores"."""
+        if chicane is None and goals is None:
+            return plan_options(doc, obst, blocked, clearance, start_xy=start_xy, cmap=cmap)["plan"]
+        v = doc["vehicle"]
+        min_clear = v["radius_m"] + v["margin_m"]
+        start = list(start_xy if start_xy is not None else doc["start"]["xy"])
+        gate_info = {}
+        if goals is None:
+            goals, gate_info = expand_goals(doc, chicane, obst, clearance)
+        gate_lines = [g["gate_line"] for g in goals if "gate_line" in g]
+        gated = with_walls(blocked, gate_lines)          # A* never flies through a gate on the way to it
+        path = [np.asarray(start, float)]
+        names = [{"name": "start", "mode": "takeoff"}]
+        keep = [0]
+        for i, g in enumerate(goals):
+            p = path[-1]
+            q = np.asarray(g["xy"], float)
+            if g.get("straight"):
+                c = segment_clearance(obst, clearance, p, q)
+                if c < min_clear:
+                    raise PlanError(f"straight segment to {g['name']} has only {c:.2f} m clearance (< {min_clear:.2f})")
+                seg = [q]
+            else:
+                try:
+>                   seg = list(astar(gated, clearance, p, q))[1:]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+kestrel_nav/coursenav/planner.py:340: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+
+During handling of the above exception, another exception occurred:
+
+course = ({'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centr...       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05), ...)
+
+    def test_window_plan_crosses_the_window_once(course):
+        doc, cm, obst, blocked, clearance, *_ = course
+>       p = planner.plan(doc, obst, blocked, clearance, chicane="window", cmap=cm)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_coursenav.py:465: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/coursenav/planner.py:344: in plan
+    ungated = astar(blocked, clearance, p, q)  # raises if physically unreachable too
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+a_xy = array([-2.515,  0.914]), b_xy = array([2.3114, 2.3692]), prefer_m = 0.6
+weight = 4.0
+
+    def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
+        """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
+        crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+        occ = blocked.occ
+        nx, ny = occ.shape
+        a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
+        for name, c in (("start", a), ("goal", b)):
+            if not blocked.inside(np.array(c)) or occ[c]:
+>               raise PlanError(f"{name} {a_xy if name == 'start' else b_xy} is blocked or off the map")
+E               kestrel_nav.coursenav.planner.PlanError: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:52: PlanError
+___________ test_live_mission_receives_actual_selected_gate_geometry ___________
+
+    def test_live_mission_receives_actual_selected_gate_geometry():
+>       mission = LiveMission(MissionParams(use_pf=False))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_live_gate_rules.py:35: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+kestrel_nav/livenav/mission.py:108: in __init__
+    self.plan = self._plan_course()
+                ^^^^^^^^^^^^^^^^^^^
+kestrel_nav/livenav/mission.py:153: in _plan_course
+    res = planner.plan_options(doc, g.obst, g.prior_blocked, g.prior_clearance, start_xy=(sx, sy), cmap=self.cmap)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+doc = {'schema': 'coursenav-course/1', 'frame': 'Course ENU: metres; x east, y north, z up; origin at enclosure floor centre', 'obj': 'course/new_course_origin.obj', 'map': 'maps/course_origin_5cm.npz', ...}
+obst = Grid2D(occ=array([[False, False, False, ..., False, False, False],
+       [False, False, False, ..., False, False, Fal...lse],
+       [False, False, False, ..., False, False, False]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+blocked = Grid2D(occ=array([[ True,  True,  True, ...,  True,  True,  True],
+       [ True,  True,  True, ...,  True,  True,  Tr...rue],
+       [ True,  True,  True, ...,  True,  True,  True]], shape=(128, 128)), origin=array([-3.2, -3.2]), res=0.05)
+clearance = array([[0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ],
+       [0.13970449, 0.10...0449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128))
+start_xy = (-2.515, 0.914)
+cmap = CourseMap(occupied=array([[[False, False, False, ..., False, False, False],
+        [False, False, False, ..., False, ...be cradle 1', 'Tube cradle 2', 'Tube cradle 3', 'Tube oval 58 x 72 x 60'], 'res': 0.05, 'origin': [-3.2, -3.2, -0.05]})
+
+    def plan_options(doc, obst, blocked, clearance, start_xy=None, cmap=None):
+        """Plan every chicane option, score each, choose the best. -> {"chicane", "plan", "scores", "reason", "plans"}."""
+        results, scores, errors = {}, {}, {}
+        for key, opt in doc["chicane_options"].items():
+            if "center" not in opt:
+                continue
+            try:
+                p = plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=key, cmap=cmap)
+            except PlanError as e:
+                errors[key] = str(e)
+                continue
+            results[key] = p
+            scores[key] = score_plan(p, doc, opt)
+        if not results:
+>           raise PlanError("no chicane option could be planned: " + "; ".join(f"{k}: {v}" for k, v in errors.items()))
+E           kestrel_nav.coursenav.planner.PlanError: no chicane option could be planned: window: start [-2.515  0.914] is blocked or off the map; gate_b: start [-2.515  0.914] is blocked or off the map
+
+kestrel_nav/coursenav/planner.py:752: PlanError
+__________ test_zero_reward_window_is_used_when_gate_b_is_unreachable __________
+
+    def test_zero_reward_window_is_used_when_gate_b_is_unreachable():
+        doc = copy.deepcopy(load_course())
+        doc['chicane_options']['window']['points'] = 0
+        cm = CourseMap.load(resolve(doc, 'map'))
+        _, blocked, clearance = plan_grids(cm, doc)
+        nf = NavField(blocked, clearance, stages_from_course(doc))
+>       path, crossed = descend_all(nf, doc['start']['spawn_xy'])
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'spawn_xy'
+
+tests/test_navfield_rules.py:31: KeyError
+=============================== warnings summary ===============================
+../../../../sim/.venv/lib/python3.11/site-packages/dash/testing/plugin.py:104
+  /home/matthew/projects/hackathon/dronehacks/sim/.venv/lib/python3.11/site-packages/dash/testing/plugin.py:104: PytestRemovedIn10Warning: The hookimpl pytest_addhooks uses old-style configuration options (marks or attributes).
+  Please use the pytest.hookimpl(tryfirst=True) decorator instead
+   to configure the hooks.
+   See https://docs.pytest.org/en/latest/deprecations.html#configuring-hook-specs-impls-using-markers
+    @pytest.mark.tryfirst
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_coursenav.py::test_full_course_plan_keeps_clearance[window]
+FAILED tests/test_coursenav.py::test_the_chicane_is_chosen_by_score_and_the_window_wins
+FAILED tests/test_coursenav.py::test_no_leg_ends_facing_a_solid_surface_inside_the_blind_range
+FAILED tests/test_coursenav.py::test_alignment_geometry_is_measured_on_the_map
+FAILED tests/test_coursenav.py::test_the_tunnel_leg_is_a_passage_by_geometry_and_a_maze_leg_is_not
+FAILED tests/test_coursenav.py::test_leg_metadata_marks_gates_and_passages_by_name_only
+FAILED tests/test_coursenav.py::test_pf_finds_the_spawn_offset - assert 0.652...
+FAILED tests/test_coursenav.py::test_pf_removes_vio_drift_through_the_maze - ...
+FAILED tests/test_coursenav.py::test_navfield_builds_fast_and_descends_through_every_stage_to_the_pad
+FAILED tests/test_coursenav.py::test_navfield_takes_gate_b_when_the_window_pays_nothing
+FAILED tests/test_coursenav.py::test_gate_b_at_course_clearance_is_refused_not_crossed_twice
+FAILED tests/test_coursenav.py::test_window_plan_crosses_the_window_once - ke...
+FAILED tests/test_live_gate_rules.py::test_live_mission_receives_actual_selected_gate_geometry
+FAILED tests/test_navfield_rules.py::test_zero_reward_window_is_used_when_gate_b_is_unreachable
+ERROR tests/test_livenav.py::test_fence_clips_returns_beyond_the_net - kestre...
+ERROR tests/test_livenav.py::test_live_obstacle_blocks_and_prior_walls_do_not_thicken
+ERROR tests/test_livenav.py::test_goals_and_gate_legs - kestrel_nav.coursenav...
+ERROR tests/test_livenav.py::test_replanner_routes_around_a_live_pillar - kes...
+ERROR tests/test_livenav.py::test_course_odom_round_trip - kestrel_nav.course...
+ERROR tests/test_livenav.py::test_mission_waits_then_climbs - kestrel_nav.cou...
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[missing-FLY]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[missing-PAD]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[missing-HOLD]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[missing-DESCEND]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[empty-FLY]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[empty-PAD]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[empty-HOLD]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[empty-DESCEND]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[stale-FLY]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[stale-PAD]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[stale-HOLD]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[stale-DESCEND]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[future-FLY]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[future-PAD]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[future-HOLD]
+ERROR tests/test_livenav.py::test_unusable_scan_is_not_reused_or_fused_and_fault_is_latched[future-DESCEND]
+14 failed, 301 passed, 2 xfailed, 1 warning, 22 errors in 114.67s (0:01:54)

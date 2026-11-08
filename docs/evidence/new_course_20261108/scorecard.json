@@ -1,0 +1,130 @@
+{
+ "phase": "over",
+ "reason": "landed_on_pad_before_checkpoint_4",
+ "t_start": 83.404153322,
+ "t_end": 170.191639436,
+ "run_time_s": 86.787486114,
+ "penalty_s": 0.0,
+ "touches": 0,
+ "near_misses": 0,
+ "min_clearance_m": 0.0748,
+ "touch_log": [],
+ "score": {
+  "run_points": 0.0,
+  "checkpoint_points": 0.0,
+  "time_bonus": 0.0,
+  "window_bonus": 0.0,
+  "return_multiplier": 1.0,
+  "finished": false,
+  "below_walls_finish": false,
+  "run_time_s": 86.787486114,
+  "checkpoints": [],
+  "notes": []
+ },
+ "events": [
+  {
+   "t": 78.721,
+   "event": "armed"
+  },
+  {
+   "t": 81.583,
+   "event": "airborne"
+  },
+  {
+   "t": 83.404,
+   "event": "start",
+   "xyz": [
+    -2.521,
+    0.82,
+    0.3
+   ]
+  },
+  {
+   "t": 168.183,
+   "event": "landed"
+  },
+  {
+   "t": 170.192,
+   "event": "disarmed"
+  },
+  {
+   "t": 170.192,
+   "event": "over",
+   "reason": "landed_on_pad_before_checkpoint_4",
+   "run_time_s": 86.787486114
+  }
+ ],
+ "geometry_source": "/home/matthew/dronehacks-sim/layouts/built/new_course_origin/course_geometry.json",
+ "config": {
+  "start_xy_m": 0.3,
+  "start_z_m": 0.3,
+  "touch_penalty_s": 5.0,
+  "touch_debounce_s": 1.0,
+  "clearance_margin_m": 0.02,
+  "clearance_action": "touch",
+  "ground_contact_from_pose": true,
+  "rest_z_m": 0.146,
+  "time_limit_s": 180.0,
+  "time_limit_includes_penalties": false,
+  "fastest_finish_s": 60.0,
+  "fastest_to_cp_s": [
+   10.0,
+   25.0,
+   40.0,
+   50.0,
+   60.0
+  ],
+  "return_radius_m": 0.5,
+  "course_margin_m": 0.3
+ },
+ "model_name": "sky_beta_0",
+ "environment": {
+  "episode_id": "c3578bb298624c228aae0596dd25c382",
+  "layout": "new_course_origin",
+  "pool": [
+   "new_course_origin"
+  ],
+  "selection_seed": 1793166499649657854,
+  "episode_index": 0,
+  "observer": "2d",
+  "catalog_sha256": "369a5f6c3b7e17b898dcea273a6cae289a41d865457d6d1d52cec4d90bfc27ba",
+  "assets": {
+   "name": "new_course_origin",
+   "layout_sha256": "afd9cf6b272a3f8543da67c9473603b053ca853a5c151828b47719bc613ba14b",
+   "source_obj_sha256": "ef86d5ea34edb7d655551ad2faf5bedff6c916425013aeb4e03e927e0b46809b",
+   "official_course": false,
+   "checkpoint_lines_qualified": false,
+   "files": {
+    "course_geometry.json": "ccf85790113c98f78636c4c028e7f4bc4dca0a4c4d98424811e3bc85e816de99",
+    "course_surface_pts.npz": "62d803d1681c9344ed3e4dde716663c3bf806c88fbf713cdee9703529a31d8e9",
+    "course_voxels_5cm.npz": "5de6f67665001c56c079c1f857149e2801833b01740b35434c96fbbd49c5108b",
+    "world.sdf": "fe586528cad414bc238df3dca42fd7c1ceacfbd18dae247dcb95c98264519331"
+   },
+   "model_files": {
+    "models/dronehacks_new_course_origin/meshes/a1_approach_wall.obj": "a5ac7c534ad42dc561556e5a6d15edfeef9fcdf58e51786e011181a802d1bd1d",
+    "models/dronehacks_new_course_origin/meshes/barrier_1.obj": "e0030c9054a52a305aa132690c6c1c97aa8a3af6c1c7c3df567b4f92eed24172",
+    "models/dronehacks_new_course_origin/meshes/barrier_2.obj": "599150c8e46aa36194d9fa49aff942a6c3ed6065a016bc79f8d25d9597f02bf4",
+    "models/dronehacks_new_course_origin/meshes/barrier_3_cut_to_55_in.obj": "d48ee44ecc5679fd363507a93d3c16b5f4797977b8ee9817e1bfc06539fed654",
+    "models/dronehacks_new_course_origin/meshes/boulder_1.obj": "db92782fa5af9ef2e315ff6fe21c53efc4c9e16a9a99be166f24b022ce315e85",
+    "models/dronehacks_new_course_origin/meshes/boulder_2.obj": "01fe19220ee37b595e2f4401946d5cf281be39e7e99cf406fc58d6ef6169d2ab",
+    "models/dronehacks_new_course_origin/meshes/boulder_3.obj": "4b78b04d39d1a91b10ea01961caf8ac677e6dd9c4ddb66e9f01ec793a3169e23",
+    "models/dronehacks_new_course_origin/meshes/boulder_4.obj": "946669212c5b17ff71ccf4214c5420773102d4cb919ac282740c5f671b3f6997",
+    "models/dronehacks_new_course_origin/meshes/boulder_5.obj": "e0cd45c0a78ab67647e602629fe13aa899d302741b4ecded2eb8f9cc172791bb",
+    "models/dronehacks_new_course_origin/meshes/c1_chicane_wall.obj": "4bdaa4ff670fd3524c8d0f5f4eb498b534dce664d05253c5904f335d104cd978",
+    "models/dronehacks_new_course_origin/meshes/c2a_chicane_wall_window.obj": "77590092d5419fcad7b1a20346c3d068d9b3879af6d970b5727a6023a204c871",
+    "models/dronehacks_new_course_origin/meshes/c2b_chicane_wall.obj": "365a40ff201a78bf296626336edef8a2f3082755ee6b0a04cd98cb4f38c5cbcf",
+    "models/dronehacks_new_course_origin/meshes/floor_20_x_20_ft.obj": "02de800e1f162dc97fdeabd83266c38ec45184f06dbe03d4cfd2bbc80e0a245b",
+    "models/dronehacks_new_course_origin/meshes/m1_maze_divider.obj": "8e9175833cd56f984041b6f607e14246fc2812609b30fd7a7bc2ad1ac20d77d6",
+    "models/dronehacks_new_course_origin/meshes/m2_maze_divider.obj": "f4edbd347e0a21dc2f300a539a5252d7ccdcde3eae227d122f9637873be4eee6",
+    "models/dronehacks_new_course_origin/meshes/m3_maze_divider.obj": "f1ea4a6a1e604851cd2a01070457ec336e9f2eb8219c8fb2c4e3a9901ab67791",
+    "models/dronehacks_new_course_origin/meshes/tube_cradle_1.obj": "7f61c068eaa0bca6bf44e903a33f64bb35b51c391c8538458b0b8f5116af36f3",
+    "models/dronehacks_new_course_origin/meshes/tube_cradle_2.obj": "8e46a5cfd5c454daac40f6eccd8a6ebba5049389a0808b4fee6849ee4e882b48",
+    "models/dronehacks_new_course_origin/meshes/tube_cradle_3.obj": "2858b8b5dbbb3a6bfbde8a102b956e49fb40d8a29864331a729ffaadf963792d",
+    "models/dronehacks_new_course_origin/meshes/tube_oval_58_x_72_x_60.obj": "c63c29731bb92b45769c1981bea164f7d1875e5760dd9987c710f3025a9143ea",
+    "models/dronehacks_new_course_origin/model.config": "a3f13798a69d8752030f9ff19cbb1c54fbe557f1bff8b0c0cc9e1846e448893e",
+    "models/dronehacks_new_course_origin/model.sdf": "dff1f085809d5a47077954a661541513f1cf91b39d1ff77564a3704d9c274cd6"
+   }
+  }
+ },
+ "wall_time": "2026-11-07T22:54:08"
+}

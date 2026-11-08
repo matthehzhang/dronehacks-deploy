@@ -1,4 +1,39 @@
+# Consolidated baseline
+
+The canonical branch is `kestral_group154_timed`. See
+[`docs/CONSOLIDATED_BASELINE.md`](../../../../docs/CONSOLIDATED_BASELINE.md)
+for the merged sources, active new-course map, launch choices and known limits.
+
 # kestrel_nav: team wide-kestrel course code, packaged for skybeta
+
+
+## Active group154 map (2026-11-08)
+
+The default `course/course_v3.json` now selects `course/new_course_origin.obj`
+and `maps/course_origin_5cm.npz`, imported from `new_course_origin_map.zip`.
+Planning, localizer initialization/scan matching, occupancy, and safe-landing
+columns use that same prior. The entrance route now plans toward the tunnel;
+the obsolete maze-exit goal is absent. The source-tree and packaged deployment
+assets match. Historical drawing fixtures are explicitly named `course_v3_legacy.json`.
+
+This is the supplied approximate `topview_entrance` reconstruction, not a surveyed
+venue map. Its unchanged historical scoring lines do not qualify this route as
+an official course pass. Vehicle reach is 0.29408 m and the planning margin
+remains 0.12 m. See `course/NEW_COURSE_README.txt` for the download's prior test
+limitations; that record is not the result of the current deployment test.
+
+The current compute test completed the route and disarmed in 86.79 s with zero
+touches, but minimum measured outline clearance was 7.48 cm (below 12 cm), and
+the unchanged scoring lines awarded zero points. The native workspace planner
+rejects the exact supplied launch mark; the tested skybeta adapter uses its
+existing bounded free-start projection. This is traversal evidence, not flight
+qualification. See `deploy-group154/docs/evidence/new_course_20261108/summary.json`
+in the parent checkout for the complete result.
+
+`host_depth` assigns `array.array('B', depth_mm.tobytes())` to the ROS image field,
+avoiding per-byte Python validation where enabled. Reproduce the payload and
+serialization check with `python3 tools/benchmark_depth_payload.py` after sourcing ROS.
+
 
 ## Current branch: `kestral_nav934am` (safe policy)
 

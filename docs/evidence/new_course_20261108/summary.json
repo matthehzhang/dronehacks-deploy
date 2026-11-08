@@ -1,0 +1,72 @@
+{
+  "map": "new_course_origin_map.zip / topview_entrance",
+  "updated_targets": [
+    "workspace-group119 (branch group154)",
+    "deploy-group154 (branch kestral_group154), source and packaged maps",
+    "compute SITL overlay"
+  ],
+  "hardware_deployed": false,
+  "flight_completed_and_disarmed": true,
+  "run_time_s": 86.787486114,
+  "touches": 0,
+  "near_misses": 0,
+  "minimum_live_outline_clearance_m": 0.0748,
+  "required_planning_margin_m": 0.12,
+  "safety_qualified": false,
+  "official_course_pass": false,
+  "grader_reason": "landed_on_pad_before_checkpoint_4",
+  "grader_points": 0.0,
+  "depth_payload_benchmark": {
+    "host": "compute",
+    "payload_bytes": 327680,
+    "validation_false": {
+      "bytes_median_cpu_ms": 0.014096,
+      "uint8_array_median_cpu_ms": 0.081583
+    },
+    "validation_true": {
+      "bytes_median_cpu_ms": 18.822217,
+      "uint8_array_median_cpu_ms": 0.06387
+    },
+    "messages_and_serialization_roundtrips_identical": true
+  },
+  "run_identity": {
+    "layout": "new_course_origin",
+    "episode_id": "c3578bb298624c228aae0596dd25c382",
+    "selection_seed": 1793166499649657854
+  },
+  "simulation_profile": {
+    "cpu_budget": "1.4 desktop CPU equivalents per simulated second; synthetic stress, not Orin emulation",
+    "companion_memory_max_bytes": 7976517632,
+    "fake_vio": true,
+    "stereo_depth": "host_depth from rendered mono pair"
+  },
+  "verification": "Twelve runtime file checksums match source_sha256.json. Flight complete confirmed by refnav trace, grader landed/disarmed state and scorecard. Historical checkpoint lines unchanged.",
+  "limitations": [
+    "Map is approximate, not an official surveyed export.",
+    "Historical entrance checkpoint lines reject this route.",
+    "Actual clearance remains below the 12 cm planning margin.",
+    "See audit.json for coarse localization error and recording limitations.",
+    "No hardware timing or real flight qualification."
+  ],
+  "recording_remote": "compute:~/dronehacks-sim/runs/bag_20261107_225022",
+  "simulator_final_state": "stopped after landing/disarm; simulated pilot stopped",
+  "native_start_guard": "The native workspace planner still refuses the exact supplied mark as inside the planning margin. The tested skybeta adapter retains its existing bounded free-start projection; no new exception was added.",
+  "simulated_route_completed": true,
+  "tests": {
+    "deployment_full_suite": {
+      "passed": 337,
+      "xfailed": 2
+    },
+    "simulator_layout_and_geometry": {
+      "passed": 26
+    },
+    "native_new_map_targeted_including_launch_guard": {
+      "passed": 6
+    },
+    "git_diff_check": "passed in workspace, deployment and simulator repositories",
+    "native_full_suite": {
+      "passed": 708,
+      "note": "The additional native launch guard test was added after collection and verified in the separate six-test new-map run."
+    }
+  }
+}

@@ -1,6 +1,9 @@
 """Gate constraints at the hardware planner/follower boundary; no ROS or vehicle."""
 import numpy as np
 import pytest
+from kestrel_nav.coursenav.course import PROJECT as COURSE_ROOT
+LEGACY_COURSE = COURSE_ROOT / "course/course_v3_legacy.json"
+
 
 from kestrel_nav.coursenav import planner
 from kestrel_nav.coursenav.course import Grid2D
@@ -32,7 +35,7 @@ def make_replanner(goals=None, full=True):
 
 
 def test_live_mission_receives_actual_selected_gate_geometry():
-    mission = LiveMission(MissionParams(use_pf=False))
+    mission = LiveMission(course_file=LEGACY_COURSE, params=MissionParams(use_pf=False))
     assert set(mission.replanner.gate_rules) == {'window'}
     assert mission.replanner.gate_rules['window']['line'] == mission.plan['gate_lines'][0]
     pre = next(g.xy for g in mission.goals if g.name == 'window_pre')

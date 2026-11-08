@@ -5,9 +5,15 @@ import math
 import numpy as np
 
 from kestrel_nav.coursenav import planner
-from kestrel_nav.coursenav.course import Grid2D, load_course, plan_grids, resolve
+from kestrel_nav.coursenav.course import Grid2D, load_course as _load_course, plan_grids, resolve
 from kestrel_nav.coursenav.navfield import Gate, NavField, Stage, stages_from_course
 from kestrel_nav.coursenav.objmap import CourseMap
+
+
+def load_course():
+    """Historical drawing regression; active map has dedicated test_new_course coverage."""
+    from kestrel_nav.coursenav.course import PROJECT
+    return _load_course(PROJECT / 'course/course_v3_legacy.json')
 
 
 def descend_all(nf, start):

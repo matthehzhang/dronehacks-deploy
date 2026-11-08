@@ -1,0 +1,16 @@
+Consolidation validation, 2026-11-08
+
+ROS Jazzy / Python 3.12 with px4_msgs and Skybeta overlays.
+colcon build --symlink-install --packages-select kestrel_nav: PASS.
+Both refnav_skybeta.launch.py and search_skybeta.launch.py --show-args: PASS.
+
+pytest tests -q --disable-warnings --maxfail=5
+  --ignore=tests/test_square_pad.py --ignore=tests/test_livenav_sim.py
+Result: 490 passed, 1 xfailed in 141.47 seconds.
+Two lengthy image/kinematic simulation suites were excluded; no Gazebo flight
+was performed on the consolidated merge. One earlier full-suite attempt was
+interrupted after discovering inconsistent source/installed JSON; that mismatch
+was corrected and the packaged-assets regression passed in the completed run.
+
+No gating thresholds or PX4 parameters were changed.
+Source and installed course JSON/OBJ/MTL/NPZ bytes match.

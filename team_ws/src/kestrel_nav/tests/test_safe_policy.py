@@ -3,6 +3,9 @@ import math
 
 import numpy as np
 import pytest
+from kestrel_nav.coursenav.course import PROJECT as COURSE_ROOT
+LEGACY_COURSE = COURSE_ROOT / "course/course_v3_legacy.json"
+
 
 from kestrel_nav.livenav import safe as safe_mod
 from kestrel_nav.livenav.mission import MissionParams
@@ -58,7 +61,7 @@ def test_stopping_budget_grows_with_speed():
 
 
 def fly(slip=0.0, seed=0, **params):
-    m = SafeMission(MissionParams(landed_z_m=0.067, time_limit_s=175.0), safe_params=SafeParams(**params))
+    m = SafeMission(course_file=LEGACY_COURSE, params=MissionParams(landed_z_m=0.067, time_limit_s=175.0), safe_params=SafeParams(**params))
     trace = []
     step = m.step
 
@@ -151,7 +154,7 @@ def scan_of(ranges_ahead):
 
 @pytest.fixture(scope='module')
 def gate_mission():
-    return SafeMission(MissionParams(landed_z_m=0.067))
+    return SafeMission(course_file=LEGACY_COURSE, params=MissionParams(landed_z_m=0.067))
 
 
 def test_gate_leg_stops_for_an_obstacle_and_remembers_it_inside_stereo_range(gate_mission):
@@ -185,7 +188,7 @@ def test_gate_leg_stops_for_an_obstacle_and_remembers_it_inside_stereo_range(gat
 def test_no_path_inside_the_margin_escapes_to_free_space():
     """Gazebo run (40a9628): the climb ended 11 cm west of the mark, inside the 0.414 m margin; live returns
     left A* no path and the mission held until the time limit. Now: a short slow escape leg."""
-    m = SafeMission(MissionParams(landed_z_m=0.067))
+    m = SafeMission(course_file=LEGACY_COURSE, params=MissionParams(landed_z_m=0.067))
     xy = np.array([-2.625, 0.925])
     assert m.grid.is_blocked(xy)
     m.replanner.plan = lambda xy_, now: (setattr(m.replanner, 'blocked', True), None)[1]
@@ -200,7 +203,7 @@ def test_fresh_empty_scan_is_free_space_not_missing_depth():
     """Gazebo @ 603582c: facing the open net, a fresh frame had no in-band returns; it was treated as
     missing depth and the mission faulted. Only a missing/stale scan may hold for depth."""
     from kestrel_nav.livenav.mission import Observation
-    m = SafeMission(MissionParams(landed_z_m=0.067))
+    m = SafeMission(course_file=LEGACY_COURSE, params=MissionParams(landed_z_m=0.067))
     sx, sy, syaw = m.plan['start_course']
     m.set_transform((sx, sy), syaw)                        # odom == course for this test
     m.t_offboard, m.state = 0.0, 'FLY'

@@ -10,10 +10,17 @@ import numpy as np
 import pytest
 
 from kestrel_nav.coursenav import objmap, planner
-from kestrel_nav.coursenav.course import Grid2D, load_course, plan_grids, resolve, scan_grid
+from kestrel_nav.coursenav.course import Grid2D, load_course as _load_course, plan_grids, resolve, scan_grid
 from kestrel_nav.coursenav.objmap import CourseMap
 from kestrel_nav.coursenav.pf import CorrectionPF, PFParams, compose, inverse
 from kestrel_nav.coursenav.scan import Scan, depth_points_level, level_from_px4_q, level_from_rp, scan_from_points
+
+
+def load_course(*, derive=True):
+    """Historical drawing regression; active map has dedicated test_new_course coverage."""
+    from kestrel_nav.coursenav.course import PROJECT
+    return _load_course(PROJECT / 'course/course_v3_legacy.json', derive=derive)
+
 
 ROOT = Path(__file__).resolve().parent.parent
 MARKINGS = objmap.FLOOR_MARKING_PREFIXES
@@ -434,7 +441,6 @@ def test_navfield_takes_gate_b_when_the_window_pays_nothing(course):
     # At 0.40 m the remaining gate cannot be reached on its declared pre side.
     assert not math.isfinite(nf.cost_to_go(d["start"]["spawn_xy"], 0))
     assert not crossed and not crossings
-
 
 
 

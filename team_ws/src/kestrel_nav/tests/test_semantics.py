@@ -9,11 +9,16 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from kestrel_nav.coursenav.course import PROJECT, load_course, resolve
+from kestrel_nav.coursenav.course import PROJECT, load_course as _load_course, resolve
 from kestrel_nav.coursenav.objmap import CourseMap
 from kestrel_nav.coursenav.semantics import Geometry, SemanticsError, resolve_course, tube_axis, wall_opening
 
-RAW = PROJECT / "course" / "course_v3.json"
+RAW = PROJECT / "course" / "course_v3_legacy.json"
+
+
+def load_course(*, derive=True):
+    """Historical drawing regression; new defaults are tested in test_new_course.py."""
+    return _load_course(RAW, derive=derive)
 IN = 0.0254
 
 

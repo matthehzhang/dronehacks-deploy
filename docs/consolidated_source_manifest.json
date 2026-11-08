@@ -1,0 +1,22 @@
+{
+  "branch": "kestral_group154_timed",
+  "parents": [
+    "5b2dd5a3756c65c8211e4bb1b4592989080a4915",
+    "f9528572e1efadf6839ef0de0fda0f445d787997"
+  ],
+  "files": {
+    "refnav/core.py": "16daf372186418ecd4d181e6369f5c0c26a3035bc417836a42f72300c03c9269",
+    "refnav/gate.py": "ab0436d8b3a9b118a14ade7d362ae8944b9dcdb404e689bdabc795e1a7ef2791",
+    "refnav/skybeta_health.py": "8378abf0d7c201637b38086dbcad5c3e23fcbc8aeafef9bdfc10eca29b7f2347",
+    "coursenav/loc_node.py": "cb48f7f51ad298bf52abf91aa010bc167398032961df2d57972bef69d70d3cf6",
+    "coursenav/nav_node.py": "24eda925f6020c1c634c6acf81284794719ff37b73f64c92f2499bb69e05b847",
+    "course/course_v3.json": "41974a5291c90c89caddd909604b781ad958960a5d0327b8c2967eacd0536ebf",
+    "course/new_course_origin.obj": "ef86d5ea34edb7d655551ad2faf5bedff6c916425013aeb4e03e927e0b46809b",
+    "course/new_course_origin.mtl": "b3d6800f28bd955bc1294ea96202f68ae34a46100bb341a93d4749a088b88eee",
+    "maps/course_origin_5cm.npz": "f0c73aeb0b459707c4f0f5a0e23b4e23375991eed36fce4ee5cacc61e6569d1e",
+    "launch/refnav_skybeta.launch.py": "9b0758924efb3961bed42c238e4ac61a25f6138b8391ddb0a776b83d0b802cf0",
+    "launch/search_skybeta.launch.py": "6b38a1f7b71b6adc5f2413b3677f5a4ebdb213ad6ad1b6a32d0aef8e89bb880a"
+  },
+  "packaged_assets_match": true,
+  "hardware_qualified": false
+}

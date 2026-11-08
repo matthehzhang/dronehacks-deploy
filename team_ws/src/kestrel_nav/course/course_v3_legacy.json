@@ -1,0 +1,291 @@
+{
+  "schema": "coursenav-course/1",
+  "frame": "course ENU = published OBJ source frame (metres, x east, y north, z up, origin floor centre)",
+  "obj": "course/dronehacks-course-v3.obj",
+  "map": "maps/course_v3.npz",
+  "start": {
+    "from": {
+      "feature": "launch_mark",
+      "group": "Launch mark",
+      "heading_from": "Guideline"
+    },
+    "sigma_xy_m": 0.05,
+    "sigma_yaw_deg": 2.0,
+    "_note": "Derived at load (coursenav/semantics.py): the launch mark's centre, heading along the guideline's first direction. A PRIOR, not truth: the localizer refines it.",
+    "_sigma_note": "Placement accuracy of the drone on its start (mark or declared training fixture). Live 2026-11-07: with 0.3 m / 8 deg the localizer converged 0.37 m and 15 deg off on the pad (the view from the pad hardly constrains position; two early updates pulled the cloud, then the fit gate rejected every later scan). With 0.05 m / 2 deg it held 3 cm / 0.5 deg of truth over 40 s."
+  },
+  "vehicle": {
+    "radius_m": 0.29408284528683193,
+    "margin_m": 0.12,
+    "_note": "7-inch propeller diameter confirmed by Matthew on 2026-11-07: 7 * 0.0254 = 0.1778 m. Rotor XY positions are the fleet FRD allocator geometry copied from deploy/px4/params/07_airframe_geometry.params (drone 20 FC, 2026-11-01); no runtime sibling-repository dependency. Horizontal yaw-independent reach = max(hypot(x,y)) + diameter/2 = 0.29408284528683193 m. coursenav.airframe derives at load and retains any larger declared envelope. Not a surveyed 3-D tilt/guard envelope.",
+    "propeller_diameter_m": 0.1778,
+    "rotor_centres_xy_m": [
+      [
+        0.08,
+        0.16
+      ],
+      [
+        -0.15,
+        -0.14
+      ],
+      [
+        0.08,
+        -0.16
+      ],
+      [
+        -0.15,
+        0.14
+      ]
+    ],
+    "_margin_note": "Existing 0.12 m planning margin retained, separately from physical reach: planned minimum now 0.4140828452868319 m. This margin originated in 2026-11-05 offline corridor-block experiments, not a measured tracking/estimation bound. Run010 showed about 0.123 m transverse setpoint error, so retaining it is not a contact-free guarantee."
+  },
+  "cruise_z_m": 0.8,
+  "plan_band_m": 0.25,
+  "keepout": [
+    {
+      "groups": [
+        "Boulder"
+      ],
+      "zlo": 0.0,
+      "zhi": 0.6,
+      "radius_m": 0.25,
+      "_note": "stay off the boulders so the downward rangefinder never steps: VL53L1X 27 deg cone at 0.8 m is ~0.07 m radius at boulder-top height; 0.25 m adds position error. Boulder tops (0.53 m) are below refnav's band (cruise 0.8 - band_m 0.25 = 0.55 m), so refnav does not treat them as obstacles."
+    }
+  ],
+  "sequence": [
+    {
+      "name": "maze_exit",
+      "from": {
+        "feature": "guideline_end",
+        "group": "Guideline",
+        "past_m": 0.4,
+        "centre_span_m": 0.3
+      },
+      "_note": "Configured overrun beyond the guideline endpoint; the planner separately enforces the resolved vehicle radius + margin against mapped obstacles."
+    },
+    {
+      "name": "tunnel",
+      "from": {
+        "feature": "tube_axis",
+        "group": "Tube oval",
+        "entry_m": 1.15,
+        "exit_m": 0.55
+      },
+      "_note": "Checkpoint 3: fly the tube's axis, entering at the end nearer the maze. Expands to tunnel_entry (align: entry_m before the mouth, far enough for the camera to see both rim edges: a 0.63 m half-bore needs 0.9 m plus the camera offset) and tunnel_exit (straight, exit_m past the far end)."
+    },
+    {
+      "name": "chicane",
+      "choose": "chicane"
+    },
+    {
+      "name": "pad",
+      "land": true,
+      "from": {
+        "feature": "pad_center",
+        "group": "Landing pad 5 ft"
+      },
+      "_note": "Checkpoint 5: land on the pad's centre; radius from the marking."
+    }
+  ],
+  "chicane_options": {
+    "window": {
+      "depth_m": 0.8,
+      "from": {
+        "feature": "wall_opening",
+        "group": "C2a"
+      },
+      "_note": "Checkpoint 4 (+5 points): the opening in wall C2a at cruise height, crossed towards the pad. depth_m: the pre point (alignment hover) 0.8 m before the plane, the farthest free point from which the camera (0.116 m ahead, 35 deg usable half-FOV) sees both jambs; post_m: the exit point.",
+      "post_m": 0.5,
+      "points": 5
+    },
+    "gate_b": {
+      "depth_m": 0.45,
+      "from": {
+        "feature": "gap_after_wall_end",
+        "group": "C2b",
+        "min_width_m": 0.6
+      },
+      "_note": "Checkpoint 4: the gap past wall C2b's end that the drone fits through, crossed towards the pad. The crossing direction is SEARCHED within +-cross_search_deg of the gap's perpendicular for the most clearance whose approach does not face a surface (planner.gate_crossing); nothing is typed in.",
+      "points": 0,
+      "cross_search_deg": 30.0
+    }
+  },
+  "return": {
+    "enabled": true,
+    "cruise_z_m": 2.1,
+    "radius_m": 0.61,
+    "_note": "Automatic after confirmed pad landing/disarm, only if fresh telemetry, battery, localization, reset continuity, full-trip time and 3D map-clearance checks pass. Otherwise remain landed. 2.1 m is a checked candidate, not an assumed clear altitude. Target is this run's remembered launch pose, checked against the derived mark; no prior-run replay.",
+    "from": {
+      "feature": "launch_mark",
+      "group": "Launch mark"
+    },
+    "_enabled_note": "matthew930am: off for run013 (steady course, Flight PASS 0.305 m grader truth clearance); re-enabled after that pass at Matthew's request. The return itself has still never flown."
+  },
+  "navigation": {
+    "mode": "path",
+    "_flow_note": "FLOW-CORNERS (2026-11-07): path mode as a hybrid. Bends sharper than stop_turn_deg 60 are stop-and-turn (as steady: no yaw while moving through big heading changes); gentler bends are arcs flown without stopping, the heading never leading the tangent by more than refnav path_heading_lead_deg 25 (run010 contact: 50 deg of preview) and turning at most yaw_rate_dps 30 while moving. Speed per point = min(cruise 0.5, tube / tube_response_s 0.44 s with tube = (clearance - reach) / 2: steady run015's cross-track model, as planner.leg_speed_mps; lateral accel 0.3; clearance slow-down); the approach to every stop is capped by the stop-overshoot fit -0.081 + 0.576 v + 0.10 m (runs 015+016, planner.end_room_speed_mps) against the mapped room beyond it. refnav path_tube_gate: off the path by more than the local tube -> forward motion holds, setpoint beside the aircraft. cruise 0.5 is above the 0.40 m/s flown in runs 015/016: it is reached only where the tube allows (clearance >= 0.73 m), i.e. open floor, and is unflown.",
+    "_note": "Path mode: refnav stops at declared stops and follows navigator paths between them. Historical offline figures in older notes used the 0.28 m synthetic aircraft. The confirmed 7-inch profile resolves to radius 0.294082845 m; full-course planning currently refuses at the retained 0.12 m margin. The diagnostic mission has a separate slow transit and bounded measurement schedule; see docs/RUN010_CONTACT_AND_NEXT_DIAGNOSTIC.md.",
+    "cruise_mps": 0.5,
+    "accel_mps2": 0.5,
+    "brake_mps2": 0.4,
+    "lat_accel_mps2": 0.3,
+    "slow_clear_m": 0.3,
+    "slow_min_mps": 0.15,
+    "r_min_m": 0.15,
+    "r_max_m": 1.5,
+    "stop_turn_deg": 60.0,
+    "yaw_rate_dps": 30.0,
+    "reach_m": 0.2941,
+    "tube_response_s": 0.44,
+    "overshoot_a": -0.081,
+    "overshoot_b": 0.576,
+    "overshoot_margin_m": 0.1,
+    "stop_approach_m": 1.0,
+    "refnav": {
+      "path_tube_gate": true,
+      "path_heading_lead_deg": 25.0,
+      "path_lookahead_m": 0.2,
+      "yaw_rate_dps": 30.0,
+      "geometry_speed": true,
+      "response_delay_s": 0.75,
+      "side_near_m": 0.4,
+      "side_extra_m": 0.3,
+      "side_min_mps": 0.15,
+      "side_reach_m": 1.0,
+      "speed_mps": 0.5,
+      "accel_mps2": 0.5,
+      "brake_mps2": 0.4,
+      "arrive_speed_mps": 0.08,
+      "arrive_settle_s": 0.3,
+      "hold_s": 0.25,
+      "yaw_accel_dps2": 0.0,
+      "first_turn_gate_s": 4.5,
+      "path_lat_accel_max_mps2": 0.3
+    },
+    "steady": {
+      "track_mode": "pose",
+      "tube_gate": true,
+      "speed_mps": 0.15,
+      "tunnel_speed_mps": 0.15,
+      "accel_mps2": 0.5,
+      "brake_mps2": 0.5,
+      "blend_turn_deg": 0.0,
+      "capture_m": 0.1,
+      "arrive_speed_mps": 0.08,
+      "arrive_settle_s": 0.3,
+      "hold_s": 0.25,
+      "geometry_speed": false,
+      "_note": "STEADY (matthew930am, 2026-11-07): untuned, conservative course profile. Every value is a choice from recorded evidence, not a fit. Straight legs only (planner waypoints, no navigator arcs): runs 006-010 measured PX4 cross-track p95 0.036-0.069 m on straight non-yawing motion at <= 0.16 m/s, but 0.10-0.15 m on curving paths and 0.06-0.26 m while yawing during translation, and ~0.19 m on straight legs above 0.16 m/s (run004). Hence speed 0.15, blend_turn_deg 0 (every vertex: stop, settle below 0.05 m/s for 0.5 s, turn in place, depth-check, go), heading fixed while moving (pose mode updates yaw only when blending). PX4's velocity estimate departs from truth for ~2 s during every ~50 deg yaw-while-moving sweep (runs 004-010; EV velocity is not fused, EKF2_EV_CTRL 9, so not a frame bug): yawing only while stopped avoids it. tube_gate: forward motion holds while the aircraft is more than the leg's tube_m (planner.leg_tube_m = half the leg's physical slack) across the leg. accel/brake 0.5 m/s^2 (was 0.3; 3-minute rule): braking from the 0.30 m/s cap takes 0.09 m, inside capture_m 0.10. Arrival settle 0.3 s below 0.08 m/s (was 0.5 s / 0.05).",
+      "face_tol_deg": 8.0,
+      "turn_settle_s": 0.0,
+      "_settle_note": "Set-off drift (first 2.5 s of a leg, across it) median ~0.07 m in run013 (face_tol 8, no settle) and in run015 (face_tol 3 + 2 s settle): neither the tighter heading tolerance nor the settle changed it, so both are back to the flown run013 values (face_tol_deg 8, turn_settle_s 0).",
+      "yaw_rate_dps": 35.0,
+      "tube_response_s": 0.44,
+      "leg_speed_cap_mps": 0.4,
+      "_speed_note": "RULE 7.9: a run ends at the 3-minute limit (clock from leaving the launch mark, rule 7.5). run015 took ~287 s. Per-leg cruise = planner.leg_speed_mps(tube_m, tube_response_s, leg_speed_cap_mps): tube / 0.44 s, where 0.44 s is run015's measured p90 of (steady cross-track p95 / speed) per leg; cap 0.40 m/s: run016 flew the open legs at 0.25-0.30 m/s with steady cross-track p95/speed 0.11-0.33 s (<= the 0.44 s basis), so the linear relation held there; 0.40 extrapolates it by 1/3. Maze/window legs ~0.15-0.20 m/s, tunnel/chicane ~0.30. speed_mps 0.15 remains the default for legs without a tube. yaw_rate_dps stays at the flown 35: in-place turns slide the body 5-8 cm (runs 013/015, real motion PX4 sees) and vertex clearances are 0.46-0.53 m; a higher rate is unmeasured. hold_s 0.25 (arrival already requires settling).",
+      "excite_yaw_deg": 0.0,
+      "excite_settle_s": 2.0,
+      "_excite_note": "OFF. run017 (b783000) flew excite_yaw 90 at the take-off point: the camera faced the west net at 0.50 m (92 % open, depth sees through it to unmapped space; OAK minimum range 0.4 m) and the estimate failed: the body slid 0.357 m, PX4 local position moved ~1.4 m, xy_valid went false 5.2 s into the yaw and refnav landed (Program FAILED, 7.2 s airborne). From the take-off point every heading except the start one faces a surface at 0.50-0.55 m, which breaks leg_policy face_min_m 0.8 (the rule every in-place turn on the route obeys). A first-yaw excitation needs a place whose whole yaw arc keeps that facing distance; there is none at this start, so it stays off.",
+      "first_turn_gate_s": 4.5,
+      "_first_turn_note": "first_turn_gate_s 4.5: after the first >= 20 deg in-place turn only, go once |PX4 - setpoint| < 0.03 m and speed < 0.02 m/s (timeout 4.5 s: run014's 60 deg turn recovered to < 0.03 m at +4.3 s). PX4's post-yaw velocity error: first yaw 0.085 (run015) / 0.091 (run016) m/s, later yaws <= 0.021 / 0.033. Leg 2 (after that turn) was every steady run's minimum leg (0.299, 0.299, 0.277 m) and in run016 spent 6.5 of its 8.1 s creeping on tube holds after a 0.173 m set-off drift.",
+      "yaw_accel_dps2": 0.0,
+      "_yaw_profile_note": "Before: the turn slewed the yaw setpoint at a constant 35 deg/s from the first tick to the last (yaw acceleration steps) while publishing trajectory_setpoint.yawspeed 0.0 (the message default; run021 published_trajectory), so PX4 followed on feedback alone: ~1.35 s of heading lag per turn (run016). yaw_accel_dps2 90: trapezoidal yaw-rate profile with the rate published as yawspeed feed-forward. 90 deg/s^2 = 35 deg/s over ~one yaw time constant of PX4's default attitude loop (MC_YAW_P 2.8 -> 0.36 s), so the loop can follow the ramp. Whether the abrupt profile drove part of the 5-20 cm in-place slide is the next run's question; the profile is standard multirotor practice either way.",
+      "arrive_tight_m": 0.0,
+      "arrive_tight_mps": 0.03,
+      "arrive_timeout_s": 3.0,
+      "_arrival_note": "run021 turn diagnosis (bag + truth): the in-place turn started while the aircraft was still arriving, 3.6 cm short and 3.5 cm/s median (13 cm / 7.8 cm/s worst) under the loose test (0.15 m, < 0.08 m/s for 0.3 s); the arrival ran on through the turn and overshot by up to 11 cm: the post-turn reversal. Stops without a turn moved 5-7 cm vs 9-10 cm with one, so yaw adds ~3-4 cm; VIO stayed within 2 cm of truth through every turn. The reversal comes from the tail of that distribution: median handoffs (3.6 cm, 3.5 cm/s) overshot ~1.4 cm, the worst (13 cm / 7.8 cm/s) 8-11 cm. arrive_tight_m 0.05 / arrive_tight_mps 0.03 for arrive_settle_s cuts the tail; 0.03 / 0.02 cost +33 s offline (timeouts) for the median cases; arrive_timeout_s 3.0 after capture falls back to the loose test (PX4's position loop closes with tau ~1.05 s, so ~3 tau reaches the tight bound from the 0.10 m capture). OFF for now (arrive_tight_m 0): in run021/run016 PX4's hold reached 5 cm / 3 cm/s for 0.3 s within 10 s at only 10/20 and 6/20 stops (p50 0.4-0.6 s when it did, p90 1.6-2.5 s), so the gate would often wait for its timeout: +15-30 s per run against the 180 s limit (run021 183.3 s). Enable when the yawspeed feed-forward has bought the time."
+    },
+    "_group119_note": "group119 = matthew930am (cf48cd8) + flow-corners (32b6d7f). Path mode as flow-corners flew it in run022 (148.2 s sim, Flight PASS 0.281 m), plus matthew930am's: yawspeed feed-forward of the yaw setpoint's rate with a trapezoidal in-place turn (yaw_accel_dps2 90; run021 showed refnav publishing yawspeed 0.0 while slewing, PX4 lagging ~1.4 s), first-turn gate, safe fault landing (refnav_params), and the SIM-ONLY stuck-landing forced disarm (sim_profile).",
+    "arc_min_tube_m": 0.16,
+    "_arc_tube_note": "arc_min_tube_m 0.16: a bend is an arc only where the arc's tube (clearance - reach)/2 is >= 0.16 m everywhere; else stop-and-turn in place. run022 (flow-corners, path mode): PX4 cross-track p95 in 'go' was 0.039-0.099 m without recent yaw but 0.122-0.159 m within 2 s of yawing while moving, at every speed band (0.08-0.6 m/s): the arc's yaw adds error that speed does not scale away. 7 of the 10 leg-1 tube holds followed 30 deg/s arc yaw. Maze tubes are 0.07-0.09 m, so maze bends become stop-and-turns (in-place turns after the first show <= 0.028 m/s velocity error); open floor keeps its arcs.",
+    "_group154_note": "group154 (from group119 749bca0): yaw feed-forward OFF (yaw_accel_dps2 0): heading overshoot after in-place turns p50 2.0/1.1 deg without it (run021/run022) vs 19.7/19.1 deg with it (run023/run024, max 52.7), with 0.1-0.2 m body swings (run024 first turn: setpoint 74.3 deg, heading to 94.5 then 68). Path lateral feed-forward clamped to lat_accel_mps2 and zero at stop-and-turn corners (run024 contact at M1: 0.54 m/s^2 lateral feed-forward from the corner's heading kink). Zero-width tubes do not gate.",
+    "center_stops": true,
+    "center_face_min_m": 0.8,
+    "_center_note": "center_stops: each stop-and-turn vertex moves to the highest-clearance point of its corner region (within half the shorter adjacent segment), keeping both adjacent segments at the requirement and the depth camera's facing rule (leg_policy face_min_m, or the original vertex's room if less). run029's minimum (0.320 m, M1) was the first in-place turn's ~0.25 m estimator drift at a turn point with 0.516 m clearance where its corner offers 0.566 m."
+  },
+  "refnav_params": {
+    "corridor_half_m": 0.32,
+    "leg_end_margin_m": 0.25,
+    "speed_mps": 0.3,
+    "lead_max_m": 0.25,
+    "arrive_m": 0.15,
+    "hold_s": 0.25,
+    "band_m": 0.25,
+    "corridor_wait_land_s": 10.0,
+    "yaw_rate_dps": 35.0,
+    "correction_max_m": 0.8,
+    "correction_step_m": 0.2,
+    "correction_deadband_m": 0.04,
+    "correction_max_sigma_m": 0.1,
+    "accel_mps2": 0.5,
+    "blend_turn_deg": 30.0,
+    "blocked_hold_s": 4.0,
+    "blocked_backoff_m": 0.2,
+    "blocked_recheck_s": 2.0,
+    "blocked_clear_margin_m": 0.15,
+    "depth_lost_pause_static": true,
+    "depth_lost_land_s": 5.0,
+    "stop_per_mps": 1.0,
+    "stop_base_m": 0.45,
+    "stop_min_m": 0.55,
+    "min_valid_frac_static": 0.15,
+    "min_valid_frac": 0.3,
+    "min_corridor_coverage": 0.45,
+    "confirm_frames": 3,
+    "align_timeout_s": 4.0,
+    "align_frames": 3,
+    "align_max_shift_m": 0.25,
+    "align_max_dz_m": 0.15,
+    "align_max_turn_deg": 0.0,
+    "tunnel_mode": true,
+    "tunnel_speed_mps": 0.3,
+    "tunnel_max_leg_m": 3.3,
+    "tunnel_face_tol_deg": 5.0,
+    "tunnel_align_max_age_s": 6.0,
+    "correction_rate_mps": 0.05,
+    "_note": "COMPETITION PROFILE: shared by planned routes and offline flight. corridor_half_m remains 0.32 m, which covers the resolved 7-inch horizontal footprint by about 0.026 m; it is not the planner margin. Planner minimum derives from vehicle radius + margin (about 0.4141 m). band_m = plan_band_m; body cruise height is cruise_z_m above floor.",
+    "_profile_note": "Team-approved loosening (2026-11-06 flights A-E, see HANDOFF): hold-and-recheck before landing on 'route blocked' (4 s hover, 0.2 m back-off, 2 s recheck); depth silence not counted in turns/holds, land after 5 s (was 3); 3 confirming frames (was 2); stop distance max(0.55, 0.45 + 1.0 * v) (was 0.9 fixed); corridor coverage 0.45 (was 0.6); valid pixels 0.15 while static (0.3 moving); corridor wait 10 s (was 8). NOT loosened: landing on unhealthy estimator / invalid PX4 position, yielding when PX4 leaves Offboard, never translating into a confirmed obstacle, the height limit, every PX4-side setting. tunnel_align_max_age_s 6 s: the mouth is 1.15 m past the entry point (where both rim edges are in view), ~4.3 s at 0.3 m/s with the ramp and the check; the aircraft does not turn in between.",
+    "_align_note": "Gate alignment (refnav.gate): lateral and height shifts of the crossing from the opening measured in the depth image, bounded by align_max_shift_m / align_max_dz_m. align_max_turn_deg 0: the heading estimate from the jambs near corners was within 7 deg on voxel-rendered depth (offline, 2026-11-06); enable after checking it on real sim depth. With one jamb out of view the opening is placed from the other jamb and the expected width.",
+    "_correction_note": "correction_*: bounded map corrections (coursenav.loc_node -> /coursenav/px4_correction) shift the REMAINING targets at every leg start. Offline (2026-11-06): a 0.40 m total cap and a 0.06 m deadband let the correction lag the drift by 0.1-0.2 m, which was the margin at the M3 corner and the window; VIO can drift 0.3-0.5 m over the 17 m course, so the cap is 0.8 m (the enclosure bounds the localizer anyway), 0.2 m per leg start, 4 cm deadband. correction_rate_mps 0.05: the targets also follow the correction during a leg (at most 5 cm per second of shift), so the aircraft stays on the corrected line between leg starts; offline the leg-start-only rule lagged 0.1 m at the M3 corner and grazed it.",
+    "safe_land": true,
+    "retreat_speed_mps": 0.1,
+    "_safe_land_note": "Fault landings descend only over a floor column clear of published surfaces within rotor reach + margin (coursenav.course.land_columns, full 3-D map floor..band top); otherwise refnav retraces its flown path to the nearest clear column first. run012: a fault land-in-place over the tube came down onto it. Estimator / PX4-position failures still land at once."
+  },
+  "_goals_note": "No goal coordinates are stored here (rule 9.5). Each goal names a part of the published OBJ and how to read it; coursenav/semantics.py measures it when the course is loaded. Fields xy/center/normal appear only in the loaded copy.",
+  "enclosure": {
+    "from": {
+      "group": "Net side",
+      "inset_m": 0.0
+    },
+    "_note": "The net's inner planes, measured on the OBJ's 'Net side' groups at load (coursenav.semantics). The net is 92% open: depth sees THROUGH it to unmapped things. Beyond it is UNKNOWN, not free: the localizer's likelihood field is 0 there and the body may not be there (live diagnosis 2026-11-06)."
+  },
+  "chicane_scoring": {
+    "time_points_per_s": 0.05,
+    "clearance_min_m": 0.45,
+    "clearance_penalty_per_cm": 0.5,
+    "facing_penalty": 10.0,
+    "alignment_penalty": 10.0,
+    "_note": "Chicane choice (planner.plan_options): score = option points - time_points_per_s * estimated time - clearance_penalty_per_cm per cm the plan's min clearance is below clearance_min_m - facing_penalty per leg end facing a surface closer than leg_policy.face_min_m (or an infeasible crossing) - alignment_penalty per gate whose edges the camera cannot see from its pre point. Scores and the reason are logged at planning time."
+  },
+  "leg_policy": {
+    "face_min_m": 0.8,
+    "arc_min_m": 0.6,
+    "move_max_m": 0.5,
+    "min_leg_m": 0.3,
+    "collinear_deg": 12.0,
+    "passage_min_frac": 0.4,
+    "_note": "Leg-end rule (planner.fix_leg_ends): no leg may end where a mapped surface lies within face_min_m along the next heading (the OAK's 0.4 m blind range put flight E's depth at 5 % valid facing the barrier at 0.47 m) or within arc_min_m anywhere in the in-place turn's arc; via points are moved back along their incoming leg up to move_max_m. Legs shorter than min_leg_m and corners under collinear_deg are merged. passage_min_frac: a straight leg with a roof and walls on both sides over this fraction is a passage (tunnel mode). overrun_min_m: no mapped surface within this distance beyond a leg's end along the leg's own heading (refnav's leg_end_margin_m 0.25 + 0.15 slack), else refnav calls the leg blocked. face_relaxed_m: a via point that cannot be moved to give face_min_m (maze corners: the divider end is 0.6-0.8 m ahead of the next leg) may face a surface down to this, which still clears the camera's blind range (0.4 m + the 0.12 m camera offset) by a margin.",
+    "overrun_min_m": 0.4,
+    "face_relaxed_m": 0.6,
+    "keep_path_clearance_m": 0.6,
+    "_keep_path_clearance_note": "planner._simplify_idx: shortcuts keep the clearance of the A* sub-path they replace, capped at 0.6 m = the A* prefer_m (beyond it A* itself does not centre), less half a cell. 0 restores greedy shortcuts."
+  },
+  "sim_profile": {
+    "fixture_offset_m": [0.0, 0.0], "_fixture_skybeta_note": "kestral_nav934am (skybeta): the drone starts ON the launch mark (rule 7.4; the FlyX training spawn was [0.0, 0.2])",
+    "_note": "SIMULATION / TRAINING ONLY. The prepared-training world spawns the aircraft 20 cm north of the launch mark (environment.json); this declared offset gives the localizer's prior and the offline tools their start. It is not competition configuration: at the venue the start is the mark itself and fly_course.py takes the start pose from the localizer.",
+    "refnav": {
+      "sim_stuck_land_disarm_s": 0.0
+    },
+    "_refnav_note": "DISABLED after run023 (cf48cd8): the forced disarm fired with the aircraft 0.75 m in the air. After a Boulder 5 strike on leg 20 knocked it ~0.9 m sideways, the rangefinder read 0.079 m over raised geometry (not the floor), PX4's estimate had jumped (VIO re-anchor, height -7.66 m), so both 'touchdown' and 'divergence' tests passed in the air; it fell and came to rest at 106 deg tilt. A short rangefinder reading is not evidence of touchdown wherever anything is mapped below the flight path. Kept off until a touchdown test independent of the rangefinder's surface exists. Original problem (run019: PX4 never confirming a real touchdown) remains open for the organizers."
+  }
+}
