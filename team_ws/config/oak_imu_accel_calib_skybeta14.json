@@ -1,0 +1,42 @@
+{
+ "model": "corrected = (raw - bias) / scale, per axis, oak_imu_frame",
+ "bias_mps2": [
+  -0.4847,
+  -0.1661,
+  0.3093
+ ],
+ "scale": [
+  0.99558,
+  1.00291,
+  0.99699
+ ],
+ "gyro_bias_rads": [
+  0.001746,
+  -0.001413,
+  -0.002532
+ ],
+ "R_px4body_from_camimu": [
+  [
+   -0.17657,
+   0.00597,
+   0.98427
+  ],
+  [
+   -0.01204,
+   0.99989,
+   -0.00823
+  ],
+  [
+   -0.98421,
+   -0.01331,
+   -0.17648
+  ]
+ ],
+ "poses": 7,
+ "residual_rms_mps2": 0.02996520317525893,
+ "recorded": "2026-11-07 drone 14, /oak/imu/data, still poses, gravity reference",
+ "note": "Refit 2026-11-07 ~06:00 on 7 steady poses (upside-down/left/right re-recorded resting). Held-out pose 4 and leave-one-out errors are the validation.",
+ "heldout_error_mps2": 0.1531,
+ "heldout_raw_error_mps2": 0.2351,
+ "loo_rms_mps2": 1.1230263613150326
+}
