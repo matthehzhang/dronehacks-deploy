@@ -38,9 +38,11 @@ class WindowVioHeight:
         legs = mission.p.legs
         windows = [i for i, leg in enumerate(legs)
                    if leg.get('align', {}).get('group') == 'window']
-        if not windows:
+        if not windows and not self.active:
             return vehicle
-        crossing = mission.leg >= windows[0]
+        # Skybeta return modes replace their route/leg metadata after pad contact.
+        # Retain the calibrated coordinate frame across that replacement too.
+        crossing = self.active or mission.leg >= windows[0]
         fresh = self.vio is not None and 0 <= now - self.vio[0] <= self.MAX_AGE_S
         px4_fresh = px4_received is not None and 0 <= now - px4_received <= .25
         if not self.active and not crossing:
@@ -64,7 +66,7 @@ class WindowVioHeight:
                 return vehicle
             self.active = True
             self.warn(f'!!!!!!!!!! WINDOW VIO HEIGHT ACTIVE: fixed NED offset {self.offset:+.3f} m '
-                      f'from {len(self.samples)} steady samples; retaining VIO through pad approach; '
+                      f'from {len(self.samples)} steady samples; retaining VIO through pad approach and any return; '
                       'height target unchanged !!!!!!!!!!')
         if fresh:
             down = self.vio[2] + self.offset
