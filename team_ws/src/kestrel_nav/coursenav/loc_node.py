@@ -47,12 +47,9 @@ from std_msgs.msg import String
 
 from refnav.depth import decode_depth, quat_to_mat
 
-from .drift import DriftEKF
-from .course import PROJECT, Grid2D, load_course, resolve, scan_field, scan_grid, see_through_grid
-from .objmap import CourseMap
-from .occgrid import LiveGrid, OccParams
+from .course import PROJECT, load_course
 from .localgrid import LocalGrid, LocalParams
-from .pf import CorrectionLimiter, CorrectionPF, PFParams, compose, inverse, project_correction
+from .frames import compose
 from .scan import depth_points_level, level_from_px4_q, scan_from_points
 
 PX4_QOS = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.TRANSIENT_LOCAL,
@@ -73,35 +70,11 @@ class LocNode(Node):
         super().__init__("coursenav_loc")
         dp = self.declare_parameter
         doc = load_course(dp("course_file", os.environ.get("KESTREL_COURSE_FILE", str(PROJECT / "course" / "course_v3.json"))).value)
-        self.depth_only = doc.get('navigation',{}).get('geometry_source') == 'depth_only'
-        self.field_zlo, self.field_zhi = float(dp("scan_zlo", 0.3).value), float(dp("scan_zhi", 1.6).value)
-        if self.depth_only:
-            # Empty compatibility field for shared odometry/reset/status plumbing.
-            # No origin geometry is loaded, matched, or used for corrections.
-            self.field = Grid2D(np.zeros((320,320),bool),np.asarray(doc['start']['xy'])-8.,.05)
-            net = np.zeros(self.field.occ.shape,bool)
-            distance = np.full(self.field.occ.shape,8.)
-        else:
-            cmap = CourseMap.load(resolve(doc, "map"))
-            self.field = scan_grid(cmap, self.field_zlo, self.field_zhi)
-            net = cmap.band(self.field_zlo, self.field_zhi, only_prefixes=("Net",))
-            distance = scan_field(self.field, doc)
-        pfp = PFParams(n=int(dp("particles", 600).value),
-                       use_cluster=bool(dp("use_cluster", True).value),
-                       min_beams=int(dp("min_beams", 8).value),
-                       min_fit_frac=float(dp("min_fit_frac", 0.35).value))
-        # beams ending on the net say nothing about the position along it (tails, A6)
-        self.pf = CorrectionPF(self.field, distance, pfp, uninformative=net)
-        self.limiter = CorrectionLimiter(float(dp("corr_rate_per_m", 0.05).value), float(dp("corr_rate_per_s", 0.01).value))
-        self.corr_sigma_dir = float(dp("corr_project_sigma_m", 0.10).value)
-        self.last_corr_odom = None
-        self.last_corr_t = None
-        st = doc["start"]
-        sxy = st.get("spawn_xy", st["xy"])           # declared spawn fixture when the course file has one
-        self.prior = (float(dp("init_x", float(sxy[0])).value), float(dp("init_y", float(sxy[1])).value),
-                      math.radians(float(dp("init_yaw_deg", float(st["yaw_deg"])).value)))
-        self.prior_sigma = (float(dp("init_sigma_xy", float(st["sigma_xy_m"])).value),
-                            math.radians(float(dp("init_sigma_yaw_deg", float(st["sigma_yaw_deg"])).value)))
+        self.depth_only = True
+        st = doc['start']
+        sxy = st.get('spawn_xy',st['xy'])
+        self.prior = (float(dp('init_x',float(sxy[0])).value),float(dp('init_y',float(sxy[1])).value),
+                      math.radians(float(dp('init_yaw_deg',float(st['yaw_deg'])).value)))
         self.base_frame = dp("base_frame", "base_link").value
         self.rmax = float(dp("scan_rmax", 4.0).value)
         self.cov_floor_xy = float(dp("cov_floor_xy_m", 0.05).value)
@@ -110,13 +83,6 @@ class LocNode(Node):
         self.snap_every = float(dp("snapshot_every_s", 0.0).value)   # > 0: save scan snapshots (tools/scan_snapshot.py)
         self.snap_t = None
         self.live = None
-        if bool(dp("live_map", True).value) and not self.depth_only:
-            self.live = LiveGrid(self.field, OccParams(use_in_pf=bool(dp("use_landmarks", False).value),
-                                                       gate_sigma_xy_m=float(dp("live_gate_sigma_xy_m", 0.06).value),
-                                                       gate_sigma_yaw_deg=float(dp("live_gate_sigma_yaw_deg", 2.0).value)),
-                                 see_through=see_through_grid(cmap, self.field_zlo, self.field_zhi))
-        self.prior_dist = self.pf.dist
-
         from tf2_ros import Buffer, TransformListener
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -155,7 +121,6 @@ class LocNode(Node):
         self._t_proc, self._cost = 0.0, []
         # the odometry -> course correction as an EKF state (coursenav.drift): published for the navigator
         # (coursenav.nav_node), which converts its course-frame paths into PX4's frame with it every tick
-        self.ekf = DriftEKF()
         self.pub_drift = self.create_publisher(String, dp("drift_topic", "/coursenav/drift").value, 10)
         latched = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                              history=HistoryPolicy.KEEP_LAST, depth=1)
@@ -203,9 +168,7 @@ class LocNode(Node):
                            "beams_depth", "ess", "vio_ok"])
         self.create_timer(0.5, self._status)
         self.create_timer(0.25, self._publish_local)
-        if self.live is not None:
-            self.create_timer(1.0, self._publish_occ)
-        self.get_logger().info(f"shadow localizer: prior {np.round(self.prior, 3)} sigma {self.prior_sigma}; "
+        self.get_logger().info(f"VIO-depth mapper: launch fixture {np.round(self.prior, 3)}; "
                                f"depth {depth_topic}; log {self.log_path}")
 
     # ------------------------------------------------------------------ inputs
@@ -250,22 +213,14 @@ class LocNode(Node):
         t = stamp_s(m.header)
         p, q = m.pose.pose.position, m.pose.pose.orientation
         pose = np.array([p.x, p.y, yaw_of_xyzw(q.x, q.y, q.z, q.w)])
-        if self.last_odom is not None:
-            if math.hypot(*(pose[:2] - self.last_odom[1][:2])) > 0.5 and self.pf.ready:
-                self.pf.reanchor(self.last_odom[1], pose)          # VIO reset: keep the body continuous
-                self.resets += 1
-                self.local = LocalGrid(self.local.p)
-                self.local_stamp = None
-                self.local_height = None
-                self.local_error = 'VIO reset: local observations withdrawn'
-                self.get_logger().warning("VIO jump > 0.5 m: re-anchored the correction")
+        if self.last_odom is not None and math.hypot(*(pose[:2]-self.last_odom[1][:2])) > .5:
+            self.resets += 1
+            self.local = LocalGrid(self.local.p)
+            self.local_stamp = None
+            self.local_height = None
+            self.local_error = 'VIO reset: observations withdrawn'
         self.last_odom = (t, pose)
         self.odom_hist.append((t, pose, p.z, m))
-        if not self.pf.ready:
-            self.pf.init(self.prior, *self.prior_sigma, pose)
-            self.get_logger().info("particle filter initialised from the course start prior")
-        if self.T_mean is not None:
-            self._publish_odom(m, pose)
 
     def _odom_at(self, t):
         if not self.odom_hist:
@@ -286,16 +241,10 @@ class LocNode(Node):
         return 0 <= elapsed < 1.0 / self.adaptive_hz
 
     def _on_depth(self, m):
-        if self.K is None or self.att is None or not self.pf.ready:
+        if self.K is None or self.att is None or self.last_odom is None:
             return
-        # kestral_nav934am (skybeta) adaptive rate: once confident (sigma_xy < 0.05 m, sigma_yaw < 2 deg), process
-        # at most adaptive_hz scans/s; full rate when confidence drops. Corrections are rate-limited anyway.
-        if self.adaptive_hz > 0 and self.last_est is not None:
-            cov = self.last_est[2]
-            confident = math.sqrt(max(cov[0, 0], cov[1, 1])) < 0.05 and math.degrees(math.sqrt(cov[2, 2])) < 2.0
-            if confident and self._scan_rate_limited():
-                return
-        t_cpu = time.process_time()
+        if self.adaptive_hz > 0 and self._scan_rate_limited():
+            return
         if self.cam_cal is None:
             try:
                 self.cam_cal = (m.header.frame_id, *self._tf(m.header.frame_id))
@@ -314,164 +263,21 @@ class LocNode(Node):
         R_level = level_from_px4_q(self.att)
         h = self.height[1] if self.height is not None else 0.8
         pts = depth_points_level(d, self.K, self.cam_cal[1], self.cam_cal[2], R_level)
-        if self.depth_only:
-            # The prior matcher is diagnostic infrastructure only in this mode.
-            # Neither its fit nor its correction may influence local geometry.
-            pose = od[1]
-            if float(np.mean(np.isfinite(d) & (d > 0))) >= .3:
-                if self._integrate_local(t,pose,pts,h):
-                    self._publish_local()
-            else:
-                self.local_error = 'depth valid fraction below .30; local map not refreshed'
-            nominal_body = compose(self.nominal,pose)
-            self.pub_drift.publish(String(data=json.dumps(dict(stamp=t,delta=[0.,0.,0.],
-                nominal=nominal_body.tolist(),fixture=list(map(float,self.nominal)),
-                sigma_xy=None,accepted=0,rejected=0,resets=self.resets,uncorrected=True,
-                source='vio_only_no_prior_matching'))))
-            self._t_proc = self._scan_rate_now()
-            return
-        scan = scan_from_points(pts, h, self.field_zlo, self.field_zhi, rmax=self.rmax)
-        n_depth = len(scan)
-        self.counts["beams_depth"] = n_depth
+        # The prior matcher is diagnostic infrastructure only in this mode.
+        # Neither its fit nor its correction may influence local geometry.
         pose = od[1]
-        dt = 0.0 if self.last_update_t is None else max(0.0, t - self.last_update_t)
-        self.pf.predict(pose, dt, self.vio_ok)
-        if len(scan) == 0:
-            self.counts["empty_scans"] += 1
-        elif self.pf.update(pose, scan):
-            self.counts["updates"] += 1
-        self.last_update_t = t
-        mean, cov = self.pf.estimate(pose)
-        self.T_mean = compose(mean, inverse(pose))
-        # The PF's match-to-prior confidence must not disable aircraft-relative
-        # collision mapping. Keep this map rigidly attached to the VIO launch
-        # frame; never feed these uncertain course placements back into PF.
         if float(np.mean(np.isfinite(d) & (d > 0))) >= .3:
-            if self._integrate_local(t, pose, pts, h):
+            if self._integrate_local(t,pose,pts,h):
                 self._publish_local()
         else:
             self.local_error = 'depth valid fraction below .30; local map not refreshed'
-        if self.live is not None:
-            self.live.integrate(mean, scan, cov)              # gated on the localizer's confidence
-            if self.live.p.use_in_pf:
-                f = self.live.landmark_field()
-                self.pf.set_distance(self.prior_dist if f is None else f)
-        self.last_est = (t, mean, cov, pose, h, n_depth)
+        nominal_body = compose(self.nominal,pose)
+        self.pub_drift.publish(String(data=json.dumps(dict(stamp=t,delta=[0.,0.,0.],
+            nominal=nominal_body.tolist(),fixture=list(map(float,self.nominal)),
+            sigma_xy=None,accepted=0,rejected=0,resets=self.resets,uncorrected=True,
+            source='vio_only_no_prior_matching'))))
         self._t_proc = self._scan_rate_now()
-        self._cost.append(time.process_time() - t_cpu)
-        if len(self._cost) >= 50:                  # measured per-frame CPU cost, for the drone's first runs
-            self.get_logger().info(f"scan cost: mean {1000 * np.mean(self._cost):.1f} ms CPU/frame "
-                                   f"(p90 {1000 * np.percentile(self._cost, 90):.1f} ms) over {len(self._cost)} frames")
-            self._cost = []
-        self._publish_pose(m.header.stamp, mean, cov, od[2])
-        nominal_body = compose(self.nominal, pose)
-        self.ekf.predict(nominal_body, dt)
-        if self.counts["updates"] >= self.min_updates_for_corr:
-            self.ekf.update(mean, cov, nominal_body)
-        if self.ekf.ready:
-            self.pub_drift.publish(String(data=json.dumps({
-                "stamp": t, "delta": [float(v) for v in self.ekf.x], "nominal": [float(v) for v in nominal_body],
-                "fixture": [float(v) for v in self.nominal], "sigma_xy": self.ekf.sigma_xy(),
-                "accepted": self.ekf.accepted, "rejected": self.ekf.rejected, "resets": self.ekf.resets})))
-        elif self.publish_zero_drift:
-            # kestral_nav934am (skybeta): no correction yet (the EKF starts after min_updates_for_correction PF
-            # updates; on the ground the fit gate can refuse every scan). Publish ZERO drift: VIO + the start
-            # fixture is the estimate, as the flight already uses. The navigator plans nothing without a drift
-            # message (Gazebo: no leg-1 path for > 40 s on a Jetson-sized CPU budget).
-            self.pub_drift.publish(String(data=json.dumps({
-                "stamp": t, "delta": [0.0, 0.0, 0.0], "nominal": [float(v) for v in nominal_body],
-                "fixture": [float(v) for v in self.nominal], "sigma_xy": None,
-                "accepted": 0, "rejected": 0, "resets": 0, "uncorrected": True})))
-        if self.counts["updates"] >= self.min_updates_for_corr:
-            nominal = compose(self.nominal, pose)                     # where VIO + fixture put the body
-            raw = np.array([mean[0] - nominal[0], mean[1] - nominal[1]])   # course ENU drift of that belief
-            # only along the directions this scan geometry constrains, and no faster than drift can grow
-            _, kept, P = project_correction(raw, cov, self.corr_sigma_dir)
-            travelled = 0.0 if self.last_corr_odom is None else math.hypot(*(pose[:2] - self.last_corr_odom[:2]))
-            dt_c = 0.0 if self.last_corr_t is None else max(0.0, t - self.last_corr_t)
-            self.last_corr_odom, self.last_corr_t = pose, t
-            prev = self.limiter.out if self.limiter.out is not None else raw
-            target = prev + P @ (raw - prev)                        # move only along the measured directions
-            lim = self.limiter.step(target, travelled, dt_c)
-            self.counts["corr_kept_dirs"] = kept
-            c = self._V3()
-            c.header.stamp = m.header.stamp
-            c.header.frame_id = "px4_local_ned_target_correction"
-            c.vector.x, c.vector.y = float(-lim[1]), float(-lim[0])   # NED shift to ADD to PX4-frame targets
-            c.vector.z = float(max(self.cov_floor_xy, math.sqrt(max(cov[0, 0], cov[1, 1]))))
-            self.pub_corr.publish(c)
-        if self.snap_every > 0 and (self.snap_t is None or t - self.snap_t >= self.snap_every):
-            self.snap_t = t
-            self._snapshot(t, mean, cov, pose, h, scan)
-        sd = np.sqrt(np.maximum(np.diag(cov), 0))
-        self.log.writerow([f"{t:.4f}", *(f"{v:.4f}" for v in mean), *(f"{v:.4f}" for v in sd),
-                           *(f"{v:.4f}" for v in pose), f"{h:.3f}", n_depth, f"{self.pf.ess():.0f}",
-                           int(self.vio_ok)])
-
-    def _snapshot(self, t, mean, cov, odom, h, scan):
-        """Everything tools/scan_snapshot.py needs to draw this update's beams over the map."""
-        self.snap_dir.mkdir(parents=True, exist_ok=True)
-        np.savez_compressed(self.snap_dir / f"snap_{t:012.3f}.npz", t=t, mean=mean, cov=cov, odom=odom, height=h,
-                            bearing=scan.bearing, range=scan.range, sigma=scan.sigma,
-                            particles=self.pf.body(odom), weights=self.pf.w)
-
-    # ------------------------------------------------------------------ outputs
-    def _cov6(self, cov, z_var=0.01, rp_var=0.0004):
-        c = np.zeros((6, 6))
-        c[0, 0] = max(cov[0, 0], self.cov_floor_xy ** 2)
-        c[1, 1] = max(cov[1, 1], self.cov_floor_xy ** 2)
-        c[0, 1] = c[1, 0] = cov[0, 1]
-        c[2, 2] = z_var
-        c[3, 3] = c[4, 4] = rp_var
-        c[5, 5] = max(cov[2, 2], self.cov_floor_yaw ** 2)
-        return [float(v) for v in c.ravel()]
-
-    def _publish_pose(self, stamp, mean, cov, z):
-        msg = PoseWithCovarianceStamped()
-        msg.header.stamp = stamp
-        msg.header.frame_id = "course"
-        msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z = float(mean[0]), float(mean[1]), float(z)
-        msg.pose.pose.orientation.z, msg.pose.pose.orientation.w = math.sin(mean[2] / 2), math.cos(mean[2] / 2)
-        msg.pose.covariance = self._cov6(cov)
-        self.pub_pose.publish(msg)
-
-    def _publish_odom(self, m, pose):
-        """The VIO sample re-expressed in the course frame through the current correction."""
-        tx, ty, th = self.T_mean
-        c, s = math.cos(th), math.sin(th)
-        p, q = m.pose.pose.position, m.pose.pose.orientation
-        out = Odometry()
-        out.header.stamp = m.header.stamp
-        out.header.frame_id, out.child_frame_id = "course", m.child_frame_id
-        out.pose.pose.position.x = tx + c * p.x - s * p.y
-        out.pose.pose.position.y = ty + s * p.x + c * p.y
-        out.pose.pose.position.z = p.z
-        # q_course = q_yaw(th) * q_odom   (x, y, z, w)
-        hw, hz = math.cos(th / 2), math.sin(th / 2)
-        out.pose.pose.orientation.w = hw * q.w - hz * q.z
-        out.pose.pose.orientation.x = hw * q.x - hz * q.y
-        out.pose.pose.orientation.y = hw * q.y + hz * q.x
-        out.pose.pose.orientation.z = hw * q.z + hz * q.w
-        cov = self.last_est[2] if self.last_est is not None else np.diag([0.09, 0.09, 0.02])
-        vio_cov = np.asarray(m.pose.covariance).reshape(6, 6)
-        out.pose.covariance = self._cov6(cov, z_var=max(vio_cov[2, 2], 1e-4), rp_var=max(vio_cov[3, 3], 1e-5))
-        out.twist = m.twist                         # body-frame twist is frame independent
-        self.pub_odom.publish(out)
-
-    def _publish_occ(self):
-        g = self.live
-        msg = OccupancyGrid()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "course"
-        nx, ny = g.L.shape
-        msg.info.resolution = float(g.prior.res)
-        msg.info.width, msg.info.height = nx, ny
-        msg.info.origin.position.x, msg.info.origin.position.y = (float(v) for v in g.prior.origin)
-        msg.info.origin.orientation.w = 1.0
-        prob = np.rint(g.probability() * 100).astype(np.int8)
-        prob[g.seen == 0] = -1
-        msg.data = prob.T.ravel().tolist()                    # row-major, x fastest
-        self.pub_occ.publish(msg)
+        return
 
     def _integrate_local(self, captured, pose, points, height):
         now = self.get_clock().now().nanoseconds*1e-9
@@ -511,30 +317,13 @@ class LocNode(Node):
         self.pub_local.publish(msg)
 
     def _status(self):
-        st = dict(self.counts, resets=self.resets, vio_ok=self.vio_ok, ready=self.pf.ready,
-                  height_m=None if self.height is None else round(self.height[1], 3),
-                  ess=round(self.pf.ess()) if self.pf.ready else None,
-                  scans_skipped=self.pf.skipped, scan_fit=self.pf.last_fit,
-                  cluster_frac=round(self.pf.last_cluster_frac, 2),
-                  live_map=self.live.stats() if self.live is not None else None,
-                  local_map=dict(self.local.stats(),frame='coursenav_nominal',
-                                 gated_on_prior_fit=False,last_capture=self.local_stamp,error=self.local_error))
-        if self.last_est is not None:
-            t, mean, cov, pose, *_ = self.last_est
-            st.update(t=round(t, 3), x=round(float(mean[0]), 3), y=round(float(mean[1]), 3),
-                      yaw_deg=round(math.degrees(mean[2]), 2),
-                      sigma_xy=round(float(math.sqrt(max(cov[0, 0], cov[1, 1]))), 3),
-                      sigma_yaw_deg=round(math.degrees(math.sqrt(cov[2, 2])), 2))
-        self.pub_status.publish(String(data=json.dumps(st)))
+        self.pub_status.publish(String(data=json.dumps(dict(self.counts,resets=self.resets,
+            vio_ok=self.vio_ok,ready=self.last_odom is not None,source='vio_depth_only',
+            local_map=dict(self.local.stats(),frame='coursenav_nominal',last_capture=self.local_stamp,error=self.local_error)))))
         self.log_f.flush()
 
     def destroy_node(self):
-        try:
-            self.log_f.close()
-            if self.live is not None and self.live.scans_in:
-                self.live.save(self.occ_path, source="loc_node", log=str(self.log_path))
-        except Exception as e:                                # never let a record failure mask shutdown
-            self.get_logger().error(f"could not save the live map: {e}")
+        self.log_f.close()
         return super().destroy_node()
 
 

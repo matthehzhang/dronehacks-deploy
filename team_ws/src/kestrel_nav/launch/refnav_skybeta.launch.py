@@ -1,15 +1,4 @@
-"""group119 (workspace origin/group119 @ 749bca0) flying on skybeta: refnav + coursenav + fly_course.py,
-vendored unchanged, with refnav's px4_output:=skybeta (twist through the organizer flight interface).
-
-    ros2 launch kestrel_nav refnav_skybeta.launch.py
-    ros2 launch kestrel_nav refnav_skybeta.launch.py chicane:=gate_b
-
-/etc/skybeta/drone.env:  COMPETITOR_PKG=kestrel_nav  COMPETITOR_LAUNCH=refnav_skybeta.launch.py
-
-Start-up order on the drone: drone on the launch mark, stack up. Wait for refnav's "arm" phase in the
-log (it streams a hold setpoint; the interface needs a team setpoint within 1 s of the switch), THEN the
-pilot arms and switches to Position. refnav accepts the armed vehicle (accept_armed_start), climbs and flies.
-"""
+"""Skybeta VIO/depth receding-horizon waypoint mission."""
 import os
 from pathlib import Path
 
@@ -22,13 +11,12 @@ ROOT = Path(__file__).resolve().parent.parent          # package source root (sy
 
 ARGUMENTS = [
     ('pilot_verified_launch_radius_m', '0.0', 'OPT-IN: radius of pilot-verified free launch disc at cruise altitude; never overrides depth obstacles'),
-    ('course_file', str(ROOT / 'course' / 'course_depth_waypoints.json'), 'depth-only waypoint configuration (default), or explicit legacy course configuration'),
+    ('course_file', str(ROOT / 'course' / 'course_depth_waypoints.json'), 'depth-only waypoint and vehicle configuration'),
     ('max_altitude_m', '3.0', 'flight interface ceiling above the odometry origin'),
     ('min_altitude_m', '0.3', 'flight interface floor (pose setpoints only)'),
     ('max_speed_mps', '1.5', 'flight interface cap on a twist norm'),
     ('auto_offboard_on_arm', 'true', 'enter Offboard once when the pilot arms, then switches to Position'),
-    ('chicane', 'auto', 'legacy course selector: auto | window | gate_b; depth mode uses waypoint_file'),
-    ('depth_topic', '/kestrel_nav/depth', 'depth image for refnav and the localizer (host_depth)'),
+        ('depth_topic', '/kestrel_nav/depth', 'depth image for refnav and the localizer (host_depth)'),
     ('depth_info_topic', '/kestrel_nav/depth/camera_info', ''),
     ('depth_max_hz', '8.0', 'host_depth rate cap'),
     ('depth_max_range_m', '12.0', "host_depth range cap. refnav counts a corridor ray as OBSERVED if it returns any depth "
@@ -37,7 +25,6 @@ ARGUMENTS = [
     ('arm_wait_s', '600.0', 'refnav: how long the arm phase waits for the pilot to arm and switch to Position'),
     ('wait_s', '900.0', 'refnav: how long it waits for readiness before giving up'),
     ('landed_z', '0.10', 'landed body-origin height above the floor: PX4 dist_bottom 0.100 m on skybeta-14 (no distance_sensor topic there)'),
-    ('localizer_timeout', '120.0', 'fly_course: how long to wait for the localizer to converge on the mark'),
     ('use_sim_time', 'false', 'true only in a simulator that publishes /clock'),
     ('declared_heading_deg', '0.0', "navigator: flight frame heading vs the VIO origin. 0 on skybeta (the organizer bridge "
                                      "permutes cuVSLAM's start-relative ENU odometry directly); 90 was the FlyX lab bridge"),
@@ -70,7 +57,7 @@ def generate_launch_description():
     fly_env = dict(env)
     fly = ExecuteProcess(
         cmd=['python3', str(ROOT / 'fly_course.py'), '--event-start', '--skip-preflight', '--no-own-localizer', '--no-return', '--start-from-mark',
-             '--chicane', L('chicane'), '--landed-z', L('landed_z'), '--localizer-timeout', L('localizer_timeout'), '--',
+             '--landed-z', L('landed_z'), '--',
              '-p', 'px4_output:=skybeta', '-p', ['depth_topic:=', L('depth_topic')],
              '-p', ['depth_info_topic:=', L('depth_info_topic')],
              '-p', ['arm_wait_s:=', L('arm_wait_s')], '-p', ['wait_s:=', L('wait_s')],

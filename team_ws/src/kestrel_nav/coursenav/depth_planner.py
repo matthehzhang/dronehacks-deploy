@@ -47,6 +47,8 @@ class DepthPlanner:
         observed_clear = ndimage.distance_transform_edt(np.pad(free, 1))[1:-1, 1:-1]*res
         obstacle_clear = (ndimage.distance_transform_edt(~occupied)*res if occupied.any()
                           else np.full(prob.shape, math.inf))
+        self.observed_clear = observed_clear - res*math.sqrt(2)/2
+        self.obstacle_clear = obstacle_clear - res*math.sqrt(2)/2
         # Cell-centre raster uncertainty is included once, conservatively.
         self.clear = np.minimum(observed_clear, obstacle_clear) - res*math.sqrt(2)/2
         blocked = self.clear < self.need

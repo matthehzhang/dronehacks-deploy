@@ -12,8 +12,7 @@ There are no walls, buffers, gate widths or origin-derived clearance claims
 in that file. The declared launch fixture aligns their coordinates to VIO.
 
 `course/course_depth_waypoints.json` selects `geometry_source: depth_only`.
-The Skybeta launch now defaults to this configuration. The previous
-`course/course_v3.json` remains available as an explicit legacy override.
+The Skybeta launch now defaults to this configuration. Legacy navigation configurations and alternate launchers have been deleted.
 Depth mode does not load origin geometry in fly_course, NavNode or LocNode,
 does not run prior scan matching, and ignores PF drift corrections. Aircraft
 pose and the rolling grid stay in the same VIO launch frame. Existing PX4
@@ -66,9 +65,7 @@ that actual volume:
 ros2 launch kestrel_nav refnav_skybeta.launch.py pilot_verified_launch_radius_m:=0.8
 ```
 
-The legacy configuration is selected with `course_file:=<absolute path to
-course/course_v3.json>`. Waypoint intent mode uses the exported window route;
-the legacy `chicane` selector does not change this explicit waypoint list.
+The explicit waypoint list selects the window route.
 
 ## Diagnostics
 
@@ -102,3 +99,36 @@ thin nets, map resolution and genuinely impassable gaps can still prevent
 progress. There is no forced minimum speed or claim that all deadlocks are
 impossible. Raw depth and local occupancy must be retained for future flight
 diagnosis. The new mode still requires Gazebo and real-flight validation.
+
+
+## Legacy removal
+
+All alternate package launchers, nested historical planner copies, origin OBJ/
+voxel maps, PF/landmark matching, complete-course planning, return/diagnostic
+missions, and pose/carrot movement implementations have been deleted. The ROS
+shell uses the horizon path follower exclusively. There is no new startup
+rejection check. Existing sensor/authority/arm/disarm supervision remains.
+Historical evidence outside the runtime package remains as an audit record.
+
+
+## Gazebo cleanup audit (2026-11-08)
+
+The original-mark case without pilot launch clearance did not advance: unknown
+footprint coverage repeatedly prevented a route. The recorded grid separates
+that from obstacle clearance: late scan samples have about 0.035 m to uncertain
+space versus 1.917 m to a measured obstacle. The display formerly showed an
+unknown-footprint erosion band in purple; it now keeps that region unknown and
+reserves purple for measured-obstacle inflation. This test failed its bounded
+navigation objective and then disarmed through test cleanup.
+
+With the explicitly enabled 0.8 m pilot-verified launch disc, the next original-
+mark test reached the entrance target. This is a partial entrance test, not
+full-course or real-flight qualification. The launch disc remains opt-in,
+fixed at launch, and never overrides measured occupied cells.
+
+
+The final east-5-cm case also reached the entrance with the opt-in disc, with
+zero recorded touches and confirmed disarm. Both are partial first-target tests
+(`flight_completed=false` by design), not full-course runs. An intermediate
+Gazebo attempt never spawned the aircraft model and was stopped unarmed; its
+retry is the east-offset result. Final reduced-package suite: 32 passed.

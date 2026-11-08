@@ -3,10 +3,8 @@
   <name>kestrel_nav</name>
   <version>0.1.0</version>
   <description>
-    Team wide-kestrel competitor package for the skybeta stack: plans the DroneHacks course
-    from the published OBJ (coursenav planner), optionally refines the start pose with the
-    coursenav particle-filter localizer, and flies the plan through /skybeta/setpoint/pose.
-    Never touches /fmu/in/*; skybeta_flight_interface owns Offboard and the safety envelope.
+    VIO/depth receding-horizon navigation toward global waypoints through
+    the organizer Skybeta flight interface. No origin geometry planner.
   </description>
   <maintainer email="vc.matthewzhang@gmail.com">Matthew Zhang</maintainer>
   <license>Apache-2.0</license>

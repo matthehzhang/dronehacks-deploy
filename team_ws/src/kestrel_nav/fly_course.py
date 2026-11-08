@@ -1,30 +1,5 @@
 #!/usr/bin/env python3
-"""The competition start: ONE command plans the course onboard and flies it (rules 5.2, 5.4, 7.4).
-
-    python3 fly_course.py                      # localizer estimate -> goals from the OBJ -> plan -> fly
-    python3 fly_course.py --dry-run            # plan and print only (no ROS node is started, nothing arms)
-    python3 fly_course.py --event-start        # rule 7.4: the team armed on the mark; start on the signal
-
-What happens, in order:
-  1. The start pose comes from the coursenav localizer, which runs from boot as an onboard service
-     (/coursenav/status: x, y, yaw, sigma). It has already converged on the ground. With --start the
-     pose is given on the command line (tests); with --allow-prior the course file's declared start
-     is used if the localizer is silent (training only).
-  2. The landed body height comes from the downward rangefinder (/fmu/out/distance_sensor + its
-     mount offset), so the body flies at the course's cruise height above the FLOOR.
-  3. Goals are derived from the published OBJ (coursenav.semantics), every chicane option is planned
-     and scored, the best is chosen (coursenav.planner.plan_options). The scores, the reason, the
-     time estimate and refnav's blocking rule replayed on the map are printed. A predicted false block
-     aborts (unless --force).
-  4. A run record (plans/route + the scored plan) is written under logs/run_<stamp>/ (gitignored; a
-     record of THIS run, never an input to a later one: rule 6.4).
-  5. refnav (refnav.node) starts with that route, the course's refnav_params, the localizer's
-     correction topic and, with --event-start, accept_armed_start. It takes off promptly (PX4
-     auto-disarms an idle armed vehicle; that timeout is not changed).
-
-route.json and plans/route_*.json are not needed. No coordinate is stored anywhere: the plan is
-computed here from the map and the start estimate every time.
-"""
+"""Start the depth-only receding-horizon mission from global waypoint intent."""
 from __future__ import annotations
 
 import argparse
@@ -139,126 +114,19 @@ def start_navigator(run_dir):
     return subprocess.Popen(args, cwd=str(PROJECT), env=env, stdout=log, stderr=subprocess.STDOUT)
 
 
-def wait_for_start(timeout_s, min_updates=30, max_sigma=0.15, want_height=True):
-    """Spin a small ROS node until the localizer reports a converged estimate (and the rangefinder a
-    landed height). -> (x, y, yaw_deg, sigma_xy, height_m or None, status dict)."""
-    import rclpy
-    from rclpy.node import Node
-    from std_msgs.msg import String
-    from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-
-    class Listener(Node):
-        def __init__(self):
-            super().__init__("fly_course_start")
-            self.status = None
-            self.height = None
-            self.create_subscription(String, "/coursenav/status", self._st, 10)
-            try:
-                from px4_msgs.msg import DistanceSensor
-                qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.TRANSIENT_LOCAL,
-                                 history=HistoryPolicy.KEEP_LAST, depth=1)
-                self.create_subscription(DistanceSensor, "/fmu/out/distance_sensor", self._rf, qos)
-            except ImportError:
-                pass
-
-        def _st(self, m):
-            try:
-                self.status = json.loads(m.data)
-            except ValueError:
-                pass
-
-        def _rf(self, m):
-            if 0 < m.current_distance <= m.max_distance:
-                self.height = float(m.current_distance) + RANGEFINDER_BELOW_ORIGIN_M
-
-    rclpy.init(args=["fly_course_start", "--ros-args", "-p", "use_sim_time:=true"]
-               if (PROJECT / "flight.yaml").exists() and "use_sim_time: true" in (PROJECT / "flight.yaml").read_text()
-               else None)
-    node = Listener()
-    t0 = time.monotonic()
-    out = None
-    try:
-        while time.monotonic() - t0 < timeout_s:
-            rclpy.spin_once(node, timeout_sec=0.2)
-            st = node.status
-            if st and st.get("ready") and st.get("updates", 0) >= min_updates and st.get("sigma_xy") is not None \
-                    and st["sigma_xy"] <= max_sigma and (node.height is not None or not want_height):
-                out = (st["x"], st["y"], st["yaw_deg"], st["sigma_xy"], node.height, st)
-                break
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
-    return out
-
-
-def _free_start(blocked, start_xy, max_m=0.3):
-    """start_xy, or the nearest unblocked cell centre within max_m of it (None-safe: start_xy if none)."""
-    import numpy as np
-    xy = np.asarray(start_xy, float)
-    ij = blocked.ij(xy)
-    if not blocked.inside(ij) or not blocked.occ[ij[0], ij[1]]:
-        return tuple(start_xy)
-    n = int(math.ceil(max_m / blocked.res))
-    best, bd = None, math.inf
-    for di in range(-n, n + 1):
-        for dj in range(-n, n + 1):
-            c = np.array([ij[0] + di, ij[1] + dj])
-            if blocked.inside(c) and not blocked.occ[c[0], c[1]]:
-                d = math.dist(blocked.xy(c), xy)
-                if d < bd:
-                    best, bd = blocked.xy(c), d
-    if best is None or bd > max_m:
-        return tuple(start_xy)
-    print(f"start ({xy[0]:.3f}, {xy[1]:.3f}) is inside the planning margin: planning from the nearest free point "
-          f"({best[0]:.3f}, {best[1]:.3f}), {bd:.3f} m away", flush=True)
-    return (float(best[0]), float(best[1]))
-
-
-def plan_now(start_xy, start_yaw_deg, chicane="auto", prepared=None):
-    """Goals from the OBJ, every option planned and scored, the best chosen. -> (plan, route, legs, doc)."""
-    from coursenav import planner
-    from coursenav.course import load_course, plan_grids, resolve
-    from coursenav.objmap import CourseMap
-    doc = prepared[0] if prepared is not None else load_course()
-    if doc.get('navigation',{}).get('geometry_source') == 'depth_only':
-        from coursenav.waypoint_intent import plan_intent
-        return plan_intent(doc,start_xy,start_yaw_deg)
-    if prepared is None:
-        doc = load_course()
-        cmap = CourseMap.load(resolve(doc, "map"))
-        grids = plan_grids(cmap, doc)
-    else:
-        doc, cmap, grids = prepared
-    obst, blocked, clearance = grids
-    reach = float(doc["vehicle"]["radius_m"])
-    # kestral_nav934am (skybeta), the one planning change to group119: the venue launch mark is ~0.40 m from
-    # the barrier, inside the 0.414 m planning margin, so planning from it fails ("start is blocked"; the
-    # FlyX spawn was 0.2 m north). Plan from the nearest free cell within 0.3 m; the route stays relative
-    # to the REAL start, so the first leg simply leaves the margin.
-    plan_xy = _free_start(blocked, start_xy)
-    if chicane == "auto":
-        res = planner.plan_options(doc, obst, blocked, clearance, start_xy=plan_xy, cmap=cmap)
-        p = res["plan"]
-    else:
-        p = planner.plan(doc, obst, blocked, clearance, start_xy=plan_xy, chicane=chicane, cmap=cmap)
-    yaw = math.radians(start_yaw_deg)
-    route = planner.to_route(p["waypoints"], start_xy, yaw)
-    legs = planner.to_legs(p["waypoints"], obst, clearance, reach)
-    return p, route, legs, doc
+def plan_now(start_xy,start_yaw_deg,chicane=None,prepared=None):
+    from coursenav.course import load_course
+    from coursenav.waypoint_intent import plan_intent
+    return plan_intent(prepared[0] if prepared else load_course(),start_xy,start_yaw_deg)
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dry-run", action="store_true", help="plan and print only; start nothing")
     ap.add_argument("--event-start", action="store_true", help="rule 7.4: accept an already armed, landed vehicle")
-    ap.add_argument("--chicane", choices=["auto", "window", "gate_b"], default="auto")
     ap.add_argument("--start", nargs=3, type=float, metavar=("X", "Y", "YAW_DEG"), help="skip the localizer (tests)")
-    ap.add_argument("--allow-prior", action="store_true",
-                    help="training only: use the course file's declared start if the localizer is silent")
-    ap.add_argument("--localizer-timeout", type=float, default=20.0)
     ap.add_argument("--landed-z", type=float, default=None, help="landed body height above the floor (else the rangefinder)")
     ap.add_argument("--hover", type=float, default=0.0)
-    ap.add_argument("--force", action="store_true", help="fly even with predicted false blocks")
     ap.add_argument("--no-own-localizer", action="store_true",
                     help="never start a localizer here (default: start one when none is publishing)")
     ap.add_argument("--skip-preflight", action="store_true", help="tests only: do not gate arming on preflight")
@@ -267,25 +135,15 @@ def main(argv=None):
                          "the drone is placed on the mark); the localizer still corrects in flight")
     ap.add_argument("--no-return", action="store_true",
                     help="never fly the automatic return after the pad landing (skybeta: the pilot arms, not refnav)")
-    ap.add_argument("--nav", choices=["path", "legs", "steady"], default=None,
-                    help="path: stops only, cruise legs along the navigator's smoothed paths on the fused map "
-                         "(coursenav.nav_node + the localizer's drift EKF); legs: the planner's waypoint route with "
-                         "bounded corrections; steady: legs flown straight, stopping at every vertex, turning only "
-                         "while stopped, inside each leg's tube (navigation.steady). Default: navigation.mode")
     ap.add_argument("ros_args", nargs="*", help="extra refnav -p name:=value settings")
     a = ap.parse_args(argv)
 
     t0 = time.monotonic()
     # prepare the map and goals first: the only part that takes seconds, independent of the start pose
-    from coursenav.course import load_course, plan_grids, resolve
-    from coursenav.objmap import CourseMap
+    from coursenav.course import load_course
     doc = load_course()
-    if doc.get('navigation',{}).get('geometry_source') == 'depth_only':
-        prepared = (doc,None,None)
-    else:
-        cmap = CourseMap.load(resolve(doc, "map"))
-        prepared = (doc, cmap, plan_grids(cmap, doc))
-    print(f"course and map ready in {time.monotonic() - t0:.1f} s", flush=True)
+    prepared = (doc,None,None)
+    print(f"waypoint configuration ready in {time.monotonic() - t0:.1f} s", flush=True)
 
     stamp = time.strftime("%Y%m%dT%H%M%S")
     run_dir = run_record_dir(stamp)
@@ -324,33 +182,16 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
     source = "command line"
     if a.start:
         sx, sy, syaw = a.start
-    elif getattr(a, "start_from_mark", False):
-        sx, sy = doc["start"]["xy"]
-        syaw = doc["start"]["yaw_deg"]
-        source = "launch mark (course file)"
     else:
-        got = None
-        try:
-            got = wait_for_start(a.localizer_timeout, want_height=height is None)
-        except ImportError as e:
-            print(f"no ROS here ({e})", flush=True)
-        if got is not None:
-            sx, sy, syaw, sigma, h, st = got
-            source = f"localizer (sigma {sigma:.3f} m, {st.get('updates')} updates)"
-            if height is None:
-                height = h
-        elif a.allow_prior:
-            sx, sy = doc["start"].get("spawn_xy", doc["start"]["xy"])
-            syaw = doc["start"]["yaw_deg"]
-            source = "course file prior (training only)"
-        else:
-            raise SystemExit("no converged localizer estimate: start the coursenav service, or --allow-prior (training)")
+        sx,sy=doc['start']['xy']
+        syaw=doc['start']['yaw_deg']
+        source='declared VIO launch fixture'
     if height is None:
-        height = 0.18
-        print("landed height not measured: assuming 0.18 m (refnav test fixture)", flush=True)
+        height=.18
+        print('landed height not measured: assuming 0.18 m (test fixture)',flush=True)
 
     t1 = time.monotonic()
-    p, route, legs, doc = plan_now((sx, sy), syaw, a.chicane, prepared)
+    p, route, legs, doc = plan_now((sx, sy), syaw, None, prepared)
     dt_plan = time.monotonic() - t1
     cruise = float(doc["cruise_z_m"])
     height_m = cruise - height
@@ -363,46 +204,20 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
         print(f"  {len(route)} legs, {p['length_m']:.2f} m, min clearance {p['min_clearance_m']:.2f} m, estimated "
               f"{p['time_estimate_s']:.0f} s; leg-end violations {p['leg_end_violations']}; predicted false blocks "
               f"{p['predicted_false_blocks']}")
-    if p["predicted_false_blocks"] and not a.force:
-        raise SystemExit("refnav's rule replayed on the map predicts a false stop: not flying (--force to override)")
 
     params = {k: v for k, v in doc.get("refnav_params", {}).items() if not k.startswith("_")}
     # simulator-configuration workarounds; refnav ignores them unless the node runs on sim time
     params.update({k: v for k, v in doc.get("sim_profile", {}).get("refnav", {}).items() if not k.startswith("_")})
     navcfg = {k: v for k, v in doc.get("navigation", {}).items() if not k.startswith("_")}
-    nav_mode = a.nav or navcfg.get("mode", "legs")
-    nav_legs = None
-    if nav_mode == "steady":
-        steady = {k: v for k, v in navcfg.get("steady", {}).items() if not k.startswith("_")}
-        resp, cap = steady.pop("tube_response_s", None), steady.pop("leg_speed_cap_mps", None)
-        params.update(steady)
-        if resp and cap:
-            from coursenav.planner import leg_speed_mps
-            for L in legs:
-                if L.get("tube_m"):
-                    L["speed_mps"] = min(leg_speed_mps(L["tube_m"], resp, cap), L.get("end_room_mps", cap))
-        tubes = ", ".join(f"{L.get('tube_m', 0.0):.2f}" for L in legs)
-        speeds = ", ".join(f"{L.get('speed_mps', params['speed_mps']):.2f}" for L in legs)
-        print(f"navigation: steady mode, {len(route)} straight legs, stop and turn at every vertex; "
-              f"cross-track tubes (m): {tubes}; leg speeds (m/s): {speeds}")
-    if nav_mode == "path":
-        from coursenav.navplan import stops_and_legs
-        route, legs, nav_legs = stops_and_legs(p, (sx, sy), math.radians(syaw))
-        params.update({k: v for k, v in navcfg.get("refnav", {}).items() if not k.startswith("_")})
-        params["track_mode"] = "path"
-        params["correction_max_m"] = 0.0                # the drift EKF + whole-path conversion replace it
-        print(f"navigation: path mode, {len(route)} stops ({sum(L['path'] for L in nav_legs)} navigator legs)")
+    nav_mode = 'path'
+    yaw=math.radians(syaw);c,s=math.cos(yaw),math.sin(yaw)
+    nav_legs=[dict(name=w['name'],stop=w['xy'],goals=[w['xy']],path=True) for w in p['waypoints'][1:]]
+    params.update(navcfg.get('refnav',{}))
+    params.update(track_mode='path',local_horizon=True,corridor_search=True,correction_max_m=0.)
     route_doc = {"route": route, "legs": legs, "params": params,
                  "_note": f"RUN RECORD of fly_course.py at {stamp}: planned from start {source} "
                           f"({sx:.4f}, {sy:.4f}, {syaw:.2f} deg). Rule 6.4: never an input to a later run."}
-    from coursenav.course import land_columns
-    depth_only = navcfg.get('geometry_source') == 'depth_only'
-    route_doc["land_columns"] = [] if depth_only else land_columns(doc, prepared[1], (sx, sy), syaw)
-    if not depth_only and doc.get("return", {}).get("enabled", True) and not getattr(a, "no_return", False):
-        from coursenav.return_plan import route_spec
-        route_doc["automatic_return"] = route_spec(doc, (sx, sy, syaw), height)
-        print(f"automatic return after pad landing/disarm: candidate height {doc['return']['cruise_z_m']:.2f} m; "
-              "only after readiness, time and clearance checks; otherwise remain landed", flush=True)
+    route_doc['land_columns'] = []
     if nav_legs is not None:
         route_doc["nav_legs"] = nav_legs
         route_doc["start_xy"] = [float(sx), float(sy)]   # skybeta: the navigator pre-plans each leg from its start
@@ -437,7 +252,7 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
         ready, t_wait = run_dir / "navigator_ready", time.monotonic()
         while not ready.exists() and nav_proc.poll() is None and time.monotonic() - t_wait < 300.0:
             if int(time.monotonic() - t_wait) % 10 == 0:
-                print(f"waiting for the navigator to pre-plan the legs ({time.monotonic() - t_wait:.0f} s)", flush=True)
+                print(f"waiting for the navigator to initialise depth planning ({time.monotonic() - t_wait:.0f} s)", flush=True)
             time.sleep(1.0)
         require_sim_plan_ready(ready, nav_proc)
         print(f"navigator: {'ready' if ready.exists() else 'NOT ready (planning in flight)'} after "

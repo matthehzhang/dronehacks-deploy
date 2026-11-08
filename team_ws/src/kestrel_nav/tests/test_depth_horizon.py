@@ -134,8 +134,6 @@ def test_new_horizon_leaves_search_faces_path_before_translation():
 def test_waypoint_intent_never_loads_origin_geometry(monkeypatch):
     from coursenav.course import load_course, PROJECT
     from coursenav.waypoint_intent import plan_intent
-    from coursenav.objmap import CourseMap
-    monkeypatch.setattr(CourseMap,'load',lambda *a:pytest.fail('origin geometry loaded'))
     d=load_course(PROJECT/'course/course_depth_waypoints.json')
     p,route,legs,_=plan_intent(d,(-2.515,.914),90.)
     assert len(route)==7 and all(not L.get('align') and not L.get('tunnel') for L in legs)
@@ -148,10 +146,8 @@ def test_ros_depth_navigator_and_localizer_start_without_origin_map(tmp_path,mon
     from coursenav.course import PROJECT,load_course
     from coursenav.nav_node import NavNode
     from coursenav.loc_node import LocNode
-    from coursenav.objmap import CourseMap
     course=PROJECT/'course/course_depth_waypoints.json'
     monkeypatch.setenv('KESTREL_COURSE_FILE',str(course))
-    monkeypatch.setattr(CourseMap,'load',lambda *a:pytest.fail('origin geometry loaded'))
     doc=load_course(course)
     route=tmp_path/'route.json'
     route.write_text(json.dumps(dict(nav_legs=[dict(path=True,stop=[1.,0.],goals=[[1.,0.]])],
@@ -182,11 +178,46 @@ def test_ros_depth_navigator_and_localizer_start_without_origin_map(tmp_path,mon
 def test_depth_mode_cli_dry_run_never_starts_flight_or_loads_map(tmp_path,monkeypatch,capsys):
     import fly_course
     from coursenav.course import PROJECT
-    from coursenav.objmap import CourseMap
     monkeypatch.setenv('KESTREL_COURSE_FILE',str(PROJECT/'course/course_depth_waypoints.json'))
-    monkeypatch.setattr(CourseMap,'load',lambda *a:pytest.fail('origin geometry loaded'))
     monkeypatch.setattr(fly_course,'run_record_dir',lambda *a:tmp_path)
     monkeypatch.setattr(fly_course,'start_navigator',lambda *a:pytest.fail('flight started on dry run'))
     assert fly_course.main(['--dry-run','--skip-preflight','--no-own-localizer',
                            '--start-from-mark','--no-return','--landed-z','0.1'])==0
     assert 'live depth pending' in capsys.readouterr().out
+
+
+def test_package_contains_only_horizon_navigation():
+    from coursenav.course import PROJECT
+    for name in ('navigator.py','objmap.py','pf.py','occgrid.py','return_plan.py','offline_sim.py'):
+        assert not (PROJECT/'coursenav'/name).exists()
+    assert sorted(x.name for x in (PROJECT/'launch').glob('*.py'))==['refnav_skybeta.launch.py']
+    assert not (PROJECT/'maps/course_origin_5cm.npz').exists()
+    import ast
+    from refnav import core
+    tree=ast.parse((PROJECT/'refnav/core.py').read_text())
+    mission=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='Mission')
+    methods={n.name:n for n in mission.body if isinstance(n,ast.FunctionDef)}
+    assert '_go_pose' not in methods and '_advance' not in methods
+    assert len(methods['_go'].body)==1
+    assert core.Mission(core.Params())._path_leg()
+
+
+def test_unknown_footprint_band_is_not_published_as_an_obstacle():
+    from coursenav.nav_node import NavNode
+    from types import SimpleNamespace as NS
+    n=planner();prob=np.full((100,100),-1);prob[20:80,20:80]=10
+    n.update((-2.5,-2.5),.05,prob)
+    published=[]
+    fake=NS(depth_nav=n,pub_grid=NS(publish=published.append),
+            get_clock=lambda:NS(now=lambda:NS(to_msg=lambda:None)))
+    NavNode._publish_grid(fake)
+    cells=np.array(published[-1].data)
+    assert not np.any(cells==100) # no measured obstacles anywhere
+    assert np.any(cells==-1) and np.any(cells==0)
+
+
+def test_live_obstacle_guard_withdraws_horizon_instead_of_old_backoff_policy():
+    m=mission();m.on_path(2.,0,[(0.,0.),(1.,0.)],[0.,.2],pid=1)
+    m._obstacle(2.,Output('go'),m.last_v,.4,'on')
+    assert m.path is None and m.phase=='search' and m.v_cmd==0
+    assert m.counts['obstacle_stops']==1

@@ -2,7 +2,13 @@
 import json
 import math
 from .course import resolve
-from .planner import to_route, to_legs
+def to_route(wps,start,yaw):
+    c,s=math.cos(yaw),math.sin(yaw)
+    return [(round((w['xy'][0]-start[0])*c+(w['xy'][1]-start[1])*s,4),
+             round(-(w['xy'][0]-start[0])*s+(w['xy'][1]-start[1])*c,4)) for w in wps[1:]]
+
+def to_legs(wps):
+    return [dict(name=w['name'],mode='cruise',hold=True) for w in wps[1:]]
 
 
 def plan_intent(doc, start_xy, yaw_deg):
