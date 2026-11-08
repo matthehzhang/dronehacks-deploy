@@ -1,6 +1,6 @@
 diff -ruN a2/course/course_v3.json b/course/course_v3.json
---- a/course/course_v3.json	2026-11-08 02:29:46.622268184 -0600
-+++ b/course/course_v3.json	2026-11-08 02:29:46.618948118 -0600
+--- a/course/course_v3.json	2026-11-08 02:33:50.953098073 -0600
++++ b/course/course_v3.json	2026-11-08 02:33:50.948533557 -0600
 @@ -282,10 +282,7 @@
      "_keep_path_clearance_note": "planner._simplify_idx: shortcuts keep the clearance of the A* sub-path they replace, capped at 0.6 m = the A* prefer_m (beyond it A* itself does not centre), less half a cell. 0 restores greedy shortcuts."
    },
@@ -14,8 +14,17 @@ diff -ruN a2/course/course_v3.json b/course/course_v3.json
      "refnav": {
        "sim_stuck_land_disarm_s": 0.0
 diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
---- a/coursenav/loc_node.py	2026-11-08 02:29:46.599091565 -0600
-+++ b/coursenav/loc_node.py	2026-11-08 02:29:46.596169205 -0600
+--- a/coursenav/loc_node.py	2026-11-08 02:33:50.920048801 -0600
++++ b/coursenav/loc_node.py	2026-11-08 02:33:50.913588093 -0600
+@@ -123,7 +123,7 @@
+         self.local_band = float(dp("local_band_m", 0.35).value)
+         self.prior_mon = PriorMonitor(PriorParams(drop_fit=float(dp("prior_drop_fit", 0.30).value),
+                                                   drop_s=float(dp("prior_drop_s", 3.0).value),
+-                                                  restore_fit=float(dp("min_fit_frac", 0.35).value),
++                                                  restore_fit=pfp.min_fit_frac,
+                                                   restore_s=float(dp("prior_restore_s", 2.0).value)))
+ 
+         from tf2_ros import Buffer, TransformListener
 @@ -154,6 +154,9 @@
                                   math.radians(float(dp("nominal_yaw_deg", float(st["yaw_deg"])).value))])
          self.pub_corr = self.create_publisher(Vector3Stamped, dp("correction_topic", "/coursenav/px4_correction").value, 10)
@@ -123,8 +132,8 @@ diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
              nominal = compose(self.nominal, pose)                     # where VIO + fixture put the body
              raw = np.array([mean[0] - nominal[0], mean[1] - nominal[1]])   # course ENU drift of that belief
 diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
---- a/coursenav/nav_node.py	2026-11-08 02:29:46.590313700 -0600
-+++ b/coursenav/nav_node.py	2026-11-08 02:29:46.587271255 -0600
+--- a/coursenav/nav_node.py	2026-11-08 02:33:50.903268712 -0600
++++ b/coursenav/nav_node.py	2026-11-08 02:33:50.897839928 -0600
 @@ -114,6 +114,32 @@
          self.create_timer(1.0 / float(dp("rate_hz", 10.0).value), self._tick)
          self.get_logger().info(f"navigator: {len(self.nav_legs)} legs ({sum(L['path'] for L in self.nav_legs)} "
@@ -173,8 +182,8 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
                  goals = [np.array(g, float) for g in L["goals"]]
                  goals = [g for g in goals[:-1] if np.hypot(*(g - believed[:2])) > 0.3] + [goals[-1]]
 diff -ruN a2/fly_course.py b/fly_course.py
---- a/fly_course.py	2026-11-08 02:29:46.559691371 -0600
-+++ b/fly_course.py	2026-11-08 02:29:46.556368723 -0600
+--- a/fly_course.py	2026-11-08 02:33:50.861169025 -0600
++++ b/fly_course.py	2026-11-08 02:33:50.855726133 -0600
 @@ -30,6 +30,7 @@
  import argparse
  import json
@@ -275,8 +284,8 @@ diff -ruN a2/fly_course.py b/fly_course.py
          extra += ["-p", "accept_armed_start:=true"]
      extra += [x for x in a.ros_args if x != "--"]
 diff -ruN a2/refnav/core.py b/refnav/core.py
---- a/refnav/core.py	2026-11-08 02:29:46.545512668 -0600
-+++ b/refnav/core.py	2026-11-08 02:29:46.542123464 -0600
+--- a/refnav/core.py	2026-11-08 02:33:50.836971643 -0600
++++ b/refnav/core.py	2026-11-08 02:33:50.828040252 -0600
 @@ -154,6 +154,11 @@
                                                  # motion holds and the setpoint is the path point beside the
                                                  # aircraft; it advances again inside half the tube
@@ -302,8 +311,8 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
              if p.yaw_accel_dps2 > 0:
                  out.yawspeed = self._slew_yaw(err, dt)
 diff -ruN a2/refnav/node.py b/refnav/node.py
---- a/refnav/node.py	2026-11-08 02:29:46.530255057 -0600
-+++ b/refnav/node.py	2026-11-08 02:29:46.526830414 -0600
+--- a/refnav/node.py	2026-11-08 02:33:50.804685894 -0600
++++ b/refnav/node.py	2026-11-08 02:33:50.797236230 -0600
 @@ -129,17 +129,40 @@
          from px4_msgs.msg import (BatteryStatus, EstimatorStatusFlags, OffboardControlMode, TrajectorySetpoint, VehicleAttitude,
                                    VehicleCommand, VehicleLandDetected, VehicleLocalPosition, VehicleStatus)

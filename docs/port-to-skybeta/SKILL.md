@@ -99,3 +99,8 @@ For this upstream revision:
 - `assets/new/` contains packaging, hardware adapter, and focused regression files.
   The script copies this tree recursively. Keep this branch-specific skill separate
   from the historical global skill.
+
+- ROS startup correction: upstream loc_node declared `min_fit_frac` twice, causing
+  `ParameterAlreadyDeclaredException` in both isolated Gazebo runs before arming.
+  PriorMonitor now reuses `pfp.min_fit_frac`, retaining the configured value and
+  default 0.35. This is an initialization fix, not a fit-gate change.

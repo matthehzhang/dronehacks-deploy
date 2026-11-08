@@ -1,0 +1,257 @@
+{
+  "method": "Synthetic planar depth / injected disparity; actual deployed decoding and core checks. Not a sensor accuracy test.",
+  "source_sha256": {
+    "refnav/depth.py": "7886678b5e9ac0e93b96f2909fd7d3b3f7c870acd2ebb782d40170369bee72c1",
+    "refnav/core.py": "098297ed9de09ee6f502010f443f7675b4e4df9a1246d52ccf00881c93dc343b",
+    "kestrel_nav/host_depth.py": "516a5e803fef1a40f065a45b23626147bb849d4c5154db8f1af67c8d599550e9",
+    "course/course_new_origin.json": "1044bcb4d1fc76d492fa24a105462d05bab59bedba0de5be0ab55f85342c6aae"
+  },
+  "parameters": {
+    "corridor_half_m": 0.32,
+    "leg_end_margin_m": 0.25,
+    "speed_mps": 0.3,
+    "lead_max_m": 0.25,
+    "arrive_m": 0.15,
+    "hold_s": 0.25,
+    "band_m": 0.25,
+    "corridor_wait_land_s": 10.0,
+    "yaw_rate_dps": 35.0,
+    "correction_max_m": 0.8,
+    "correction_step_m": 0.2,
+    "correction_deadband_m": 0.04,
+    "correction_max_sigma_m": 0.1,
+    "accel_mps2": 0.5,
+    "blend_turn_deg": 30.0,
+    "blocked_hold_s": 4.0,
+    "blocked_backoff_m": 0.2,
+    "blocked_recheck_s": 2.0,
+    "blocked_clear_margin_m": 0.15,
+    "blocked_max_per_leg": 3,
+    "depth_lost_pause_static": true,
+    "depth_lost_land_s": 5.0,
+    "stop_per_mps": 1.0,
+    "stop_base_m": 0.45,
+    "stop_min_m": 0.55,
+    "min_valid_frac_static": 0.15,
+    "min_valid_frac": 0.3,
+    "min_corridor_coverage": 0.45,
+    "confirm_frames": 3,
+    "align_timeout_s": 4.0,
+    "align_frames": 3,
+    "align_max_shift_m": 0.25,
+    "align_max_dz_m": 0.15,
+    "align_max_turn_deg": 0.0,
+    "tunnel_mode": true,
+    "tunnel_speed_mps": 0.3,
+    "tunnel_max_leg_m": 3.3,
+    "tunnel_face_tol_deg": 5.0,
+    "tunnel_align_max_age_s": 6.0,
+    "correction_rate_mps": 0.05,
+    "safe_land": true,
+    "retreat_speed_mps": 0.1
+  },
+  "cases": [
+    {
+      "case": "zero",
+      "valid_fraction": 0.0,
+      "corridor_coverage": 0.0,
+      "corridor_rays": 28,
+      "obstacle_point_count": 0,
+      "accepted_frames": [
+        false,
+        false,
+        false
+      ],
+      "depth_rejection": [
+        "too_little_depth",
+        "depth on 0% of the pixels, this mission needs 30% (min_valid_frac)"
+      ],
+      "confirmed_clearance_m": null,
+      "stop_threshold_m": 0.75,
+      "blocked": null,
+      "classification": "unknown"
+    },
+    {
+      "case": "NaN",
+      "valid_fraction": 0.0,
+      "corridor_coverage": 0.0,
+      "corridor_rays": 28,
+      "obstacle_point_count": 0,
+      "accepted_frames": [
+        false,
+        false,
+        false
+      ],
+      "depth_rejection": [
+        "too_little_depth",
+        "depth on 0% of the pixels, this mission needs 30% (min_valid_frac)"
+      ],
+      "confirmed_clearance_m": null,
+      "stop_threshold_m": 0.75,
+      "blocked": null,
+      "classification": "unknown"
+    },
+    {
+      "case": "infinity",
+      "valid_fraction": 0.0,
+      "corridor_coverage": 0.0,
+      "corridor_rays": 28,
+      "obstacle_point_count": 0,
+      "accepted_frames": [
+        false,
+        false,
+        false
+      ],
+      "depth_rejection": [
+        "too_little_depth",
+        "depth on 0% of the pixels, this mission needs 30% (min_valid_frac)"
+      ],
+      "confirmed_clearance_m": null,
+      "stop_threshold_m": 0.75,
+      "blocked": null,
+      "classification": "unknown"
+    },
+    {
+      "case": "finite_far_8m",
+      "valid_fraction": 1.0,
+      "corridor_coverage": 1.0,
+      "corridor_rays": 28,
+      "obstacle_point_count": 0,
+      "accepted_frames": [
+        true,
+        true,
+        true
+      ],
+      "depth_rejection": null,
+      "confirmed_clearance_m": "infinity",
+      "stop_threshold_m": 0.75,
+      "blocked": false,
+      "classification": "clear_for_stop_rule"
+    },
+    {
+      "case": "finite_false_near_0.6m",
+      "valid_fraction": 1.0,
+      "corridor_coverage": 1.0,
+      "corridor_rays": 28,
+      "obstacle_point_count": 28,
+      "accepted_frames": [
+        true,
+        true,
+        true
+      ],
+      "depth_rejection": null,
+      "confirmed_clearance_m": 0.6000000238418579,
+      "stop_threshold_m": 0.75,
+      "blocked": true,
+      "classification": "obstacle_stop"
+    },
+    {
+      "case": "finite_false_near_0.9m",
+      "valid_fraction": 1.0,
+      "corridor_coverage": 1.0,
+      "corridor_rays": 28,
+      "obstacle_point_count": 28,
+      "accepted_frames": [
+        true,
+        true,
+        true
+      ],
+      "depth_rejection": null,
+      "confirmed_clearance_m": 0.8999999761581421,
+      "stop_threshold_m": 0.75,
+      "blocked": false,
+      "classification": "clear_for_stop_rule"
+    },
+    {
+      "case": "finite_false_near_1.0m",
+      "valid_fraction": 1.0,
+      "corridor_coverage": 1.0,
+      "corridor_rays": 28,
+      "obstacle_point_count": 28,
+      "accepted_frames": [
+        true,
+        true,
+        true
+      ],
+      "depth_rejection": null,
+      "confirmed_clearance_m": 1.0,
+      "stop_threshold_m": 0.75,
+      "blocked": false,
+      "classification": "clear_for_stop_rule"
+    },
+    {
+      "case": "host_depth_8m_limit_6m",
+      "valid_fraction": 0.0,
+      "corridor_coverage": 0.0,
+      "corridor_rays": 28,
+      "obstacle_point_count": 0,
+      "accepted_frames": [
+        false,
+        false,
+        false
+      ],
+      "depth_rejection": [
+        "too_little_depth",
+        "depth on 0% of the pixels, this mission needs 30% (min_valid_frac)"
+      ],
+      "confirmed_clearance_m": null,
+      "stop_threshold_m": 0.75,
+      "blocked": null,
+      "classification": "unknown"
+    },
+    {
+      "case": "host_depth_8m_limit_12m",
+      "valid_fraction": 1.0,
+      "corridor_coverage": 1.0,
+      "corridor_rays": 28,
+      "obstacle_point_count": 0,
+      "accepted_frames": [
+        true,
+        true,
+        true
+      ],
+      "depth_rejection": null,
+      "confirmed_clearance_m": "infinity",
+      "stop_threshold_m": 0.75,
+      "blocked": false,
+      "classification": "clear_for_stop_rule"
+    },
+    {
+      "case": "host_depth_13m_limit_12m",
+      "valid_fraction": 0.0,
+      "corridor_coverage": 0.0,
+      "corridor_rays": 28,
+      "obstacle_point_count": 0,
+      "accepted_frames": [
+        false,
+        false,
+        false
+      ],
+      "depth_rejection": [
+        "too_little_depth",
+        "depth on 0% of the pixels, this mission needs 30% (min_valid_frac)"
+      ],
+      "confirmed_clearance_m": null,
+      "stop_threshold_m": 0.75,
+      "blocked": null,
+      "classification": "unknown"
+    },
+    {
+      "case": "external_uint16_65535_sentinel",
+      "valid_fraction": 1.0,
+      "corridor_coverage": 1.0,
+      "corridor_rays": 28,
+      "obstacle_point_count": 0,
+      "accepted_frames": [
+        true,
+        true,
+        true
+      ],
+      "depth_rejection": null,
+      "confirmed_clearance_m": "infinity",
+      "stop_threshold_m": 0.75,
+      "blocked": false,
+      "classification": "clear_for_stop_rule"
+    }
+  ]
+}

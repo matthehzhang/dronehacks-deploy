@@ -46,7 +46,8 @@ Evidence: `docs/evidence/blocked_recovery_20261108/`.
 - Recovery, new-map and simulation-clock focused suite: 21 passed.
 - Copied-install wheel test: passed, including installed new-map dry-run planning.
 - Native Jetson ROS build and `ros2 launch ... --show-args`: passed without starting a mission.
-- Upstream broad regression and double-Gazebo result: recorded separately when complete.
+- Upstream broad suite: 713 passed, 16 fixture failures. All 16 bypassed ROS constructor initialization and lacked new adapter fields; the corrected direct-mode fixture rerun passed all 22 affected-module tests.
+- Double-Gazebo result: recorded separately when complete.
 
 Initial failures are retained: the historical adapter test assumed v3 route length (now explicitly
 pins v3); old navigator vertex removal violated new-map creep speed (removed); upstream ROS mocks
@@ -54,3 +55,10 @@ bypassed initialization and lacked the new adapter fields (harness-only patch, d
 
 The reconstructed map is not a surveyed venue map. Its historical grader lines do not certify the
 new entrance route; report traversal and scorecard separately. Simulation does not qualify hardware.
+
+## First real ROS startup failure
+
+Both sim localizers refused startup because upstream declared `min_fit_frac` twice.
+The prior monitor now reuses the PF parameter value, preserving threshold and overrides.
+No simulated pilot armed during the failed attempt. Native build/import/launch-description
+checks did not expose this constructor-only error; the live ROS startup did.

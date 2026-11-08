@@ -123,7 +123,7 @@ class LocNode(Node):
         self.local_band = float(dp("local_band_m", 0.35).value)
         self.prior_mon = PriorMonitor(PriorParams(drop_fit=float(dp("prior_drop_fit", 0.30).value),
                                                   drop_s=float(dp("prior_drop_s", 3.0).value),
-                                                  restore_fit=float(dp("min_fit_frac", 0.35).value),
+                                                  restore_fit=pfp.min_fit_frac,
                                                   restore_s=float(dp("prior_restore_s", 2.0).value)))
 
         from tf2_ros import Buffer, TransformListener

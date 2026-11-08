@@ -1,0 +1,588 @@
+........................................................................ [  9%]
+........................................................................ [ 19%]
+................................................................FFFFFFFF [ 29%]
+F.FFFFFF................................................................ [ 39%]
+........................................................................ [ 49%]
+........................................................................ [ 59%]
+........................................................................ [ 69%]
+..............................................F......................... [ 79%]
+........................................................................ [ 88%]
+........................................................................ [ 98%]
+.........                                                                [100%]
+=================================== FAILURES ===================================
+_ test_velocity_only_native_command_cannot_enable_position_or_acceleration_control _
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c58e3c0>
+
+    def test_velocity_only_native_command_cannot_enable_position_or_acceleration_control(diagnostic_node):
+        n = diagnostic_node
+        # Even a stale finite position on the output cannot take priority over velocity-only mode.
+        n.output.setpoint = (99., 98., -97., .3)
+        n.output.velocity_only = (.1, -.02, .03, -.15)
+>       n._tick()
+
+tests/test_diagnostic_node.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c58e3c0>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+___________ test_zero_velocity_brake_keeps_native_offboard_heartbeat ___________
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c58ee40>
+
+    def test_zero_velocity_brake_keeps_native_offboard_heartbeat(diagnostic_node):
+        n = diagnostic_node
+        n.output.velocity_only = (0., 0., 0., 0.)
+>       n._tick()
+
+tests/test_diagnostic_node.py:78: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c58ee40>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+________ test_stationary_yaw_holds_fixed_position_but_commands_yaw_rate ________
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c58f230>
+
+    def test_stationary_yaw_holds_fixed_position_but_commands_yaw_rate(diagnostic_node):
+        n = diagnostic_node
+        n.output.position_hold = (1.23456789, 2.34567891, -.72345678, -.15)
+>       n._tick()
+
+tests/test_diagnostic_node.py:87: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c58f230>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+_________ test_velocity_release_explicitly_clears_all_position_fields __________
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c58f4d0>
+
+    def test_velocity_release_explicitly_clears_all_position_fields(diagnostic_node):
+        n = diagnostic_node
+        n.output.position_hold = (1., 2., -.8, -.15)
+>       n._tick()
+
+tests/test_diagnostic_node.py:103: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c58f4d0>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+_______ test_stream_false_suppresses_velocity_only_and_previous_command ________
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c58f770>
+
+    def test_stream_false_suppresses_velocity_only_and_previous_command(diagnostic_node):
+        n = diagnostic_node
+        n.output.velocity_only = (.1, 0., 0., 0.)
+>       n._tick()
+
+tests/test_diagnostic_node.py:116: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c58f770>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+_____ test_failed_protocol_tick_is_logged_even_without_a_published_command _____
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c58fa10>
+
+    def test_failed_protocol_tick_is_logged_even_without_a_published_command(diagnostic_node):
+        n = diagnostic_node
+        n.output = C.Output('land', stream=False)
+        n.mission.protocol_tick = dict(t_ros=n.now, evaluated_phase='TURN',
+                                       turn_guard={'failed_checks': ['measured_clearance']})
+>       n._tick()
+
+tests/test_diagnostic_node.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c58fa10>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+_____ test_ordinary_course_position_and_feedforward_transport_is_unchanged _____
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c58fcb0>
+
+    def test_ordinary_course_position_and_feedforward_transport_is_unchanged(diagnostic_node):
+        n = diagnostic_node
+        n.diagnostic_enabled = False
+        n.output = C.Output('go', setpoint=(1., 2., -.8, .3), velocity=(.1, .2),
+                            accel=(.03, -.04), stream=True)
+>       n._tick()
+
+tests/test_diagnostic_node.py:140: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c58fcb0>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+_ test_fit_command_record_matches_published_float32_message_and_ros_receipt_clock _
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c58fe00>
+
+    def test_fit_command_record_matches_published_float32_message_and_ros_receipt_clock(diagnostic_node):
+        n = diagnostic_node
+        n.output.velocity_only = (.123456789, -.034567891, .023456789, -.15)
+>       n._tick()
+
+tests/test_diagnostic_node.py:156: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c58fe00>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+_____ test_estimated_pose_record_is_fixed_enu_with_separate_raw_px4_clock ______
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c46c1a0>
+
+    def test_estimated_pose_record_is_fixed_enu_with_separate_raw_px4_clock(diagnostic_node):
+        n = diagnostic_node
+        n.mission.observe = lambda *args, **kwargs: True
+>       n._on_lpos(local_position())
+
+tests/test_diagnostic_node.py:181: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c46c1a0>
+m = namespace(timestamp=123456789, timestamp_sample=123455789, x=1.0, y=2.0, z=-0.8, vx=0.1, vy=0.2, vz=0.03, heading=0.4,...rue, heading_good_for_control=True, eph=0.02, epv=0.03, xy_reset_counter=0, z_reset_counter=0, heading_reset_counter=0)
+
+    def _on_lpos(self, m):
+        accepted = self._return_observe('position', m.timestamp * 1e-6,
+                eph=float(getattr(m, 'eph', math.nan)), epv=float(getattr(m, 'epv', math.nan)),
+                resets=tuple(getattr(m, k, None) for k in ('xy_reset_counter', 'z_reset_counter', 'heading_reset_counter')),
+                velocity_resets=tuple(getattr(m, k, None) for k in ('vxy_reset_counter', 'vz_reset_counter')),
+                velocity_valid=bool(m.v_xy_valid and getattr(m, 'v_z_valid', False)), heading=float(m.heading))
+        if getattr(self, 'diagnostic_enabled', False):
+            now = self._now()
+            self._diagnostic_record('odom', now=now, source_stamp=now,
+                position=[float(m.y), float(m.x), -float(m.z)],
+                velocity_enu=[float(m.vy), float(m.vx), -float(m.vz)],
+                yaw_enu=float((math.pi / 2 - m.heading + math.pi) % (2 * math.pi) - math.pi),
+                px4_source_stamp_us=int(m.timestamp),
+                px4_sample_stamp_us=getattr(m, 'timestamp_sample', None),
+                accepted=bool(accepted and m.xy_valid and m.z_valid),
+                position_valid=bool(m.xy_valid and m.z_valid),
+                velocity_valid=bool(m.v_xy_valid and getattr(m, 'v_z_valid', False)),
+                xy_reset_counter=getattr(m, 'xy_reset_counter', None),
+                heading_reset_counter=getattr(m, 'heading_reset_counter', None))
+        if not accepted:
+            return
+        self._lpos_received_ros_s = self._now()
+        self._lpos_timestamp = getattr(m, "timestamp", None)
+        if self.trace.enabled:
+            self.trace.record("local_position", self._lpos_received_ros_s,
+                              data=fields(m, LPOS_FIELDS))
+        self.v.pos = (m.x, m.y, m.z)
+        self.v.heading = m.heading
+        rng = float(getattr(m, "dist_bottom", math.nan))
+        self.v.rng = rng if math.isfinite(rng) else None
+        # velocity (NED m/s) for pose tracking and the settled-arrival check; None when PX4 flags it invalid
+        vel = (m.vx, m.vy, m.vz)
+        self.v.vel = vel if bool(m.v_xy_valid) and all(math.isfinite(c) for c in vel) else None
+        if getattr(self, 'diagnostic_enabled', False) and not getattr(m, 'v_z_valid', False):
+            self.v.vel = None
+        # heading: PX4's heading_good_for_control, OR its own yaw alignment. With a COMPASS, PX4 sets
+        # heading_good_for_control only after re-aligning the heading in flight above 1.5 m (ekf.h
+        # isYawFinalAlignComplete: ground magnetic anomalies), so a compass aircraft would wait on the
+        # ground forever (field_two_tags, 2026-10-17); yaw alignment is what PX4's own position
+        # controller flies on. A vision heading sets heading_good_for_control on the ground.
+        ya, ya_t = self._yaw_align
+        heading_ok = bool(m.heading_good_for_control) or (ya and ya_t is not None and self._now() - ya_t <= 3.0)
+>       if self.px4_output == "skybeta" and not heading_ok:
+           ^^^^^^^^^^^^^^^
+E       AttributeError: 'RefNav' object has no attribute 'px4_output'
+
+refnav/node.py:293: AttributeError
+____ test_rejected_duplicate_pose_cannot_refresh_accepted_record_or_vehicle ____
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c46c6e0>
+
+    def test_rejected_duplicate_pose_cannot_refresh_accepted_record_or_vehicle(diagnostic_node):
+        n = diagnostic_node
+        n.mission.observe = lambda *args, **kwargs: True
+>       n._on_lpos(local_position())
+
+tests/test_diagnostic_node.py:207: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c46c6e0>
+m = namespace(timestamp=123456789, timestamp_sample=123455789, x=1.0, y=2.0, z=-0.8, vx=0.1, vy=0.2, vz=0.03, heading=0.4,...rue, heading_good_for_control=True, eph=0.02, epv=0.03, xy_reset_counter=0, z_reset_counter=0, heading_reset_counter=0)
+
+    def _on_lpos(self, m):
+        accepted = self._return_observe('position', m.timestamp * 1e-6,
+                eph=float(getattr(m, 'eph', math.nan)), epv=float(getattr(m, 'epv', math.nan)),
+                resets=tuple(getattr(m, k, None) for k in ('xy_reset_counter', 'z_reset_counter', 'heading_reset_counter')),
+                velocity_resets=tuple(getattr(m, k, None) for k in ('vxy_reset_counter', 'vz_reset_counter')),
+                velocity_valid=bool(m.v_xy_valid and getattr(m, 'v_z_valid', False)), heading=float(m.heading))
+        if getattr(self, 'diagnostic_enabled', False):
+            now = self._now()
+            self._diagnostic_record('odom', now=now, source_stamp=now,
+                position=[float(m.y), float(m.x), -float(m.z)],
+                velocity_enu=[float(m.vy), float(m.vx), -float(m.vz)],
+                yaw_enu=float((math.pi / 2 - m.heading + math.pi) % (2 * math.pi) - math.pi),
+                px4_source_stamp_us=int(m.timestamp),
+                px4_sample_stamp_us=getattr(m, 'timestamp_sample', None),
+                accepted=bool(accepted and m.xy_valid and m.z_valid),
+                position_valid=bool(m.xy_valid and m.z_valid),
+                velocity_valid=bool(m.v_xy_valid and getattr(m, 'v_z_valid', False)),
+                xy_reset_counter=getattr(m, 'xy_reset_counter', None),
+                heading_reset_counter=getattr(m, 'heading_reset_counter', None))
+        if not accepted:
+            return
+        self._lpos_received_ros_s = self._now()
+        self._lpos_timestamp = getattr(m, "timestamp", None)
+        if self.trace.enabled:
+            self.trace.record("local_position", self._lpos_received_ros_s,
+                              data=fields(m, LPOS_FIELDS))
+        self.v.pos = (m.x, m.y, m.z)
+        self.v.heading = m.heading
+        rng = float(getattr(m, "dist_bottom", math.nan))
+        self.v.rng = rng if math.isfinite(rng) else None
+        # velocity (NED m/s) for pose tracking and the settled-arrival check; None when PX4 flags it invalid
+        vel = (m.vx, m.vy, m.vz)
+        self.v.vel = vel if bool(m.v_xy_valid) and all(math.isfinite(c) for c in vel) else None
+        if getattr(self, 'diagnostic_enabled', False) and not getattr(m, 'v_z_valid', False):
+            self.v.vel = None
+        # heading: PX4's heading_good_for_control, OR its own yaw alignment. With a COMPASS, PX4 sets
+        # heading_good_for_control only after re-aligning the heading in flight above 1.5 m (ekf.h
+        # isYawFinalAlignComplete: ground magnetic anomalies), so a compass aircraft would wait on the
+        # ground forever (field_two_tags, 2026-10-17); yaw alignment is what PX4's own position
+        # controller flies on. A vision heading sets heading_good_for_control on the ground.
+        ya, ya_t = self._yaw_align
+        heading_ok = bool(m.heading_good_for_control) or (ya and ya_t is not None and self._now() - ya_t <= 3.0)
+>       if self.px4_output == "skybeta" and not heading_ok:
+           ^^^^^^^^^^^^^^^
+E       AttributeError: 'RefNav' object has no attribute 'px4_output'
+
+refnav/node.py:293: AttributeError
+__ test_diagnostic_recording_loss_requests_land_before_another_pulse[failed] ___
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c58e900>
+problem = 'failed'
+
+    @pytest.mark.parametrize('problem', ['failed', 'dropped', 'disabled'])
+    def test_diagnostic_recording_loss_requests_land_before_another_pulse(diagnostic_node, problem):
+        n = diagnostic_node
+        n.output.velocity_only = (.1, 0., 0., 0.)
+        if problem == 'disabled':
+            n.trace.enabled = False
+        else:
+            setattr(n.trace, problem, 1)
+>       n._tick()
+
+tests/test_diagnostic_node.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c58e900>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+__ test_diagnostic_recording_loss_requests_land_before_another_pulse[dropped] __
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c46c2f0>
+problem = 'dropped'
+
+    @pytest.mark.parametrize('problem', ['failed', 'dropped', 'disabled'])
+    def test_diagnostic_recording_loss_requests_land_before_another_pulse(diagnostic_node, problem):
+        n = diagnostic_node
+        n.output.velocity_only = (.1, 0., 0., 0.)
+        if problem == 'disabled':
+            n.trace.enabled = False
+        else:
+            setattr(n.trace, problem, 1)
+>       n._tick()
+
+tests/test_diagnostic_node.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c46c2f0>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+_ test_diagnostic_recording_loss_requests_land_before_another_pulse[disabled] __
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c46c980>
+problem = 'disabled'
+
+    @pytest.mark.parametrize('problem', ['failed', 'dropped', 'disabled'])
+    def test_diagnostic_recording_loss_requests_land_before_another_pulse(diagnostic_node, problem):
+        n = diagnostic_node
+        n.output.velocity_only = (.1, 0., 0., 0.)
+        if problem == 'disabled':
+            n.trace.enabled = False
+        else:
+            setattr(n.trace, problem, 1)
+>       n._tick()
+
+tests/test_diagnostic_node.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c46c980>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+______________ test_nonfinite_native_velocity_is_never_published _______________
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c46cec0>
+
+    def test_nonfinite_native_velocity_is_never_published(diagnostic_node):
+        n = diagnostic_node
+        n.output.velocity_only = (.1, math.nan, 0., 0.)
+>       n._tick()
+
+tests/test_diagnostic_node.py:233: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c46cec0>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+_________ test_invalid_vertical_velocity_is_unavailable_to_diagnostic __________
+
+diagnostic_node = <refnav.node.RefNav object at 0x7ff31c46d2b0>
+
+    def test_invalid_vertical_velocity_is_unavailable_to_diagnostic(diagnostic_node):
+        n = diagnostic_node
+        n.mission.observe = lambda *args, **kwargs: True
+>       n._on_lpos(local_position(v_z_valid=False))
+
+tests/test_diagnostic_node.py:240: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c46d2b0>
+m = namespace(timestamp=123456789, timestamp_sample=123455789, x=1.0, y=2.0, z=-0.8, vx=0.1, vy=0.2, vz=0.03, heading=0.4,...lse, heading_good_for_control=True, eph=0.02, epv=0.03, xy_reset_counter=0, z_reset_counter=0, heading_reset_counter=0)
+
+    def _on_lpos(self, m):
+        accepted = self._return_observe('position', m.timestamp * 1e-6,
+                eph=float(getattr(m, 'eph', math.nan)), epv=float(getattr(m, 'epv', math.nan)),
+                resets=tuple(getattr(m, k, None) for k in ('xy_reset_counter', 'z_reset_counter', 'heading_reset_counter')),
+                velocity_resets=tuple(getattr(m, k, None) for k in ('vxy_reset_counter', 'vz_reset_counter')),
+                velocity_valid=bool(m.v_xy_valid and getattr(m, 'v_z_valid', False)), heading=float(m.heading))
+        if getattr(self, 'diagnostic_enabled', False):
+            now = self._now()
+            self._diagnostic_record('odom', now=now, source_stamp=now,
+                position=[float(m.y), float(m.x), -float(m.z)],
+                velocity_enu=[float(m.vy), float(m.vx), -float(m.vz)],
+                yaw_enu=float((math.pi / 2 - m.heading + math.pi) % (2 * math.pi) - math.pi),
+                px4_source_stamp_us=int(m.timestamp),
+                px4_sample_stamp_us=getattr(m, 'timestamp_sample', None),
+                accepted=bool(accepted and m.xy_valid and m.z_valid),
+                position_valid=bool(m.xy_valid and m.z_valid),
+                velocity_valid=bool(m.v_xy_valid and getattr(m, 'v_z_valid', False)),
+                xy_reset_counter=getattr(m, 'xy_reset_counter', None),
+                heading_reset_counter=getattr(m, 'heading_reset_counter', None))
+        if not accepted:
+            return
+        self._lpos_received_ros_s = self._now()
+        self._lpos_timestamp = getattr(m, "timestamp", None)
+        if self.trace.enabled:
+            self.trace.record("local_position", self._lpos_received_ros_s,
+                              data=fields(m, LPOS_FIELDS))
+        self.v.pos = (m.x, m.y, m.z)
+        self.v.heading = m.heading
+        rng = float(getattr(m, "dist_bottom", math.nan))
+        self.v.rng = rng if math.isfinite(rng) else None
+        # velocity (NED m/s) for pose tracking and the settled-arrival check; None when PX4 flags it invalid
+        vel = (m.vx, m.vy, m.vz)
+        self.v.vel = vel if bool(m.v_xy_valid) and all(math.isfinite(c) for c in vel) else None
+        if getattr(self, 'diagnostic_enabled', False) and not getattr(m, 'v_z_valid', False):
+            self.v.vel = None
+        # heading: PX4's heading_good_for_control, OR its own yaw alignment. With a COMPASS, PX4 sets
+        # heading_good_for_control only after re-aligning the heading in flight above 1.5 m (ekf.h
+        # isYawFinalAlignComplete: ground magnetic anomalies), so a compass aircraft would wait on the
+        # ground forever (field_two_tags, 2026-10-17); yaw alignment is what PX4's own position
+        # controller flies on. A vision heading sets heading_good_for_control on the ground.
+        ya, ya_t = self._yaw_align
+        heading_ok = bool(m.heading_good_for_control) or (ya and ya_t is not None and self._now() - ya_t <= 3.0)
+>       if self.px4_output == "skybeta" and not heading_ok:
+           ^^^^^^^^^^^^^^^
+E       AttributeError: 'RefNav' object has no attribute 'px4_output'
+
+refnav/node.py:293: AttributeError
+______________ test_pad_completion_does_not_start_ros_exit_timer _______________
+
+node = <refnav.node.RefNav object at 0x7ff31c58fe00>
+
+>   ???
+
+tests/test_return_node.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7ff31c58fe00>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_diagnostic_node.py::test_velocity_only_native_command_cannot_enable_position_or_acceleration_control
+FAILED tests/test_diagnostic_node.py::test_zero_velocity_brake_keeps_native_offboard_heartbeat
+FAILED tests/test_diagnostic_node.py::test_stationary_yaw_holds_fixed_position_but_commands_yaw_rate
+FAILED tests/test_diagnostic_node.py::test_velocity_release_explicitly_clears_all_position_fields
+FAILED tests/test_diagnostic_node.py::test_stream_false_suppresses_velocity_only_and_previous_command
+FAILED tests/test_diagnostic_node.py::test_failed_protocol_tick_is_logged_even_without_a_published_command
+FAILED tests/test_diagnostic_node.py::test_ordinary_course_position_and_feedforward_transport_is_unchanged
+FAILED tests/test_diagnostic_node.py::test_fit_command_record_matches_published_float32_message_and_ros_receipt_clock
+FAILED tests/test_diagnostic_node.py::test_estimated_pose_record_is_fixed_enu_with_separate_raw_px4_clock
+FAILED tests/test_diagnostic_node.py::test_rejected_duplicate_pose_cannot_refresh_accepted_record_or_vehicle
+FAILED tests/test_diagnostic_node.py::test_diagnostic_recording_loss_requests_land_before_another_pulse[failed]
+FAILED tests/test_diagnostic_node.py::test_diagnostic_recording_loss_requests_land_before_another_pulse[dropped]
+FAILED tests/test_diagnostic_node.py::test_diagnostic_recording_loss_requests_land_before_another_pulse[disabled]
+FAILED tests/test_diagnostic_node.py::test_nonfinite_native_velocity_is_never_published
+FAILED tests/test_diagnostic_node.py::test_invalid_vertical_velocity_is_unavailable_to_diagnostic
+FAILED tests/test_return_node.py::test_pad_completion_does_not_start_ros_exit_timer
+16 failed, 713 passed in 242.98s (0:04:02)
