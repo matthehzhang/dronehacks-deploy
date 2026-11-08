@@ -8,12 +8,40 @@ from scipy import ndimage
 from .airframe import vehicle_geometry
 PROJECT = Path(__file__).resolve().parent.parent
 
+INCH = 0.0254
+
+
+def start_forward_m():
+    """How far the drone was placed FORWARD of the declared launch mark, along its declared heading, as
+    told at launch (launch arg start_forward_in -> KESTREL_START_FORWARD_IN, inches; or ..._M, metres)."""
+    inches = os.environ.get('KESTREL_START_FORWARD_IN', '').strip()
+    metres = os.environ.get('KESTREL_START_FORWARD_M', '').strip()
+    if inches and metres:
+        raise ValueError('give the start offset in inches or metres, not both')
+    return float(inches) * INCH if inches else float(metres) if metres else 0.0
+
+
+def shift_start(doc, forward_m):
+    """Move the declared start along its own heading (the start fixture every consumer reads)."""
+    if not forward_m:
+        return doc
+    st = doc['start']
+    yaw = np.radians(st['yaw_deg'])
+    d = forward_m * np.array([np.cos(yaw), np.sin(yaw)])
+    st['declared_xy'] = list(st['xy'])
+    st['xy'] = [float(v) for v in np.asarray(st['xy'], float) + d]
+    if 'spawn_xy' in st:
+        st['spawn_xy'] = [float(v) for v in np.asarray(st['spawn_xy'], float) + d]
+    st['forward_offset_m'] = float(forward_m)
+    return doc
+
+
 def load_course(path=None, derive=True):
     path=Path(path or os.environ.get('KESTREL_COURSE_FILE') or PROJECT/'course/course_depth_waypoints.json')
     doc=json.loads(path.read_text())
     doc['vehicle']=vehicle_geometry(doc['vehicle'])
     doc['_dir']=str(PROJECT)
-    return doc
+    return shift_start(doc, start_forward_m())
 
 def resolve(doc,key):
     p=Path(doc[key])

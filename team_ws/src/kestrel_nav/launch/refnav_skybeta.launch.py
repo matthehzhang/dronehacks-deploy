@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parent.parent          # package source root (sy
 ARGUMENTS = [
     ('pilot_verified_launch_radius_m', '0.0', 'OPT-IN: radius of pilot-verified free launch disc at cruise altitude; never overrides depth obstacles'),
     ('course_file', str(ROOT / 'course' / 'course_depth_waypoints.json'), 'depth-only waypoint and vehicle configuration'),
+    ('start_forward_in', '0.0', 'inches the drone was placed FORWARD of the launch mark along its launch heading '
+                                '(measured on the guideline; the start the route and localizer use moves with it)'),
     ('max_altitude_m', '3.0', 'flight interface ceiling above the odometry origin'),
     ('min_altitude_m', '0.3', 'flight interface floor (pose setpoints only)'),
     ('max_speed_mps', '1.5', 'flight interface cap on a twist norm'),
@@ -34,7 +36,8 @@ ARGUMENTS = [
 def generate_launch_description():
     declared = [DeclareLaunchArgument(n, default_value=d, description=h) for n, d, h in ARGUMENTS]
     L = LaunchConfiguration
-    env = dict(os.environ, PYTHONPATH=f"{ROOT}:{os.environ.get('PYTHONPATH', '')}", KESTREL_COURSE_FILE=L('course_file'))
+    env = dict(os.environ, PYTHONPATH=f"{ROOT}:{os.environ.get('PYTHONPATH', '')}", KESTREL_COURSE_FILE=L('course_file'),
+               KESTREL_START_FORWARD_IN=L('start_forward_in'))
     flight_interface = Node(
         package='skybeta_flight_interface', executable='flight_interface', name='flight_interface',
         output='screen', emulate_tty=True,

@@ -186,6 +186,9 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
         sx,sy=doc['start']['xy']
         syaw=doc['start']['yaw_deg']
         source='declared VIO launch fixture'
+        if doc['start'].get('forward_offset_m'):
+            source += (f" moved {doc['start']['forward_offset_m']:.4f} m forward of the mark "
+                       f"{tuple(round(v, 3) for v in doc['start']['declared_xy'])} (start_forward_in)")
     if height is None:
         height=.18
         print('landed height not measured: assuming 0.18 m (test fixture)',flush=True)
