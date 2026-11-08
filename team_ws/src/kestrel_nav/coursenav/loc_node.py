@@ -29,6 +29,7 @@ from __future__ import annotations
 import bisect
 import csv
 import json
+import os
 import math
 import time
 from collections import deque
@@ -50,6 +51,7 @@ from .drift import DriftEKF
 from .course import PROJECT, load_course, resolve, scan_field, scan_grid, see_through_grid
 from .objmap import CourseMap
 from .occgrid import LiveGrid, OccParams
+from .localgrid import LocalGrid, LocalParams
 from .pf import CorrectionLimiter, CorrectionPF, PFParams, compose, inverse, project_correction
 from .scan import depth_points_level, level_from_px4_q, scan_from_points
 
@@ -70,7 +72,7 @@ class LocNode(Node):
     def __init__(self):
         super().__init__("coursenav_loc")
         dp = self.declare_parameter
-        doc = load_course(dp("course_file", str(PROJECT / "course" / "course_v3.json")).value)
+        doc = load_course(dp("course_file", os.environ.get("KESTREL_COURSE_FILE", str(PROJECT / "course" / "course_v3.json"))).value)
         cmap = CourseMap.load(resolve(doc, "map"))
         self.field_zlo, self.field_zhi = float(dp("scan_zlo", 0.3).value), float(dp("scan_zhi", 1.6).value)
         self.field = scan_grid(cmap, self.field_zlo, self.field_zhi)
@@ -112,6 +114,11 @@ class LocNode(Node):
         self.K = None
         self.cam_cal = None                    # (frame, R_body_cam, t_body_cam)
         self.att = None                        # PX4 attitude (w,x,y,z)
+        self.att_received = -math.inf
+        self.local = LocalGrid(LocalParams())
+        self.local_stamp = None
+        self.local_height = None
+        self.local_error = 'waiting for fresh calibrated depth and odometry'
         self.height = None                     # (stamp_wall, metres of the body origin above the floor)
         self.vio_ok = True
         self.odom_hist = deque(maxlen=200)     # (t, (x, y, yaw), z, msg)
@@ -144,6 +151,7 @@ class LocNode(Node):
         latched = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                              history=HistoryPolicy.KEEP_LAST, depth=1)
         self.pub_occ = self.create_publisher(OccupancyGrid, "/coursenav/occupancy", latched)
+        self.pub_local = self.create_publisher(OccupancyGrid, '/coursenav/local_occupancy', 10)
         self.create_subscription(Odometry, dp("odom_topic", "/visual_slam/tracking/odometry").value,
                                  self._on_odom, qos_profile_sensor_data)
         try:
@@ -158,7 +166,7 @@ class LocNode(Node):
         self.create_subscription(Image, depth_topic, self._on_depth, qos_profile_sensor_data)
         from px4_msgs.msg import DistanceSensor, VehicleAttitude
         self.create_subscription(VehicleAttitude, "/fmu/out/vehicle_attitude",
-                                 lambda m: setattr(self, "att", tuple(float(c) for c in m.q)), PX4_QOS)
+                                 self._on_attitude, PX4_QOS)
         self.create_subscription(DistanceSensor, "/fmu/out/distance_sensor", self._on_rangefinder, PX4_QOS)
         # kestral_nav934am (skybeta): the drone publishes no distance_sensor; its rangefinder reaches ROS only
         # as vehicle_local_position.dist_bottom. height_source "local_position" uses that (default unchanged).
@@ -185,12 +193,19 @@ class LocNode(Node):
         self.log.writerow(["t", "x", "y", "yaw", "sx", "sy", "syaw", "vio_x", "vio_y", "vio_yaw", "z_height",
                            "beams_depth", "ess", "vio_ok"])
         self.create_timer(0.5, self._status)
+        self.create_timer(0.25, self._publish_local)
         if self.live is not None:
             self.create_timer(1.0, self._publish_occ)
         self.get_logger().info(f"shadow localizer: prior {np.round(self.prior, 3)} sigma {self.prior_sigma}; "
                                f"depth {depth_topic}; log {self.log_path}")
 
     # ------------------------------------------------------------------ inputs
+    def _on_attitude(self, m):
+        q = np.asarray(m.q,float)
+        if q.shape == (4,) and np.isfinite(q).all() and abs(np.linalg.norm(q)-1.) < .05:
+            self.att = tuple(q)
+            self.att_received = self.get_clock().now().nanoseconds*1e-9
+
     def _on_info(self, m):
         if m.k[0] > 0:
             self.K = (m.k[0], m.k[4], m.k[2], m.k[5])
@@ -230,6 +245,10 @@ class LocNode(Node):
             if math.hypot(*(pose[:2] - self.last_odom[1][:2])) > 0.5 and self.pf.ready:
                 self.pf.reanchor(self.last_odom[1], pose)          # VIO reset: keep the body continuous
                 self.resets += 1
+                self.local = LocalGrid(self.local.p)
+                self.local_stamp = None
+                self.local_height = None
+                self.local_error = 'VIO reset: local observations withdrawn'
                 self.get_logger().warning("VIO jump > 0.5 m: re-anchored the correction")
         self.last_odom = (t, pose)
         self.odom_hist.append((t, pose, p.z, m))
@@ -299,6 +318,14 @@ class LocNode(Node):
         self.last_update_t = t
         mean, cov = self.pf.estimate(pose)
         self.T_mean = compose(mean, inverse(pose))
+        # The PF's match-to-prior confidence must not disable aircraft-relative
+        # collision mapping. Keep this map rigidly attached to the VIO launch
+        # frame; never feed these uncertain course placements back into PF.
+        if float(np.mean(np.isfinite(d) & (d > 0))) >= .3:
+            if self._integrate_local(t, pose, pts, h):
+                self._publish_local()
+        else:
+            self.local_error = 'depth valid fraction below .30; local map not refreshed'
         if self.live is not None:
             self.live.integrate(mean, scan, cov)              # gated on the localizer's confidence
             if self.live.p.use_in_pf:
@@ -421,13 +448,52 @@ class LocNode(Node):
         msg.data = prob.T.ravel().tolist()                    # row-major, x fastest
         self.pub_occ.publish(msg)
 
+    def _integrate_local(self, captured, pose, points, height):
+        now = self.get_clock().now().nanoseconds*1e-9
+        if (not -.05 <= now-captured <= .5 or not 0 <= now-self.att_received <= .5
+                or self.height is None or not 0 <= time.monotonic()-self.height[0] <= .5
+                or not self.vio_ok or not np.isfinite(pose).all()
+                or self.local_stamp is not None and captured <= self.local_stamp):
+            self.local_error = 'local map requires fresh depth, attitude, height and healthy capture-matched VIO'
+            return False
+        if self.local_height is None or abs(height-self.local_height) > .2:
+            # A 2-D obstacle map at another altitude is not this flight band.
+            self.local = LocalGrid(self.local.p)
+            self.local_height = height
+        # Never turn the visible ground into a ring of apparent walls during
+        # takeoff. The origin-map keep-outs and immediate depth guard remain.
+        scan = scan_from_points(points,height,max(.15,height-.4),height+.4,rmin=.3,rmax=3.)
+        self.local.integrate(captured,compose(self.nominal,pose),scan)
+        self.local_stamp = captured
+        self.local_error = ''
+        return True
+
+    def _publish_local(self):
+        if self.local.origin is None or self.local_stamp is None:
+            return
+        self.local.decay(self.get_clock().now().nanoseconds*1e-9)
+        origin,res,w,h,data = self.local.grid_fields()
+        msg = OccupancyGrid()
+        # Re-publication must never make old sensor evidence appear fresh.
+        from rclpy.time import Time
+        msg.header.stamp = Time(seconds=self.local_stamp).to_msg()
+        msg.header.frame_id = 'coursenav_nominal'
+        msg.info.resolution = float(res)
+        msg.info.width,msg.info.height = w,h
+        msg.info.origin.position.x,msg.info.origin.position.y = map(float,origin)
+        msg.info.origin.orientation.w = 1.
+        msg.data = data.tolist()
+        self.pub_local.publish(msg)
+
     def _status(self):
         st = dict(self.counts, resets=self.resets, vio_ok=self.vio_ok, ready=self.pf.ready,
                   height_m=None if self.height is None else round(self.height[1], 3),
                   ess=round(self.pf.ess()) if self.pf.ready else None,
                   scans_skipped=self.pf.skipped, scan_fit=self.pf.last_fit,
                   cluster_frac=round(self.pf.last_cluster_frac, 2),
-                  live_map=self.live.stats() if self.live is not None else None)
+                  live_map=self.live.stats() if self.live is not None else None,
+                  local_map=dict(self.local.stats(),frame='coursenav_nominal',
+                                 gated_on_prior_fit=False,last_capture=self.local_stamp,error=self.local_error))
         if self.last_est is not None:
             t, mean, cov, pose, *_ = self.last_est
             st.update(t=round(t, 3), x=round(float(mean[0]), 3), y=round(float(mean[1]), 3),

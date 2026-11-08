@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,10 +19,10 @@ PROJECT = Path(__file__).resolve().parent.parent
 _RESOLVED = {}
 
 
-def load_course(path=PROJECT / "course" / "course_v3.json", derive=True):
+def load_course(path=None, derive=True):
     """Course file -> dict. With derive (default), every goal position is measured from the published
     OBJ by coursenav.semantics (the file itself stores none: rule 9.5); cached per file version."""
-    path = Path(path)
+    path = Path(path or os.environ.get("KESTREL_COURSE_FILE") or PROJECT / "course" / "course_v3.json")
     doc = json.loads(path.read_text())
     doc['vehicle'] = vehicle_geometry(doc['vehicle'])
     doc["_dir"] = str(PROJECT)

@@ -64,7 +64,7 @@ from .speed import braking_cap, side_cap
 
 NAV_OFFBOARD = 14
 NAV_AUTO_LAND = 18
-AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "retreat")
+AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "retreat", "search")
 TRANSLATING = ("go", "backoff", "climb")           # phases in which the aircraft is commanded to move
 SILENCE_PAUSED = ("turn", "hold", "excite")                # no translation: depth silence is not counted here
 
@@ -113,6 +113,7 @@ class Params:
                                                 # the REST OF THE LEG + this margin. A course wall planned beyond a
                                                 # leg's end (maze corridors) is then expected, not a blockage.
                                                 # < 0 (default): any obstacle closer than stop_m blocks (original rule)
+    corridor_search: bool = False               # active yaw search instead of landing for unobserved corridor
     corridor_wait_land_s: float = -1.0          # >= 0: land when the current leg's corridor has gone this long
                                                 # without an observing frame (in check or go). < 0 (default): hold
                                                 # and wait indefinitely (original rule)
@@ -459,7 +460,8 @@ class Mission:
         # pushed the aircraft 0.2 m toward M1)
         for i in stops:
             kappa[max(int(i) - 2, 0):int(i) + 3] = 0.0
-        if self.path is None or self.path.get("pid") != pid or self.path.get("leg") != leg:
+        new_geometry = self.path is None or self.path.get("pid") != pid or self.path.get("leg") != leg
+        if new_geometry:
             self.path_s, self.path_stop_done = 0.0, -1
         tb = None
         if tubes is not None:
@@ -471,6 +473,13 @@ class Mission:
         self.targets[leg] = (float(pts[-1, 0]), float(pts[-1, 1]))
         if leg == self.leg and self._path_leg():
             self.leg_len = float(s[-1])
+            # A new route can point away from the currently observed corridor.
+            if new_geometry and self.phase in ("go", "check", "blocked", "backoff", "recheck"):
+                desired = self._path_at(self.p.path_lookahead_m)[1]
+                if self.phase in ("blocked", "backoff", "recheck") or (self.last_v is not None
+                        and self.last_v.heading is not None
+                        and abs(_wrap(desired - self.last_v.heading)) > math.radians(self.p.face_tol_deg)):
+                    self.path_reorient = True
         return True
 
     def _path_leg(self, leg=None):
@@ -790,8 +799,24 @@ class Mission:
                     and not tunnel_dark:
                 seen = self.t_check if self.corr_t is None else max(self.t_check, self.corr_t)
                 if now - seen > p.corridor_wait_land_s:
-                    self._land(now, out, f"corridor of leg {self.leg + 1} not observed for "
-                                         f"{now - seen:.1f} s (corridor_wait_land_s {p.corridor_wait_land_s:g} s)")
+                    if p.corridor_search:
+                        self.sp[:2] = v.pos[:2]
+                        self.search_target = _wrap(v.heading + math.pi / 2)
+                        self.search_steps, self.search_settled = 0, None
+                        self._set("search", now, out, "corridor unobserved: scan other headings for live A*")
+                    else:
+                        self._land(now, out, f"corridor of leg {self.leg + 1} not observed for "
+                                             f"{now - seen:.1f} s (corridor_wait_land_s {p.corridor_wait_land_s:g} s)")
+
+        if getattr(self, "path_reorient", False) and self.phase in ("go", "check", "blocked", "backoff", "recheck"):
+            self.path_reorient = False
+            if self._path_fresh(now) and v.pos is not None:
+                self.sp[:2] = v.pos[:2]
+                self.v_cmd = self.a_cmd = self.yaw_rate_cmd = 0.0
+                self.v_vec = self.a_vec = (0.0, 0.0)
+                self.recover = None
+                self.clr_hist, self.corr_t, self.t_check = [], None, None
+                self._set("turn", now, out, "new A* route: face path before checking fresh depth")
 
         ph = self.phase
         if ph == "wait":
@@ -887,6 +912,27 @@ class Mission:
                 self.yaw_rate_cmd = 0.0
                 out.yawspeed = 0.0 if p.yaw_accel_dps2 > 0 else None
                 self._after_turn(now, out)
+        elif ph == "search":
+            # Stay at the search position. Only yaw; camera observations update the planner.
+            err = _wrap(self.search_target - self.sp[3])
+            step = math.radians(p.yaw_rate_dps) * dt
+            self.sp[3] = _wrap(self.sp[3] + max(-step, min(step, err)))
+            facing = abs(_wrap(self.search_target - v.heading)) < math.radians(p.face_tol_deg)
+            if facing and self.depth_fresh(now):
+                if self.search_settled is None:
+                    self.search_settled = now
+                if now - self.search_settled >= max(p.turn_settle_s, .7):
+                    self.search_steps += 1
+                    if self.search_steps >= 4 and self._path_fresh(now):
+                        self.path_s, self.path_stop_done = 0.0, -1
+                        self.path_reorient = False
+                        self.clr_hist, self.corr_t = [], None
+                        self._set("turn", now, out, "scan complete: face updated A* route, then check fresh depth")
+                    else:
+                        self.search_target = _wrap(self.search_target + math.pi / 2)
+                        self.search_settled = None
+            else:
+                self.search_settled = None
         elif ph == "align":
             self._align(now, out, v)
         elif ph == "check":

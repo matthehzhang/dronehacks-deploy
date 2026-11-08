@@ -53,6 +53,8 @@ class Navigator:
         self.p = params or NavParams()
         self._fused = (obst, blocked, self._effective(clearance, blocked))
         self._lm_count = 0
+        self._lm_cached = np.zeros(obst.occ.shape, bool)
+        self.local_obstacles = np.zeros(obst.occ.shape, bool)
         self.t_plan = None
         self.path: Path | None = None
         self.goals = None
@@ -70,13 +72,14 @@ class Navigator:
 
     def fuse(self):
         """Prior + live landmarks -> (obstacle grid, blocked grid, clearance). Cached until they change."""
-        if self.live is None:
-            return self._fused
-        lm = self.live.landmarks()
+        lm = self.local_obstacles.copy()
+        if self.live is not None:
+            lm |= self.live.landmarks()
         n = int(lm.sum())
-        if n == self._lm_count:
+        if np.array_equal(lm,self._lm_cached):
             return self._fused
         self._lm_count = n
+        self._lm_cached = lm.copy()
         occ = self.prior_obst.occ | lm
         clear = ndimage.distance_transform_edt(~occ) * self.prior_obst.res
         blocked = Grid2D(self.prior_blocked.occ | (clear < self.need), self.prior_obst.origin, self.prior_obst.res)
@@ -84,7 +87,30 @@ class Navigator:
         return self._fused
 
     def map_changed(self):
-        return self.live is not None and int(self.live.landmarks().sum()) != self._lm_count
+        mask = self.local_obstacles.copy()
+        if self.live is not None:
+            mask |= self.live.landmarks()
+        return not np.array_equal(mask, self._lm_cached)
+
+    def set_local(self, mask):
+        mask = np.asarray(mask, bool)
+        if mask.shape != self.prior_obst.occ.shape:
+            raise ValueError('local obstacle mask must use the planning grid')
+        self.local_obstacles = mask.copy()
+
+    def path_safe(self, position=None):
+        if self.path is None:
+            return False
+        _, _, clearance = self.fuse()
+        pts = self.path.pts
+        first = 0 if position is None else int(np.argmin(np.linalg.norm(pts-np.asarray(position),axis=1)))
+        ij = self.prior_obst.ij(pts[first:])
+        if not self.prior_obst.inside(ij).all():
+            return False
+        # A permitted initial escape segment can already be inside the margin.
+        # Replanning it on every map update cannot improve the unchanged start.
+        required = np.minimum(self.need, self.path.clearance[first:])
+        return bool(np.all(clearance[ij[:,0],ij[:,1]] + 1e-6 >= required))
 
     # ------------------------------------------------------------------ planning
     def _free_start(self, start, blocked, clear):
@@ -141,7 +167,7 @@ class Navigator:
 
     def needs_replan(self, t, progress_s):
         """A live obstacle within the buffer of the path still ahead, or the periodic re-plan is due."""
-        if self.path is None or self.live is None:
+        if self.path is None:
             return False
         if self.t_plan is not None and t - self.t_plan < self.p.replan_every_s:
             return False

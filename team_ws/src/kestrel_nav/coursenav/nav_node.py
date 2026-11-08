@@ -27,14 +27,22 @@ from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPo
 from scipy import ndimage
 from std_msgs.msg import String
 
-from .course import Grid2D, load_course, plan_grids, resolve, scan_grid
+from .course import Grid2D, load_course, plan_grids, resolve
 from .drift import DriftEKF
 from .navigator import Navigator
 from .navplan import course_to_ned, smooth_params_for
 from .objmap import CourseMap
 from .planner import PlanError
+from .localgrid import occupied_points_from_grid, course_mask
 
-AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "align")
+AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "align", "search")
+
+
+def advance_goals(goals, position, first=0, capture_m=.3):
+    """Monotonic pass-through progress; the final waypoint remains the leg target."""
+    while first < len(goals)-1 and np.linalg.norm(np.asarray(goals[first])-position) <= capture_m:
+        first += 1
+    return first
 
 
 class LiveLandmarks:
@@ -81,26 +89,38 @@ class NavNode(Node):
         obst, blocked, clearance = plan_grids(cmap, doc)
         need = float(doc["vehicle"]["radius_m"] + doc["vehicle"]["margin_m"])
         sp = smooth_params_for(rd.get("navigation", {}), rd.get("params", {}), need)
-        sg = scan_grid(cmap)
-        self.live = LiveLandmarks(sg) if sg.occ.shape == obst.occ.shape else None
+        # The old PF-gated grid has persistent landmarks from mismatched scans.
+        # It remains diagnostic; only the fresh VIO-depth grid drives live planning.
+        self.live = None
         self.nav = Navigator(obst, blocked, clearance, need, sp, live=self.live, gate_lines=rd.get("gate_lines"))
+        self.local_pts = np.zeros((0,2))
+        self.local_stamp = None
+        self.local_required = bool(dp('local_map_required',True).value)
+        self.local_error = 'waiting for ungated local map'
         # the flight frame's heading relative to the VIO origin: 90 deg in the simulator (vision bridge
         # heading_enu_rad), 0 on the skybeta drone (the flight interface permutes odometry ENU directly)
         self.decl = math.radians(float(dp("declared_heading_deg", 90.0).value))
         self.drift = None
         self.status = None
         self.nav_leg, self.pid = None, 0
+        self.goal_progress = {}
+        self.last_attempt = -math.inf
+        self.last_plan_error = ''
         self.stats = dict(plans=0, replans=0, plan_errors=0)
         latched = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                              history=HistoryPolicy.KEEP_LAST, depth=1)
         self.create_subscription(String, dp("drift_topic", "/coursenav/drift").value, self._on_drift, 10)
         self.create_subscription(String, dp("status_topic", "/refnav/status").value, self._on_status, 10)
         self.create_subscription(OccupancyGrid, "/coursenav/occupancy", self._on_occ, latched)
+        self.create_subscription(OccupancyGrid, '/coursenav/local_occupancy', self._on_local, 10)
+        self.pub_grid = self.create_publisher(OccupancyGrid, "/coursenav/traversability", 10)
+        self.create_timer(.5, self._publish_grid)
         self.pub = self.create_publisher(String, dp("path_topic", "/coursenav/path").value, 10)
         self.create_timer(1.0 / float(dp("rate_hz", 10.0).value), self._tick)
         self.get_logger().info(f"navigator: {len(self.nav_legs)} legs ({sum(L['path'] for L in self.nav_legs)} "
                                f"path legs), cruise {sp.cruise_mps:.2f} m/s, buffer {need:.2f} m")
         self.cache = self._preplan(rd, route_file)
+        self.mission_preview = [dict(leg=k,pts_course=v[2].pts.round(4).tolist()) for k,v in sorted(self.cache.items())]
 
     def _preplan(self, rd, route_file):
         """kestral_nav934am (skybeta): plan every path leg BEFORE take-off, each from its leg's start (the start
@@ -143,6 +163,18 @@ class NavNode(Node):
         if self.live is not None:
             self.live.on_grid(m)
 
+    def _publish_grid(self):
+        _, blocked, _ = self.nav._fused
+        m = OccupancyGrid()
+        m.header.stamp = self.get_clock().now().to_msg()
+        m.header.frame_id = "course"
+        m.info.resolution = float(blocked.res)
+        m.info.width, m.info.height = blocked.occ.shape
+        m.info.origin.position.x, m.info.origin.position.y = map(float, blocked.origin)
+        m.info.origin.orientation.w = 1.
+        m.data = (blocked.occ.T.astype(np.int8)*100).ravel().tolist()
+        self.pub_grid.publish(m)
+
     def _tick(self):
         if self.drift is None or self.status is None:
             return
@@ -150,17 +182,42 @@ class NavNode(Node):
         ekf = DriftEKF.from_state(d["delta"], d["nominal"])
         nb = np.array(d["nominal"], float)
         believed = ekf.body_course(nb)
+        now = self.get_clock().now().nanoseconds*1e-9
+        local_fresh = self.local_stamp is not None and -.05 <= now-self.local_stamp <= .5 and not self.local_error
+        if local_fresh:
+            points = ekf.to_course(self.local_pts,nb) if len(self.local_pts) else self.local_pts
+            # No near-prior suppression: a misplaced prior must not hide the
+            # actual wall the depth camera just observed.
+            self.nav.set_local(course_mask(points,self.nav.prior_obst))
         leg, phase = int(self.status.get("leg", 0)), self.status.get("phase")
+
+        if not hasattr(self, 'goal_progress'):
+            self.goal_progress = {}
+        if leg < len(self.nav_legs) and phase in AIRBORNE:
+            self.goal_progress[leg] = advance_goals(self.nav_legs[leg]['goals'], believed[:2], self.goal_progress.get(leg,0))
 
         def to_ned(pts):
             return course_to_ned(ekf.to_nominal(pts, nb), d["fixture"], self.decl)
 
         targets = {j: [float(v) for v in to_ned([self.nav_legs[j]["stop"]])[0]]
                    for j in range(leg + 1, len(self.nav_legs))}
-        out = {"stamp": time.time(), "leg": leg, "pid": self.pid, "targets_ne": targets}
+        out = {"stamp": time.time(), "leg": leg, "pid": self.pid, "targets_ne": targets,
+               "mission_preview": getattr(self,"mission_preview",[])}
+        out.update(local_map_fresh=bool(local_fresh),local_map_error=self.local_error,
+                   local_obstacle_cells=int(self.nav.local_obstacles.sum()),
+                   map_provenance='prior_geometry_plus_vio_depth_obstacles')
+        if self.local_required and not local_fresh:
+            self.nav.path = None
+            out.update(valid=False,reason='fresh ungated local depth map required')
+            self.pub.publish(String(data=json.dumps(out)))
+            return
+        if self.nav.map_changed():
+            self.cache.clear()
+            if self.nav.path is not None and not self.nav.path_safe(believed[:2]):
+                self.nav.path = None
         if leg < len(self.nav_legs) and self.nav_legs[leg]["path"] and phase in AIRBORNE:
             L = self.nav_legs[leg]
-            want = self.nav_leg != leg
+            want = self.nav_leg != leg or self.nav.path is None
             if not want and self.nav.path is not None:
                 want = self.nav.needs_replan(time.monotonic(), 0.0)
             c = self.cache.pop(leg, None) if self.nav_leg != leg else None
@@ -170,26 +227,49 @@ class NavNode(Node):
                 self.nav_leg = leg
                 want = False
                 self.get_logger().info(f"leg {leg + 1}: pre-planned path {self.nav.path.length:.2f} m")
-            if want:
-                goals = [np.array(g, float) for g in L["goals"]]
-                goals = [g for g in goals[:-1] if np.hypot(*(g - believed[:2])) > 0.3] + [goals[-1]]
+            if want and time.monotonic()-self.last_attempt >= self.nav.p.replan_every_s:
+                self.last_attempt = time.monotonic()
+                goals = [np.array(g, float) for g in L["goals"][self.goal_progress.get(leg,0):]]
                 try:
                     v0 = float(self.status.get("v_cmd") or 0.0) if self.nav_leg == leg else 0.0
                     self.nav.plan(believed[:2], goals, t=time.monotonic(), v_start=v0)
                     self.stats["replans" if self.nav_leg == leg else "plans"] += 1
                     self.pid += 1
                     self.nav_leg = leg
+                    self.last_plan_error = ''
                     self.get_logger().info(f"leg {leg + 1}: path {self.nav.path.length:.2f} m, "
                                            f"{len(self.nav.path.stops)} stop corners, est {self.nav.path.duration():.1f} s")
                 except PlanError as e:
+                    self.nav.path = None
+                    self.last_plan_error = str(e)
                     self.stats["plan_errors"] += 1
                     self.get_logger().warning(f"leg {leg + 1}: no path ({e}); refnav holds without one")
             if self.nav.path is not None and self.nav_leg == leg:
                 P = self.nav.path
-                out.update(pid=self.pid, pts_ne=to_ned(P.pts).round(4).tolist(), v=P.v.round(3).tolist(),
+                out.update(pid=self.pid, pts_course=P.pts.round(4).tolist(), pts_ne=to_ned(P.pts).round(4).tolist(), v=P.v.round(3).tolist(),
                            stops=list(P.stops),
                            tubes=None if P.tube is None else P.tube.round(4).tolist())
+        out['valid'] = bool(out.get('pts_ne'))
+        out['plan_error'] = self.last_plan_error
         self.pub.publish(String(data=json.dumps(out)))
+
+    def _on_local(self, m):
+        try:
+            captured = m.header.stamp.sec+m.header.stamp.nanosec*1e-9
+            now = self.get_clock().now().nanoseconds*1e-9
+            if (m.header.frame_id != 'coursenav_nominal' or not -.05 <= now-captured <= .5
+                    or self.local_stamp is not None and captured < self.local_stamp
+                    or not 0 < m.info.resolution <= .1 or m.info.width*m.info.height != len(m.data)
+                    or not 0 < len(m.data) <= 250000):
+                raise ValueError('invalid, stale or mismatched-frame local grid')
+            origin = (m.info.origin.position.x,m.info.origin.position.y)
+            if not np.isfinite(origin).all():
+                raise ValueError('invalid grid origin')
+            self.local_pts = occupied_points_from_grid(origin,m.info.resolution,
+                                                       m.info.width,m.info.height,m.data)
+            self.local_stamp,self.local_error = captured,''
+        except (ValueError,TypeError) as exc:
+            self.local_error = str(exc)
 
 
 def main(args=None):

@@ -35,7 +35,8 @@ def test_prior_provenance_and_goal_resolution(active):
     assert cmap.meta['official_published'] is False
     assert doc['start']['xy'] == manifest['start']['xy']
     assert doc['start']['yaw_deg'] == manifest['start']['yaw_deg']
-    assert [s['name'] for s in doc['sequence']] == ['tunnel_entry', 'tunnel_exit', 'chicane', 'pad']
+    assert [s['name'] for s in doc['sequence']] == ['entrance_approach','tunnel_entry', 'tunnel_exit', 'chicane', 'pad']
+    assert doc['sequence'][0]['xy']==[-2.50,1.35]
     assert 'maze_exit' not in doc['derived']
     assert doc['vehicle']['radius_m'] + doc['vehicle']['margin_m'] == pytest.approx(.4140828452868319)
 
@@ -68,6 +69,7 @@ def test_new_route_preserves_full_clearance(active):
     plan = planner.plan(doc, obst, blocked, clearance, start_xy=start, chicane='window', cmap=cmap)
     assert plan['min_clearance_m'] >= plan['required_clearance_m']
     names = [w['name'] for w in plan['waypoints']]
+    assert names.index('entrance_approach') < names.index('tunnel_entry')
     assert 'maze_exit' not in names
     assert names.index('tunnel_exit') == names.index('tunnel_entry') + 1
     assert names[-1] == 'pad'

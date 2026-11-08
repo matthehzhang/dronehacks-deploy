@@ -21,6 +21,7 @@ from launch_ros.actions import Node
 ROOT = Path(__file__).resolve().parent.parent          # package source root (symlink install): fly_course.py lives here
 
 ARGUMENTS = [
+    ('course_file', str(ROOT / 'course' / 'course_v3.json'), 'course configuration; override only when launch mark changes'),
     ('max_altitude_m', '3.0', 'flight interface ceiling above the odometry origin'),
     ('min_altitude_m', '0.3', 'flight interface floor (pose setpoints only)'),
     ('max_speed_mps', '1.5', 'flight interface cap on a twist norm'),
@@ -45,7 +46,7 @@ ARGUMENTS = [
 def generate_launch_description():
     declared = [DeclareLaunchArgument(n, default_value=d, description=h) for n, d, h in ARGUMENTS]
     L = LaunchConfiguration
-    env = dict(os.environ, PYTHONPATH=f"{ROOT}:{os.environ.get('PYTHONPATH', '')}")
+    env = dict(os.environ, PYTHONPATH=f"{ROOT}:{os.environ.get('PYTHONPATH', '')}", KESTREL_COURSE_FILE=L('course_file'))
     flight_interface = Node(
         package='skybeta_flight_interface', executable='flight_interface', name='flight_interface',
         output='screen', emulate_tty=True,
@@ -63,7 +64,7 @@ def generate_launch_description():
         cmd=['nice', '-n', '5', 'python3', '-m', 'coursenav.loc_node', '--ros-args', '--params-file', str(ROOT / 'onboard/config/common.yaml'),
              '-p', ['depth_topic:=', L('depth_topic')], '-p', ['depth_info_topic:=', L('depth_info_topic')],
              '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'height_source:=local_position', '-p', 'publish_zero_drift:=true', '-p', 'adaptive_hz:=4.0',
-             '-p', ['landed_z_m:=', L('landed_z')]],
+             '-p', ['landed_z_m:=', L('landed_z')], '-p', ['course_file:=', L('course_file')]],
         cwd=str(ROOT), additional_env=env, output='screen', name='localizer')
     fly_env = dict(env)
     fly = ExecuteProcess(

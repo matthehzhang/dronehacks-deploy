@@ -305,7 +305,7 @@ def expand_goals(doc, chicane, obst=None, clearance=None):
                         "gate": key, "part": "post"})
         else:
             pts.append({"name": g["name"], "xy": list(g["xy"]), "mode": g.get("mode", "cruise"),
-                        "straight": bool(g.get("straight")), "land": bool(g.get("land"))})
+                        "straight": bool(g.get("straight")), "land": bool(g.get("land")), "stop": bool(g.get("stop"))})
     return pts, info
 
 
@@ -362,7 +362,7 @@ def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=N
             path.append(np.asarray(s, float))
             names.append(None)
         path.append(q)
-        names.append({k: g[k] for k in ("name", "mode", "land", "gate", "part", "normal", "pre_m") if k in g})
+        names.append({k: g[k] for k in ("name", "mode", "land", "stop", "gate", "part", "normal", "pre_m") if k in g})
         keep.append(len(path) - 1)
     pol = doc.get("leg_policy", {})
     solid = solid_band(cmap, doc) if cmap is not None else obst

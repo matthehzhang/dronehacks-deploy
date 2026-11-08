@@ -390,6 +390,14 @@ class RefNav(Node):
             return
         self.trace.record("path", self._now(), data=d)
         mi = self.mission
+        if int(d.get('leg',-1)) == mi.leg and d.get('valid') is False:
+            had_path = mi.path is not None
+            mi.path = None
+            # Capture a hold once when withdrawing an active route. Repeated
+            # invalid messages must never drag a climb/hover anchor with drift.
+            if (had_path and mi.phase in ('go', 'check', 'turn') and mi.sp is not None
+                    and mi.last_v is not None and mi.last_v.pos is not None):
+                mi.sp[:2] = mi.last_v.pos[:2]
         if mi.targets is None:
             return
         for j, ne in (d.get("targets_ne") or {}).items():

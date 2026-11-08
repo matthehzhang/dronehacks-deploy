@@ -53,6 +53,15 @@
   ],
   "sequence": [
     {
+      "name": "entrance_approach",
+      "xy": [
+        -2.5,
+        1.35
+      ],
+      "_note": "Explicit stop in the first narrow passage from launch, west of the new M2 panel tip, before the tunnel. Candidate in approximate origin-map ENU; validate full clearance and real placement. Live depth still owns obstacle rejection.",
+      "stop": true
+    },
+    {
       "name": "tunnel",
       "from": {
         "feature": "tube_axis",
@@ -239,7 +248,8 @@
     "_correction_note": "correction_*: bounded map corrections (coursenav.loc_node -> /coursenav/px4_correction) shift the REMAINING targets at every leg start. Offline (2026-11-06): a 0.40 m total cap and a 0.06 m deadband let the correction lag the drift by 0.1-0.2 m, which was the margin at the M3 corner and the window; VIO can drift 0.3-0.5 m over the 17 m course, so the cap is 0.8 m (the enclosure bounds the localizer anyway), 0.2 m per leg start, 4 cm deadband. correction_rate_mps 0.05: the targets also follow the correction during a leg (at most 5 cm per second of shift), so the aircraft stays on the corrected line between leg starts; offline the leg-start-only rule lagged 0.1 m at the M3 corner and grazed it.",
     "safe_land": true,
     "retreat_speed_mps": 0.1,
-    "_safe_land_note": "Fault landings descend only over a floor column clear of published surfaces within rotor reach + margin (coursenav.course.land_columns, full 3-D map floor..band top); otherwise refnav retraces its flown path to the nearest clear column first. run012: a fault land-in-place over the tube came down onto it. Estimator / PX4-position failures still land at once."
+    "_safe_land_note": "Fault landings descend only over a floor column clear of published surfaces within rotor reach + margin (coursenav.course.land_columns, full 3-D map floor..band top); otherwise refnav retraces its flown path to the nearest clear column first. run012: a fault land-in-place over the tube came down onto it. Estimator / PX4-position failures still land at once.",
+    "corridor_search": true
   },
   "_goals_note": "Temporary map-based policy. First semantic goal is tunnel; original downstream tunnel/window/pad features are measured from this reconstructed OBJ.",
   "enclosure": {

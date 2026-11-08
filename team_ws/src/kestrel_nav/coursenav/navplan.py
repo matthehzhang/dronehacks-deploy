@@ -21,7 +21,7 @@ from . import planner
 
 
 def is_stop(w):
-    return w.get("mode") in ("gate", "tunnel", "align") or bool(w.get("land"))
+    return w.get("mode") in ("gate", "tunnel", "align") or bool(w.get("land")) or bool(w.get("stop"))
 
 
 def is_path_leg(meta):
