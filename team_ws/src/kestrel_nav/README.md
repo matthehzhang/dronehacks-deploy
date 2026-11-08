@@ -18,6 +18,24 @@ alignment, detected-obstacle responses and camera-stream-loss handling are uncha
 This adds no automatic-landing trigger, velocity-validity requirement or continuous
 height veto during crossing. Holding XY still allows feedback to counter drift.
 
+Skybeta window altitude feedback: `/visual_slam/tracking/odometry` is aligned
+to PX4's vertical coordinate using a rolling 2-second average of available
+samples while landed or moving below 0.08 m/s horizontally and vertically.
+Calibration runs during the existing route before the window crossing leg;
+there is no minimum-sample wait. At `window_pre`, as the `window_post` leg
+starts, freeze that offset and use VIO height for both mission height checks
+and the twist altitude controller. Keep it through the pad approach because
+PX4's terrain-height error may persist beyond the window. Targets stay in
+their existing coordinate frame. Activation/fallback messages use `!!!!!!!!!!`.
+With no fresh calibrated VIO, continue the existing PX4 behavior and warn.
+After activation, a VIO gap over 1 second temporarily uses PX4 height changes
+relative to the last VIO height; fresh VIO resumes with the frozen offset.
+Neither case adds a mission hold or landing trigger. Status/trace records include
+the height source and offset; raw PX4 local-position trace records are retained.
+Native PX4 output, automatic return, and diagnostics do not use this handoff.
+PX4 estimator parameters and its inner velocity controller are unchanged.
+This change has CPU regression coverage, but has not been flight validated.
+
 At the end, the skybeta launch disables the mission's landing timeout: the existing
 0.30 m/s landing descent continues until PX4 reports disarmed. During that descent,
 a fresh PX4 `landed=true` report triggers an explicit normal

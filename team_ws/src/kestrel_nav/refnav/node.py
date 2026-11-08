@@ -159,6 +159,13 @@ class RefNav(Node):
         self.pub_status = self.create_publisher(String, status_topic, 10)
 
         self.v = C.Vehicle()
+        self.window_vio_height = None
+        if self.sky is not None and not self.return_enabled and not self.diagnostic_enabled:
+            from nav_msgs.msg import Odometry
+            from .window_vio_height import WindowVioHeight
+            self.window_vio_height = WindowVioHeight(self.get_logger().warning)
+            self.create_subscription(Odometry, '/visual_slam/tracking/odometry',
+                                     self._on_window_vio, qos_profile_sensor_data)
         self.create_subscription(VehicleLocalPosition, lpos_topic, self._on_lpos, PX4_QOS)
         self.create_subscription(VehicleAttitude, "/fmu/out/vehicle_attitude", self._on_att, PX4_QOS)
         self.create_subscription(VehicleStatus, status_topic_px4, self._on_status, PX4_QOS)
@@ -242,6 +249,10 @@ class RefNav(Node):
         self._ev_yaw = (bool(getattr(m, 'cs_ev_yaw', False)), self._now())
         if self._ev_yaw[0]:
             self._ev_yaw_true_t = self._now()
+
+    def _on_window_vio(self, m):
+        stamp = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9
+        self.window_vio_height.observe(self._now(), stamp, float(m.pose.pose.position.z))
 
     def _on_lpos(self, m):
         accepted = self._return_observe('position', m.timestamp * 1e-6,
@@ -488,8 +499,12 @@ class RefNav(Node):
             # skybeta: no AUTO_LAND exists. After the interface descent, actual PX4 disarm status
             # confirms completion, whether our checked command or PX4 auto-disarm performed it.
             self.mission.land_auto_seen = True
-        out = (self.mission.step(now, self.v, wall_now=time.monotonic()) if self.return_enabled or diagnostic
-               else self.mission.step(now, self.v))
+        vehicle = self.v
+        height = getattr(self, 'window_vio_height', None)
+        if height is not None:
+            vehicle = height.vehicle(now, self.mission, vehicle, self._lpos_received_ros_s)
+        out = (self.mission.step(now, vehicle, wall_now=time.monotonic()) if self.return_enabled or diagnostic
+               else self.mission.step(now, vehicle))
         if diagnostic and getattr(self.mission, 'protocol_tick', None) is not None:
             # Include the failed tick even when no experiment command publishes.
             # evaluated_phase in the snapshot predates a transition to FAULT.
@@ -510,7 +525,7 @@ class RefNav(Node):
             self._publish_status()
         published = None
         if self.sky is not None:                            # the drone: everything goes through the interface
-            published = self.sky.publish(now, out, self.v)
+            published = self.sky.publish(now, out, vehicle)
             out.commands = []
         velocity_only = getattr(out, 'velocity_only', None) if self.sky is None else None
         position_hold = getattr(out, 'position_hold', None)
@@ -580,7 +595,8 @@ class RefNav(Node):
             self.done_at = now
             self.get_logger().info(f"mission done: {self.mission.result}")
         self.trace.record("tick", now, phase=self.mission.phase, leg=self.mission.leg,
-                          vehicle=self.v, output=out, published_trajectory=published,
+                          vehicle=vehicle, output=out, published_trajectory=published,
+                          window_vio_height=height.status() if height is not None else None,
                           lpos_received_ros_s=self._lpos_received_ros_s,
                           lpos_timestamp=self._lpos_timestamp,
                           path=None if self.mission.path is None else
@@ -589,6 +605,9 @@ class RefNav(Node):
 
     def _publish_status(self):
         st = self.mission.status(self._now())
+        height = getattr(self, 'window_vio_height', None)
+        if height is not None:
+            st['window_vio_height'] = height.status()
         st["rejects"] = dict(self.rejects)
         self.pub_status.publish(String(data=json.dumps(st)))
         self.trace.record("status", self._now(), data=st)
