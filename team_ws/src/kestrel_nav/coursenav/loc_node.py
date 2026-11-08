@@ -318,6 +318,7 @@ class LocNode(Node):
         self.pf.predict(pose, dt, self.vio_ok)
         if len(scan) == 0:
             self.counts["empty_scans"] += 1
+            self.prior_mon.on_fit(t, 0, 0.0)  # missing evidence interrupts placement/drop qualification
         else:
             if self.pf.update(pose, scan):
                 self.counts["updates"] += 1
@@ -461,9 +462,10 @@ class LocNode(Node):
     def _publish_local(self):
         if self.local.origin is None:
             return
-        (ox, oy), res, w, hgt, data = self.local.grid_fields()
+        now = self.get_clock().now()
+        (ox, oy), res, w, hgt, data = self.local.grid_fields(now=now.nanoseconds * 1e-9)
         msg = OccupancyGrid()
-        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.stamp = now.to_msg()
         msg.header.frame_id = "coursenav_nominal"
         msg.info.resolution = float(res)
         msg.info.width, msg.info.height = int(w), int(hgt)

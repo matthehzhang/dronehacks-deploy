@@ -53,6 +53,9 @@ class LocalGrid:
         self.n = int(round(self.p.size_m / self.p.res_m))
         self.L = np.zeros((self.n, self.n), np.float32)
         self.seen = np.zeros((self.n, self.n), np.uint16)
+        # Per-cell pass-through evidence, separate from publication/decay time.
+        # -inf means never free; a sensor observation at simulation time zero is valid.
+        self.last_free = np.full((self.n, self.n), -np.inf, np.float64)
         self.origin = None                 # world (nominal) xy of cell (0, 0)'s corner; cell-aligned
         self.t_last = None
         self.scans_in = 0
@@ -71,6 +74,7 @@ class LocalGrid:
             return
         self.L = _shift(self.L, shift)
         self.seen = _shift(self.seen, shift)
+        self.last_free = _shift(self.last_free, shift, fill=-np.inf)
         self.origin = self.origin + shift * res
         self.recentres += 1
 
@@ -117,6 +121,9 @@ class LocalGrid:
         flat, seen = self.L.reshape(-1), self.seen.reshape(-1)
         flat[free] += self.p.l_free
         flat[occ] += self.p.l_occ
+        last_free = self.last_free.reshape(-1)
+        last_free[free] = t if math.isfinite(t) else -np.inf
+        last_free[occ] = -np.inf  # a hit revokes previous free evidence, even before log-odds turn positive
         np.clip(flat, self.p.l_min, self.p.l_max, out=flat)
         touched = np.concatenate([free, occ])
         seen[touched] = np.minimum(seen[touched].astype(np.int32) + 1, 65535)
@@ -143,14 +150,20 @@ class LocalGrid:
     def probability(self):
         return 1.0 - 1.0 / (1.0 + np.exp(self.L))
 
-    def grid_fields(self):
+    def grid_fields(self, now=None, max_free_age_s=8.0):
         """-> (origin xy, res, width, height, data) for a nav_msgs/OccupancyGrid: row-major with x fastest,
         -1 unknown (never touched), 0..100 probability; occupied-but-speck cells are reported as 50 so a
-        reader applying >= 88 (occ_thresh) and the clump rule sees exactly occupied()."""
+        reader applying >= 88 (occ_thresh) and the clump rule sees exactly occupied().
+        With now, negative/free evidence expires independently of obstacle decay;
+        republishing or an empty scan cannot make old free cells fresh again."""
         prob = np.rint(self.probability() * 100).astype(np.int8)
         occ = self.L >= self.p.occ_thresh
         prob[occ & ~self.occupied()] = 50
         prob[self.seen == 0] = -1
+        if now is not None:
+            age = float(now) - self.last_free
+            recent = (np.isfinite(age) & (age >= 0) & (age <= max_free_age_s))
+            prob[(self.L < 0) & ~recent] = -1
         return self.origin, self.p.res_m, self.n, self.n, prob.T.ravel()
 
     def stats(self):
@@ -166,9 +179,9 @@ def occupied_points_from_grid(origin, res, width, height, data, occ_prob=88):
     return np.asarray(origin, float) + (ij + 0.5) * float(res)
 
 
-def _shift(a, shift):
-    """Move array contents by -shift cells (the window moved +shift): cells leaving are dropped, new cells 0."""
-    out = np.zeros_like(a)
+def _shift(a, shift, fill=0):
+    """Move array contents by -shift cells; drop departing cells and initialize new cells with fill."""
+    out = np.full_like(a, fill)
     dx, dy = int(shift[0]), int(shift[1])
     n0, n1 = a.shape
     if abs(dx) >= n0 or abs(dy) >= n1:

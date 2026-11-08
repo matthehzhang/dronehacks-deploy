@@ -35,7 +35,8 @@ def test_copied_install_plans_with_its_bundled_new_map(tmp_path):
     runtime = namespace['ROOT']
     assert runtime == share / 'runtime'
     for name in ('refnav/node.py', 'coursenav/loc_node.py', 'onboard/config/common.yaml',
-                 'maps/course_new_origin.npz', 'course/new_course_origin.obj', 'flight.yaml'):
+                 'maps/course_new_origin.npz', 'course/new_course_origin.obj', 'flight.yaml',
+                 'coursenav/observed_free.py'):
         assert (runtime / name).is_file(), name
     env = dict(os.environ)
     env.pop('COURSENAV_COURSE', None)

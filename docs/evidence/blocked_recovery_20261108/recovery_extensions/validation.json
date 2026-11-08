@@ -1,0 +1,36 @@
+{
+  "branch": "cram304",
+  "base_commit": "05f1fcd",
+  "full_regression": {
+    "command": "python3 -m pytest -q tests",
+    "passed": 476,
+    "xfailed": 2,
+    "seconds": 196.45,
+    "note": "Final callback braking, per-cell free evidence and parameter guards also covered by focused rerun."
+  },
+  "final_focused": {
+    "command": "python3 -m pytest -q tests/test_recovery_controller.py tests/test_local_free_age.py tests/test_nav_recovery_protocol.py tests/test_observed_recovery.py tests/test_priorstate.py tests/test_localizer_startup.py",
+    "passed": 76,
+    "seconds": 6.12
+  },
+  "copied_install": {
+    "command": "python3 -m pytest -q tests/test_package_install.py",
+    "passed": 1,
+    "seconds": 13.81
+  },
+  "native_device": "pending",
+  "dual_gazebo": "pending final commit in diverse worlds",
+  "sha256": {
+    "refnav/core.py": "37017697dc093f63c9488e3e11d068233d1a5e1ab3c9f523761c695418ace843",
+    "refnav/node.py": "d72d4d0b18b2d46f2cac62e97a2ee77a4f1c351e3d6b807c8306371d246ecf1c",
+    "coursenav/nav_node.py": "72b4b4a0e56f5b971eab66cd81fec00319ca7924464bcb0e9afa0c154b36876b",
+    "coursenav/navigator.py": "c41f0049e1172bbd831b6519aca612ec583e942b70677467749c19ecf4d10fcf",
+    "coursenav/priorstate.py": "57495bf68b0fc9a9c1fcea40204e45e5caf82fb11c72db145055674de41b19c2",
+    "coursenav/localgrid.py": "0bac90cdb29c87105b5478cf2720e859094fe1561cda3bfd66c84aaa1fdd2389",
+    "coursenav/loc_node.py": "a811c11d476d0a278bfa229783eea89ff3e84182ea4c2fde31af1e76b8b52525",
+    "coursenav/observed_free.py": "3343ee0c7372b18642d3cd45cd932de7cc5549bd5b70d3ae375be7f54b51c9ce",
+    "launch/refnav_skybeta.launch.py": "d3929979939687d12281559e7bfbaa23fa9e3aa32e852d979fbf991b2375d113",
+    "course/new_course_origin.obj": "ef86d5ea34edb7d655551ad2faf5bedff6c916425013aeb4e03e927e0b46809b",
+    "maps/course_new_origin.npz": "f58cd51c411b58d3ecfc2509486ed58558adffa8c0d0ae9d827b6c1e60236f9c"
+  }
+}

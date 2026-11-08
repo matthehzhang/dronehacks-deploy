@@ -397,23 +397,51 @@ class RefNav(Node):
             return
         try:
             d = json.loads(m.data)
-        except ValueError:
+            if not isinstance(d, dict):
+                raise ValueError("path message must be an object")
+            leg = d.get("leg", -1)
+            if type(leg) is not int:
+                raise ValueError("path leg must be an integer")
+        except (ValueError, TypeError):
             self.trace.record("path_invalid", self._now(), raw=m.data)
             return
         self.trace.record("path", self._now(), data=d)
         mi = self.mission
         if mi.targets is None:
             return
-        for j, ne in (d.get("targets_ne") or {}).items():
-            j = int(j)
-            if mi.leg < j < len(mi.targets) and len(ne) == 2 and all(math.isfinite(float(c)) for c in ne):
-                mi.targets[j] = (float(ne[0]), float(ne[1]))
-        if int(d.get("leg", -1)) == mi.leg and d.get("pts_ne"):
-            received = self._now()
-            accepted = mi.on_path(received, mi.leg, d["pts_ne"], d.get("v") or [],
-                                  d.get("stops") or [], pid=d.get("pid", 0), tubes=d.get("tubes"))
-            self.trace.record("path_applied", received, accepted=accepted,
-                              leg=mi.leg, pid=d.get("pid", 0))
+        received = self._now()
+        if d.get("plan_state") in ("pending", "failed"):
+            mi.on_plan_result(received, leg, d.get("request_id"),
+                              d["plan_state"], d.get("reason", ""))
+            return
+        if mi.recover is not None and mi.p.recovery_replan:
+            if (mi.replan_request is None or d.get("request_id") != mi.replan_request["id"]
+                    or leg != mi.leg or d.get("recovery_certified") is not True):
+                return
+        elif d.get("request_id") is not None:
+            return
+        try:
+            # Validate before mutating any target: a rejected recovery response
+            # must not change subsequent legs through its correction metadata.
+            targets = []
+            for j, ne in (d.get("targets_ne") or {}).items():
+                j = int(j)
+                if mi.leg < j < len(mi.targets) and len(ne) == 2 and all(math.isfinite(float(c)) for c in ne):
+                    targets.append((j, (float(ne[0]), float(ne[1]))))
+            if leg == mi.leg and d.get("pts_ne"):
+                accepted = mi.on_path(received, mi.leg, d["pts_ne"], d.get("v") or [],
+                                      d.get("stops") or [], pid=d.get("pid", 0), tubes=d.get("tubes"),
+                                      request_id=d.get("request_id"), recovery_certified=d.get("recovery_certified", False))
+                self.trace.record("path_applied", received, accepted=accepted,
+                                  leg=mi.leg, pid=d.get("pid", 0))
+                if not accepted:
+                    return
+            elif mi.recover is not None and mi.p.recovery_replan:
+                return
+            for j, ne in targets:
+                mi.targets[j] = ne
+        except (ValueError, TypeError, OverflowError, AttributeError):
+            self.trace.record("path_invalid", received, data=d)
 
     def _on_control(self, m):
         try:

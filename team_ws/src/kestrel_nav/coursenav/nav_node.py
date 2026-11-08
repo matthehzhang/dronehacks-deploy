@@ -40,8 +40,9 @@ from .navplan import course_to_ned, smooth_params_for
 from .objmap import CourseMap
 from .localgrid import course_mask, occupied_points_from_grid
 from .planner import PlanError
+from .observed_free import ObservedFree
 
-AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "align")
+AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "align", "scan", "replan", "recovery_scan")
 
 
 class LiveLandmarks:
@@ -95,13 +96,24 @@ class NavNode(Node):
         self.surf_dist = sg.distance() if sg.occ.shape == obst.occ.shape else obst.distance()
         self.local_pts = None                      # (k, 2) nominal-frame obstacle points from the local grid
         self.local_explain_m = float(dp("local_explain_m", 0.15).value)
-        self.prior_state = "placed"
+        self.prior_state = "unknown"
+        self.observed_free = None
+        self.recovery = None
+        self.recovery_reference = None
+        self.recovery_prefix = None
+        self.reference_path = None
+        self.reference_leg = None
+        self.recovery_last_id = -1
+        self.recovery_last_attempt = None
+        self.recovery_min_interval_s = float(dp("recovery_min_interval_s", 0.5).value)
+        self.recovery_grid_max_age_s = float(dp("recovery_grid_max_age_s", 2.0).value)
         # the flight frame's heading relative to the VIO origin: 90 deg in the simulator (vision bridge
         # heading_enu_rad), 0 on the skybeta drone (the flight interface permutes odometry ENU directly)
         self.decl = math.radians(float(dp("declared_heading_deg", 90.0).value))
         self.drift = None
         self.status = None
         self.nav_leg, self.pid = None, 0
+        self.normal_last_attempt = None
         self.stats = dict(plans=0, replans=0, plan_errors=0, local_cells=0)
         latched = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                              history=HistoryPolicy.KEEP_LAST, depth=1)
@@ -149,7 +161,30 @@ class NavNode(Node):
 
     def _on_status(self, m):
         try:
-            self.status = json.loads(m.data)
+            status = json.loads(m.data)
+            if not isinstance(status, dict):
+                return
+            request = status.get("recovery_request")
+            if isinstance(request, dict) and type(request.get("id")) is int:
+                if request["id"] < self.recovery_last_id:
+                    return
+                if request["id"] == self.recovery_last_id and self.recovery is None:
+                    return
+            self.status = status
+            if not isinstance(request, dict):
+                self.recovery = None
+                return
+            rid, leg = request.get("id"), request.get("leg")
+            if (type(rid) is not int or type(leg) is not int or rid < 0
+                    or leg != status.get("leg") or request.get("observed_only") is not True):
+                return
+            if rid > self.recovery_last_id:
+                self.recovery_last_id = rid
+                self.recovery = dict(request_id=rid, leg=leg, plan_state="pending", reason="awaiting observed-free replan")
+                self.recovery_reference = self.reference_path if self.reference_leg == leg else None
+                self.recovery_prefix = None
+                self.nav.path = None
+                self.cache.pop(leg, None)  # a cached global path never satisfies a recovery request
         except ValueError:
             pass
 
@@ -159,20 +194,93 @@ class NavNode(Node):
 
     def _on_local(self, m):
         o = m.info.origin.position
-        self.local_pts = occupied_points_from_grid((o.x, o.y), m.info.resolution, m.info.width, m.info.height, m.data)
+        q = m.info.origin.orientation
+        # The producer's contract is an axis-aligned nominal grid. Reject other
+        # frames/rotations instead of silently certifying the wrong coordinates.
+        if (m.header.frame_id != "coursenav_nominal" or
+                not np.isfinite([q.x, q.y, q.z, q.w]).all() or
+                abs(q.x) > 1e-8 or abs(q.y) > 1e-8 or abs(q.z) > 1e-8 or abs(abs(q.w)-1.) > 1e-8):
+            self.observed_free = None
+            return
+        try:
+            stamp = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9
+            grid = ObservedFree.from_grid((o.x, o.y), m.info.resolution,
+                                         m.info.width, m.info.height, m.data, stamp)
+            if self.observed_free is not None and stamp < self.observed_free.stamp:
+                return  # delayed grids must not replace newer evidence
+            self.local_pts = occupied_points_from_grid((o.x, o.y), m.info.resolution,
+                                                       m.info.width, m.info.height, m.data)
+            self.observed_free = grid
+        except (ValueError, TypeError):
+            self.observed_free = None
 
     def _on_prior(self, m):
         try:
-            st = json.loads(m.data).get("state", "placed")
+            st = json.loads(m.data).get("state", "unknown")
         except ValueError:
             return
+        if st not in ("placed", "dropped", "unknown"):
+            st = "unknown"
         if st != self.prior_state:
             self.get_logger().warning(f"prior map {st}: local obstacles near prior surfaces "
-                                      f"{'are no longer' if st == 'dropped' else 'are again'} treated as mapped")
+                                      f"{'are again' if st == 'placed' else 'are no longer'} treated as mapped")
         self.prior_state = st
 
+    def _recovery_plan(self, leg, believed, ekf, nb, now):
+        r = self.recovery
+        if r is None:
+            return
+        if r["leg"] != leg:
+            self.nav.path = None
+            r.update(plan_state="failed", reason="request leg is no longer active")
+            return
+        grid = self.observed_free
+        to_nominal = lambda pts: ekf.to_nominal(pts, nb)
+        if r["plan_state"] == "ready":
+            if (grid is None or not grid.fresh(now, self.recovery_grid_max_age_s)
+                    or self.nav.path is None
+                    or self.recovery_prefix is None
+                    or not grid.certifies_path(self.recovery_prefix, to_nominal, self.nav.need)):
+                self.nav.path = None
+                r.update(plan_state="failed", reason="recovery path lost fresh observed-free certification")
+            return
+        if r["plan_state"] != "pending":
+            return  # exactly one attempt per explicit request id
+        if (self.recovery_last_attempt is not None
+                and now - self.recovery_last_attempt < self.recovery_min_interval_s):
+            return
+        self.recovery_last_attempt = now
+        self.nav.path = None
+        try:
+            if not (0 <= leg < len(self.nav_legs)) or not self.nav_legs[leg]["path"]:
+                raise PlanError("recovery request is not for a path leg")
+            if grid is None or not grid.fresh(now, self.recovery_grid_max_age_s):
+                raise PlanError("fresh observed-free local grid unavailable")
+            path, prefix, join = self.nav.plan_recovery(
+                believed[:2], self.recovery_reference, grid, to_nominal, t=time.monotonic(),
+                lookahead_m=max(1., float(self.status.get("stop_m") or 0.)))
+            if not grid.fresh(self.get_clock().now().nanoseconds * 1e-9, self.recovery_grid_max_age_s):
+                raise PlanError("observed-free local grid expired during planning")
+            self.recovery_prefix = prefix
+            self.nav_leg = leg
+            self.pid += 1
+            self.stats["replans"] += 1
+            r.update(plan_state="ready", reason="observed-free detour rejoins unchanged reference suffix",
+                     certified_prefix_m=float(np.linalg.norm(np.diff(prefix, axis=0), axis=1).sum()),
+                     rejoin_index=join)
+        except PlanError as exc:
+            self.nav.path = None
+            self.stats["plan_errors"] += 1
+            r.update(plan_state="failed", reason=str(exc))
+            self.get_logger().warning(f"recovery request {r['request_id']}: {exc}")
+
     def _tick(self):
-        if self.drift is None or self.status is None:
+        if self.status is None:
+            return
+        if self.drift is None:
+            if self.recovery is not None:
+                self.pub.publish(String(data=json.dumps({"stamp": self.get_clock().now().nanoseconds * 1e-9,
+                    "leg": self.recovery["leg"], "pid": self.pid, **self.recovery})))
             return
         d = self.drift
         ekf = DriftEKF.from_state(d["delta"], d["nominal"])
@@ -181,7 +289,7 @@ class NavNode(Node):
         if self.local_pts is not None:
             # local obstacles: nominal -> course with the SAME state as the believed pose (relative geometry
             # right even when the course pose is not); prior surfaces explain nearby cells only while placed
-            explain = 0.0 if self.prior_state == "dropped" else self.local_explain_m
+            explain = self.local_explain_m if self.prior_state == "placed" else 0.0
             mask = course_mask(ekf.to_course(self.local_pts, nb) if len(self.local_pts) else self.local_pts,
                                self.obst, self.surf_dist, explain)
             self.nav.set_local(mask)
@@ -193,10 +301,22 @@ class NavNode(Node):
 
         targets = {j: [float(v) for v in to_ned([self.nav_legs[j]["stop"]])[0]]
                    for j in range(leg + 1, len(self.nav_legs))}
-        out = {"stamp": time.time(), "leg": leg, "pid": self.pid, "targets_ne": targets}
-        if leg < len(self.nav_legs) and self.nav_legs[leg]["path"] and phase in AIRBORNE:
+        now = self.get_clock().now().nanoseconds * 1e-9
+        out = {"stamp": now, "leg": leg, "pid": self.pid, "targets_ne": targets,
+               "request_id": None}
+        if self.recovery is not None:
+            self._recovery_plan(leg, believed, ekf, nb, now)
+            out.update(self.recovery)
+            out["recovery_certified"] = self.recovery["plan_state"] == "ready"
+            if self.recovery["plan_state"] == "ready" and self.nav.path is not None:
+                P = self.nav.path
+                out.update(pid=self.pid, pts_ne=to_ned(P.pts).round(4).tolist(), v=P.v.round(3).tolist(),
+                           stops=list(P.stops), tubes=None if P.tube is None else P.tube.round(4).tolist())
+            self.pub.publish(String(data=json.dumps(out)))
+            return
+        if 0 <= leg < len(self.nav_legs) and self.nav_legs[leg]["path"] and phase in AIRBORNE:
             L = self.nav_legs[leg]
-            want = self.nav_leg != leg
+            want = self.nav_leg != leg or self.nav.path is None
             if not want and self.nav.path is not None:
                 want = self.nav.needs_replan(time.monotonic(), 0.0)
             c = self.cache.pop(leg, None) if self.nav_leg != leg else None
@@ -207,6 +327,13 @@ class NavNode(Node):
                 want = False
                 self.get_logger().info(f"leg {leg + 1}: pre-planned path {self.nav.path.length:.2f} m")
             if want:
+                if (self.normal_last_attempt is not None and self.normal_last_attempt[0] == leg
+                        and now - self.normal_last_attempt[1] < max(0.1, self.nav.p.replan_every_s)):
+                    self.nav.path = None
+                    out.update(plan_state="failed", reason="awaiting bounded planner retry")
+                    self.pub.publish(String(data=json.dumps(out)))
+                    return
+                self.normal_last_attempt = (leg, now)
                 goals = [np.array(g, float) for g in L["goals"]]
                 goals = [g for g in goals[:-1] if np.hypot(*(g - believed[:2])) > 0.3] + [goals[-1]]
                 try:
@@ -219,10 +346,14 @@ class NavNode(Node):
                                            f"{len(self.nav.path.stops)} stop corners, est {self.nav.path.duration():.1f} s, "
                                            f"{self.stats['local_cells']} local obstacle cells, prior {self.prior_state}")
                 except PlanError as e:
+                    self.nav.path = None  # never keep streaming a path the new map invalidated
+                    out.update(plan_state="failed", reason=str(e))
                     self.stats["plan_errors"] += 1
                     self.get_logger().warning(f"leg {leg + 1}: no path ({e}); refnav holds without one")
             if self.nav.path is not None and self.nav_leg == leg:
                 P = self.nav.path
+                self.reference_path, self.reference_leg = P, leg
+                out.update(plan_state="ready", reason="regular map path")
                 out.update(pid=self.pid, pts_ne=to_ned(P.pts).round(4).tolist(), v=P.v.round(3).tolist(),
                            stops=list(P.stops),
                            tubes=None if P.tube is None else P.tube.round(4).tolist())

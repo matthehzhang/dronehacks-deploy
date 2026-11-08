@@ -66,7 +66,7 @@ from .speed import braking_cap, side_cap
 
 NAV_OFFBOARD = 14
 NAV_AUTO_LAND = 18
-AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "retreat")
+AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "recovery_scan", "retreat")
 TRANSLATING = ("go", "backoff", "climb")           # phases in which the aircraft is commanded to move
 SILENCE_PAUSED = ("turn", "hold", "excite")                # no translation: depth silence is not counted here
 
@@ -171,6 +171,11 @@ class Params:
     blocked_backoff_m: float = 0.2              # ... then back off this far along the path just flown ...
     blocked_recheck_s: float = 2.0              # ... and recheck this long before landing
     blocked_clear_margin_m: float = 0.15        # resume only once the clearance exceeds the stop distance by this
+    recovery_replan: bool = False              # explicit request/response; enabled by Sky Beta launch
+    recovery_scan_deg: float = 0.0             # bounded yaw sweep, <=45deg each side; zero disables
+    recovery_scan_rate_dps: float = 20.0
+    recovery_scan_dwell_s: float = 0.5
+    recovery_timeout_s: float = 20.0           # whole recovery budget, never reset by planner replies
     prior_required: bool = False                # the course map must describe the view (coursenav.priorstate):
                                                 # no arming until a "placed" report, land when it reports "dropped"
     blocked_max_per_leg: int = 0                # > 0: the (N+1)-th confirmed block on one leg lands instead of another
@@ -305,6 +310,13 @@ def _wrap(a):
 class Mission:
     def __init__(self, params: Params):
         self.p = params
+        if params.recovery_replan:
+            bounds = {"recovery_timeout_s": (0.1, 30.0), "recovery_scan_deg": (0.0, 45.0),
+                      "recovery_scan_rate_dps": (0.1, 20.0), "recovery_scan_dwell_s": (0.2, 2.0)}
+            for name, (low, high) in bounds.items():
+                value = getattr(params, name)
+                if not math.isfinite(value) or not low <= value <= high:
+                    raise ValueError(f"{name} must be finite and within [{low}, {high}]")
         self.health = Health(params.health_quiet_s, params.health_stale_s)
         self.phase = "wait"
         self.why = ""
@@ -374,6 +386,9 @@ class Mission:
         self.corr_applied = (0.0, 0.0)
         self.silence_from = None      # when depth silence started counting (depth_lost_pause_static)
         self.recover = None           # hold-and-recheck state: {"kind", "stage", "t0", "why", ...}
+        self.replan_serial = 0
+        self.replan_request = None
+        self.plan_reply = None
         self.leg_blocks = 0           # confirmed blocks on the current leg (blocked_max_per_leg)
         self.prior = None             # latest prior-map report (t, state, fit) from the localizer
         self.clr_min = None           # the SMALLEST clearance of the confirm frames (recovery needs every one clear)
@@ -444,17 +459,29 @@ class Mission:
                 self.leg_dir = ((tn - n0) / L, (te - e0) / L)
                 self.leg_heading = math.atan2(te - e0, tn - n0)
 
-    def on_path(self, t, leg, pts_ne, speeds, stops=(), pid=0, tubes=None):
+    def on_path(self, t, leg, pts_ne, speeds, stops=(), pid=0, tubes=None, request_id=None, recovery_certified=False):
         """track_mode "path": the current path for leg `leg` in PX4 NED (refreshed by the navigator as
         the map correction and the live map change). pts_ne: (n, 2), speeds: (n,) the time-optimal profile,
         stops: indices of interior stop-and-turn corners; pid: changes when the path is RE-PLANNED (new
         geometry from the aircraft's position: progress restarts), not when it is only re-expressed in the
         flight frame. The leg's target becomes the path's end."""
         import numpy as _np
-        pts = _np.asarray(pts_ne, float)
-        sp = _np.asarray(speeds, float)
-        if (len(pts) < 2 or pts.ndim != 2 or pts.shape[1] != 2 or len(sp) != len(pts) or leg < 0
+        if self.recover is not None and self.p.recovery_replan:
+            if (self.replan_request is None or request_id != self.replan_request["id"]
+                    or leg != self.leg or recovery_certified is not True):
+                return False
+        elif request_id is not None:
+            return False  # delayed recovery replies cannot replace the resumed normal path
+        try:
+            pts = _np.asarray(pts_ne, float)
+            sp = _np.asarray(speeds, float)
+        except (ValueError, TypeError, OverflowError):
+            return False
+        if (pts.ndim != 2 or pts.shape[1] != 2 or len(pts) < 2 or sp.shape != (len(pts),)
+                or type(leg) is not int or leg < 0 or not math.isfinite(t)
                 or leg >= len(self.targets or []) or not _np.all(_np.isfinite(pts)) or not _np.all(_np.isfinite(sp))):
+            return False
+        if any(type(i) is not int or not 0 <= i < len(pts) for i in stops):
             return False
         seg = _np.linalg.norm(_np.diff(pts, axis=0), axis=1)
         s = _np.concatenate([[0.0], _np.cumsum(seg)])
@@ -477,8 +504,28 @@ class Mission:
         self.path = dict(t=float(t), leg=int(leg), pid=pid, pts=pts, s=s, v=_np.maximum(sp, 0.0), heading=heading,
                          kappa=kappa, stops=sorted(int(i) for i in stops), tube=tb)
         self.targets[leg] = (float(pts[-1, 0]), float(pts[-1, 1]))
+        self.path["request_id"] = request_id
+        self.path["recovery_certified"] = bool(recovery_certified)
+        if self.recover is not None and self.p.recovery_replan:
+            self.plan_reply = {"state": "ready", "id": request_id, "t": float(t)}
         if leg == self.leg and self._path_leg():
             self.leg_len = float(s[-1])
+        return True
+
+    def on_plan_result(self, now, leg, request_id, state, reason=""):
+        """Explicit failure/pending invalidates a path; stale recovery replies cannot affect it."""
+        if leg != self.leg or state not in ("pending", "failed"):
+            return False
+        if self.recover is not None and self.p.recovery_replan:
+            if self.replan_request is None or request_id != self.replan_request["id"]:
+                return False
+        elif request_id is not None:
+            return False
+        self.path = None
+        if (self.sp is not None and self.last_v is not None and self.last_v.pos is not None
+                and all(math.isfinite(c) for c in self.last_v.pos[:2])):
+            self.sp[0], self.sp[1] = self.last_v.pos[:2]
+        self.plan_reply = {"state": state, "id": request_id, "t": float(now), "reason": str(reason)}
         return True
 
     def _path_leg(self, leg=None):
@@ -948,7 +995,7 @@ class Mission:
                 self.legs_done += 1
                 self.leg += 1
                 self._next_leg(now, out, v)
-        elif ph in ("blocked", "backoff", "recheck"):
+        elif ph in ("blocked", "backoff", "recheck", "recovery_scan"):
             self._recover(now, dt, out, v)
         elif ph == "retreat":
             self._retreat(now, dt, out, v)
@@ -1031,6 +1078,7 @@ class Mission:
         self.path_s, self.path_stop_done = 0.0, -1
         self.capture_t, self.tight_since = None, None
         self.leg_blocks = 0
+        self.replan_request = self.plan_reply = None
         if self._path_leg() and self.path is not None and self.path["leg"] == self.leg:
             self.leg_heading = float(self.path["heading"][0])
         self.leg_v_end = 0.0 if (self._stops_at_end(self.leg) or self.p.track_mode == "path") else self.p.speed_mps
@@ -1684,14 +1732,97 @@ class Mission:
     def _start_recover(self, now, out, kind, why, v):
         self.recover = {"kind": kind, "t0": now, "why": why, "target": None, "t_back": None, "t_re": None,
                         "pid": self.path.get("pid") if (self.path is not None and self._path_leg()) else None,
-                        "pos": (v.pos[0], v.pos[1])}
+                        "pos": (v.pos[0], v.pos[1]), "yaw": self.sp[3],
+                        "old_path": self.path, "old_path_s": self.path_s, "scan_done": False,
+                        "requests": 0}
+        self.sp[0], self.sp[1] = v.pos[:2]   # brake at the measured pose, not the old forward carrot
+        if kind == "blocked" and self._path_leg() and self.p.recovery_replan:
+            self._request_recovery_plan(now)
         self._set("blocked", now, out, f"{why}; holding up to {self.p.blocked_hold_s:g} s")
+
+    def _request_recovery_plan(self, now):
+        if self.recover is None or self.recover["requests"] >= 5:
+            return
+        self.replan_serial += 1
+        self.recover["requests"] += 1
+        self.replan_request = {"id": self.replan_serial, "leg": self.leg, "observed_only": True}
+        self.plan_reply = {"state": "pending", "id": self.replan_serial, "t": now}
+        self.path = None   # old geometry retained only as a backoff reference, never a fresh command
+
+    def _begin_backoff(self, now, out, v):
+        r, p = self.recover, self.p
+        back = self.leg_dir if r["kind"] == "blocked" or self.prev_leg_dir is None else self.prev_leg_dir
+        d = p.blocked_backoff_m
+        if r["kind"] == "blocked":
+            if self._path_leg():
+                d = min(d, max(r["old_path_s"], 0.0))
+                P = r["old_path"]
+                if P is not None:
+                    import numpy as np
+                    q = max(0.0, r["old_path_s"] - d)
+                    target = tuple(float(np.interp(q, P["s"], P["pts"][:, i])) for i in range(2))
+                    # Don't traverse a long chord after drift/replanning; existing backoff bound still applies.
+                    dist = math.hypot(target[0]-v.pos[0], target[1]-v.pos[1])
+                    if dist > d + 0.05:
+                        target = (v.pos[0], v.pos[1])
+                else:
+                    target = (v.pos[0], v.pos[1])
+            else:
+                proj = sum((v.pos[i] - self.leg_start[i]) * back[i] for i in range(2))
+                d = min(d, max(proj, 0.0))
+                target = (v.pos[0]-back[0]*d, v.pos[1]-back[1]*d)
+        else:
+            target = (v.pos[0]-back[0]*d, v.pos[1]-back[1]*d)
+        r["target"], r["t_back"] = target, now
+        self.sp[0], self.sp[1] = target
+        self._set("backoff", now, out, f"still blocked: backing off up to {d:.2f} m")
+
+    def _scan_recovery(self, now, dt, out, v):
+        r, p = self.recover, self.p
+        # Never rotate on missing depth, unsettled translation, or near obstacle returns.
+        if (not self.depth_fresh(now) or v.vel is None or len(v.vel) < 3
+                or not all(math.isfinite(c) for c in v.vel) or math.hypot(*v.vel[:2]) > 0.08
+                or abs(v.vel[2]) > 0.08 or v.heading is None or not math.isfinite(v.heading)):
+            r["settled"] = None
+            return
+        if (not all(math.isfinite(c) for c in v.pos)
+                or math.dist(v.pos[:3], self.sp[:3]) > 0.10):
+            r["settled"] = None
+            return
+        import numpy as np
+        if self.depth_pts is not None and len(self.depth_pts):
+            pts = self.depth_pts
+            near = np.abs(pts[:, 2]) < p.band_m
+            if np.any(np.linalg.norm(pts[near, :2], axis=1) < max(p.corridor_half_m, 0.45)):
+                r["scan_done"] = True
+                self._begin_backoff(now, out, v)
+                return
+        target = r["scan_yaws"][r["scan_i"]]
+        err = _wrap(target-self.sp[3])
+        step = math.radians(min(p.yaw_rate_dps, max(0.0, p.recovery_scan_rate_dps), 20.0))*dt
+        self.sp[3] = _wrap(self.sp[3] + max(-step, min(step, err)))
+        if abs(_wrap(target-v.heading)) > math.radians(3):
+            r["settled"] = None
+            return
+        if r.get("settled") is None:
+            r["settled"], r["settled_depth"] = now, self.depth_t
+        if (now-r["settled"] < max(0.2, p.recovery_scan_dwell_s)
+                or self.depth_t <= r["settled_depth"]):
+            return
+        self._request_recovery_plan(now)
+        r["scan_i"] += 1
+        r["settled"] = None
+        if r["scan_i"] == len(r["scan_yaws"]):
+            r["scan_done"] = True
+            self._begin_backoff(now, out, v)
 
     def _recover_clear(self, now, v):
         """Has the reason for the recovery gone away? Blocked: the corridor reads clear. Align: the
         gate is found (its alignment is applied on resume)."""
         r = self.recover
         if r["kind"] == "blocked":
+            if self.p.recovery_replan and self._path_leg():
+                return False    # only an explicit certified response may release a requested recovery
             if not self.depth_fresh(now):
                 return False
             clr = self._clearance(v)
@@ -1724,6 +1855,7 @@ class Mission:
 
     def _resume(self, now, out, v):
         r, self.recover = self.recover, None
+        self.replan_request = None
         self.counts["recoveries"] += 1
         if r["kind"] == "align":
             self._apply_alignment(now, out, G.combine(self.align_hist[-self.p.align_frames:]))
@@ -1747,14 +1879,23 @@ class Mission:
         if r is None:
             self._set("check", now, out)
             return
+        if self.p.recovery_replan and now-r["t0"] >= self.p.recovery_timeout_s:
+            self.recover = None
+            self.replan_request = None
+            self._land(now, out, f"{r['why']}; bounded recovery timed out")
+            return
         if self._recover_clear(now, v):
             self._resume(now, out, v)
             return
         if (r["kind"] == "blocked" and self._path_leg() and self._path_fresh(now)
-                and r.get("pid") is not None and self.path.get("pid") != r["pid"]):
+                and r.get("pid") is not None and self.path.get("pid") != r["pid"]
+                and (not p.recovery_replan or (self.replan_request is not None
+                     and self.path.get("request_id") == self.replan_request["id"]
+                     and self.path.get("recovery_certified")))):
             # the navigator re-planned while we were blocked: turn to face the new path, check it, go. Waiting
             # for the OLD corridor to clear never turns the camera away from the obstacle
             self.recover = None
+            self.replan_request = None
             self.counts["replan_resumes"] += 1
             self.sp[0], self.sp[1] = v.pos[0], v.pos[1]
             self.clr_hist, self.corr_t = [], None
@@ -1762,31 +1903,30 @@ class Mission:
             self.turn_start_heading = self.sp[3]
             self._set("turn", now, out, f"re-planned while blocked on leg {self.leg + 1}: turning to the new path")
             return
-        if self.phase == "blocked":
-            if now - r["t0"] > p.blocked_hold_s:
-                # back off along the path just flown (known free): the leg behind, or the previous leg
-                back = self.leg_dir if r["kind"] == "blocked" or self.prev_leg_dir is None else self.prev_leg_dir
-                n0, e0 = self.leg_start
-                if r["kind"] == "blocked" and self._path_leg():
-                    d = min(p.blocked_backoff_m, max(self.path_s, 0.0))     # never behind the path's start
-                elif r["kind"] == "blocked":
-                    proj = (v.pos[0] - n0) * back[0] + (v.pos[1] - e0) * back[1]
-                    d = min(p.blocked_backoff_m, max(proj, 0.0))
+        if self.phase == "recovery_scan":
+            self._scan_recovery(now, dt, out, v)
+        elif self.phase == "blocked":
+            if now-r["t0"] > p.blocked_hold_s:
+                if (p.recovery_replan and self._path_leg() and p.recovery_scan_deg > 0
+                        and not r["scan_done"]):
+                    angle = math.radians(min(45.0, p.recovery_scan_deg))
+                    r.update(scan_i=0, settled=None,
+                             scan_yaws=[_wrap(r["yaw"]-angle), _wrap(r["yaw"]+angle), r["yaw"]])
+                    self._set("recovery_scan", now, out, "bounded stationary depth scan for an observed-free detour")
                 else:
-                    d = p.blocked_backoff_m
-                r["target"] = (v.pos[0] - back[0] * d, v.pos[1] - back[1] * d)
-                self.sp[0], self.sp[1] = r["target"]
-                r["t_back"] = now
-                self._set("backoff", now, out, f"still blocked after {p.blocked_hold_s:g} s: backing off {d:.2f} m")
+                    self._begin_backoff(now, out, v)
         elif self.phase == "backoff":
             tn, te = r["target"]
             if math.hypot(v.pos[0] - tn, v.pos[1] - te) < p.arrive_m or now - r["t_back"] > 4.0:
                 r["t_re"] = now
+                if p.recovery_replan and self._path_leg():
+                    self._request_recovery_plan(now)
                 self.clr_hist, self.corr_t = [], None
                 self._set("recheck", now, out, f"rechecking for {p.blocked_recheck_s:g} s")
         elif self.phase == "recheck":
             if now - r["t_re"] > p.blocked_recheck_s:
                 self.recover = None
+                self.replan_request = None
                 self._land(now, out, f"{r['why']}; still blocked after hold, back-off and recheck")
 
     def status(self, now):
@@ -1804,6 +1944,9 @@ class Mission:
                 "depth_reject": None if self.depth_reject is None else self.depth_reject[1],
                 "health_bad_s": (None if math.isinf(self.health.bad_for(now)) else round(self.health.bad_for(now), 2)),
                 "recover": None if self.recover is None else {"kind": self.recover["kind"], "stage": self.phase},
+                "recovery_request": self.replan_request if self.recover is not None else None,
+                "plan_reply": self.plan_reply,
+                "prior_state": None if self.prior is None else self.prior[1],
                 "leg_blocks": self.leg_blocks,
                 "tunnel": self.tunnel_active, "align": self.align_result,
                 **self.counts}

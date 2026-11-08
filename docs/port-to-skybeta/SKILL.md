@@ -87,7 +87,7 @@ For this upstream revision:
 
 - Remove the old `fly_course._free_start` and navigator vertex-removal patches.
   Upstream now owns bounded start escape; the vertex patch broke its 0.1 m/s
-  escape-speed test. `coursenav/navigator.py` is byte-identical to upstream.
+  escape-speed test. `coursenav/navigator.py` was byte-identical at the initial port; the approved extensions below now modify it.
 - Preserve the upstream reconstructed-map default and its behavior. OBJ/materials
   match Downloads/new_course_origin_map.zip byte-for-byte; occupied cells and labels
   match exactly. Keep upstream generated-map metadata and algorithm unchanged.
@@ -104,3 +104,14 @@ For this upstream revision:
   `ParameterAlreadyDeclaredException` in both isolated Gazebo runs before arming.
   PriorMonitor now reuses `pfp.min_fit_frac`, retaining the configured value and
   default 0.35. This is an initialization fix, not a fit-gate change.
+
+
+## User-authorized recovery extensions (2026-11-08)
+
+Matthew explicitly requested policy changes1/2/3 after mismatch tests: invalidate failed paths and
+request replans, bounded stationary scanning with observed-free detours, and unknown initial prior
+state. These authorized algorithm edits supersede the unchanged-port constraint for this branch.
+They remain captured in this branch-specific patch and `assets/new/`; do not apply them implicitly
+to other workspace ports. See `docs/BLOCKED_RECOVERY_PORT.md` for exact limits and validation status.
+The original prior map, PX4 authority boundary, estimator/clearance rules and maximum block count
+remain intact. Downloaded friend's clearing/local-only fallback is deliberately not included.

@@ -29,4 +29,9 @@ cp "$L" "$SK/assets/new/launch/refnav_skybeta.launch.py"
 sed -i "s/group119\.launch\.py/refnav_skybeta.launch.py/g" "$SK/assets/new/launch/refnav_skybeta.launch.py"
 T="$PKG/tests/test_refnav_skybeta.py"; [ -f "$T" ] || T="$PKG/tests/test_group119_skybeta.py"
 cp "$T" "$SK/assets/new/tests/test_refnav_skybeta.py"
+for f in coursenav/observed_free.py tests/test_observed_recovery.py tests/test_nav_recovery_protocol.py \
+         tests/test_recovery_controller.py tests/test_priorstate.py tests/test_local_free_age.py tests/test_package_install.py; do
+  mkdir -p "$SK/assets/new/$(dirname "$f")"
+  cp "$PKG/$f" "$SK/assets/new/$f"
+done
 echo "patch: $(wc -l < "$SK/assets/skybeta.patch") lines vs $COMMIT. Now update SKILL.md 'Adaptations'."

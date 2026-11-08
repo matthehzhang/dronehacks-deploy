@@ -1,15 +1,15 @@
 # Blocked-recovery ROS port
 
 Workspace `refnav/blocked-recovery` at `ed2271bd49c34bf5fd77cbd5d5124e28be778905`
-is vendored into `team_ws/src/kestrel_nav`. Deploy branch: `kestral_blocked_recovery`.
+is vendored into `team_ws/src/kestrel_nav`. Initial port branch: `kestral_blocked_recovery`. Approved recovery extensions: `cram304`.
 The branch-specific port skill and exact upstream adapter patch are in `docs/port-to-skybeta`.
 
 ## Behavior and map
 
-The policy retains upstream blocked recovery: confirm every clearance frame, hold/back off/recheck,
-follow a replanned path after turning and checking, and land at the per-leg block limit.
-The planner, navigator, local occupancy and prior monitor are the upstream implementations.
-Only Sky Beta transport, startup, landing and simulation-clock adapters are applied.
+The initial port retained upstream blocked recovery and applied the Sky Beta transport, startup,
+landing and simulation-clock adapters. The later user-requested recovery extensions below modify
+the controller, navigator and prior monitor. Clearance confirmation, the per-leg block limit,
+estimator supervision and pilot authority remain enforced.
 The legacy start-relocation and navigator vertex-removal port patches were removed because upstream
 now implements bounded escape and the old patches changed its behavior.
 
@@ -117,3 +117,51 @@ same-map runs were discarded. Compact evidence is in `evidence/blocked_recovery_
 Both localizers stayed alive. Both worlds remain available; pilots and evidence
 recorders were stopped after both aircraft were confirmed landed and disarmed.
 These runs did not demonstrate successful completion under prior-map mismatch.
+
+
+## Requested recovery extensions (cram304)
+
+These implement the three approved policy changes without new sensors, simulator truth, PX4
+parameter changes, arming authority or automatic Offboard re-entry:
+
+1. A confirmed path blockage sends an explicit numbered replan request and stops publishing the
+   old command path. Pending/failed plans also invalidate the controller path. Delayed or uncertified
+   replies cannot change the current route or future targets. Normal failed planning retries at the
+   existing one-second interval instead of remaining stuck without a route.
+2. After the existing four-second hold, recovery can scan at fixed XYZ through -25, +25 and the
+   original yaw, at at most 20 degrees/second. It requires settled translation, usable fresh depth,
+   a new capture after each dwell, and no close return in the swept footprint. The entire recovery
+   has a 20-second budget and at most five explicit requests; depth loss, estimator failure, PX4
+   takeover and the existing block limit remain authoritative. A failed recovery still backs off,
+   rechecks and lands. A successful plan turns and checks depth before translating.
+3. Prior status begins unknown. It needs two seconds of consecutive informative fit >=35% to become
+   placed, or three seconds below 30% to become dropped. Sparse/empty/invalid/out-of-order scans and
+   gaps over 0.5 seconds interrupt qualification. Unknown prior status cannot explain away locally
+   observed obstacles. Existing configured thresholds, hysteresis after certification and
+   `prior_required` setting are retained.
+
+The detour's changed prefix must have an observed-free swept footprint including vehicle clearance,
+then rejoin the exact unchanged reference suffix. Unknown cells remain blocked; prior walls, nets,
+keep-outs and gate walls remain constraints. The original mission goals are retained. A different
+path ID without a real geometric departure is rejected. The local grid publication expires free
+observations after eight seconds; republishing a grid cannot renew that evidence. The recipient
+also requires a grid publication no older than two seconds.
+
+The five friend files found in Downloads were reviewed, not copied into the deployment. Their
+all-prior-removal fallback and clearing behavior are not in this change. That fallback could route
+through unobserved cells; the supplied localizer would also restore the duplicate-parameter startup
+crash and remove required Sky Beta adapters. The original prior map assets are unchanged.
+
+Development and Gazebo results must be distinguished: the additional diverse-world batch is
+being restarted using the exact final `cram304` commit, with the original policy prior unchanged.
+The hardware launcher still selects the previously staged baseline until the new version is
+explicitly transferred after validation. Do not interpret earlier native/Gazebo evidence as tests
+of these extensions.
+
+
+Local validation of the recovery extensions: full deployment suite 476 passed / 2 xfailed;
+final controller, free-age, planner protocol, prior and full-localizer-constructor rerun 76 passed;
+copied-install package test 1 passed, including the new observed-free module and bundled prior.
+The dynamic controller harness completes a supplied detour after turn/check/go. That is not a
+claim of full Gazebo course completion. Exact commands and source hashes are in
+`evidence/blocked_recovery_20261108/recovery_extensions/validation.json`.
