@@ -1,0 +1,117 @@
+MAIN_DISCOVERY
+kestrel_nav	policies/blocked-recovery/src/kestrel_nav	(ros.ament_python)
+kestrel_nav	src/kestrel_nav	(ros.ament_python)
+IGNORE_MARKERS
+/root/team_ws/build/COLCON_IGNORE
+/root/team_ws/policies/blocked-recovery/build/COLCON_IGNORE
+/root/team_ws/policies/blocked-recovery/install/COLCON_IGNORE
+/root/team_ws/policies/blocked-recovery/log/COLCON_IGNORE
+/root/team_ws/install/COLCON_IGNORE
+/root/team_ws/log/COLCON_IGNORE
+/root/team_ws/src/cage_test/COLCON_IGNORE
+RECENT_BUILD_LOG
+lrwxrwxrwx 1 root root 11 Nov  8 09:11 /root/team_ws/log/latest -> latest_list
+lrwxrwxrwx 1 1000 1000 25 Nov  8 08:56 /root/team_ws/log/latest_build -> build_2026-11-08_08-56-41
+[1.035s] Level 1:colcon.colcon_core.package_identification:_identify(runs/20261108-024940_hover-steps-speed-yaw/bag) by extension 'colcon_pkg'
+[1.035s] Level 1:colcon.colcon_core.package_identification:_identify(runs/20261108-024940_hover-steps-speed-yaw/bag) by extensions ['colcon_meta']
+[1.036s] Level 1:colcon.colcon_core.package_identification:_identify(runs/20261108-024940_hover-steps-speed-yaw/bag) by extension 'colcon_meta'
+[1.036s] Level 1:colcon.colcon_core.package_identification:_identify(runs/20261108-024940_hover-steps-speed-yaw/bag) by extensions ['ros']
+[1.036s] Level 1:colcon.colcon_core.package_identification:_identify(runs/20261108-024940_hover-steps-speed-yaw/bag) by extension 'ros'
+[1.036s] Level 1:colcon.colcon_core.package_identification:_identify(runs/20261108-024940_hover-steps-speed-yaw/bag) by extensions ['cmake', 'python']
+[1.036s] Level 1:colcon.colcon_core.package_identification:_identify(runs/20261108-024940_hover-steps-speed-yaw/bag) by extension 'cmake'
+[1.036s] Level 1:colcon.colcon_core.package_identification:_identify(runs/20261108-024940_hover-steps-speed-yaw/bag) by extension 'python'
+[1.036s] Level 1:colcon.colcon_core.package_identification:_identify(runs/20261108-024940_hover-steps-speed-yaw/bag) by extensions ['python_setup_py']
+[1.036s] Level 1:colcon.colcon_core.package_identification:_identify(runs/20261108-024940_hover-steps-speed-yaw/bag) by extension 'python_setup_py'
+[1.036s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ignore', 'ignore_ament_install']
+[1.036s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore'
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore_ament_install'
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_pkg']
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_pkg'
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_meta']
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_meta'
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ros']
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ros'
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['cmake', 'python']
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'cmake'
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python'
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['python_setup_py']
+[1.037s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python_setup_py'
+[1.038s] Level 1:colcon.colcon_core.package_identification:_identify(src/cage_test) by extensions ['ignore', 'ignore_ament_install']
+[1.038s] Level 1:colcon.colcon_core.package_identification:_identify(src/cage_test) by extension 'ignore'
+[1.038s] Level 1:colcon.colcon_core.package_identification:_identify(src/cage_test) ignored
+[1.038s] Level 1:colcon.colcon_core.package_identification:_identify(src/kestrel_nav) by extensions ['ignore', 'ignore_ament_install']
+[1.038s] Level 1:colcon.colcon_core.package_identification:_identify(src/kestrel_nav) by extension 'ignore'
+[1.038s] Level 1:colcon.colcon_core.package_identification:_identify(src/kestrel_nav) by extension 'ignore_ament_install'
+[1.038s] Level 1:colcon.colcon_core.package_identification:_identify(src/kestrel_nav) by extensions ['colcon_pkg']
+[1.038s] Level 1:colcon.colcon_core.package_identification:_identify(src/kestrel_nav) by extension 'colcon_pkg'
+[1.038s] Level 1:colcon.colcon_core.package_identification:_identify(src/kestrel_nav) by extensions ['colcon_meta']
+[1.038s] Level 1:colcon.colcon_core.package_identification:_identify(src/kestrel_nav) by extension 'colcon_meta'
+[1.039s] Level 1:colcon.colcon_core.package_identification:_identify(src/kestrel_nav) by extensions ['ros']
+[1.039s] Level 1:colcon.colcon_core.package_identification:_identify(src/kestrel_nav) by extension 'ros'
+[1.041s] DEBUG:colcon.colcon_core.package_identification:Package 'src/kestrel_nav' with type 'ros.ament_python' and name 'kestrel_nav'
+[1.041s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extensions ['ignore', 'ignore_ament_install']
+[1.041s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extension 'ignore'
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extension 'ignore_ament_install'
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extensions ['colcon_pkg']
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extension 'colcon_pkg'
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extensions ['colcon_meta']
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extension 'colcon_meta'
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extensions ['ros']
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extension 'ros'
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extensions ['cmake', 'python']
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extension 'cmake'
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extension 'python'
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extensions ['python_setup_py']
+[1.042s] Level 1:colcon.colcon_core.package_identification:_identify(tools) by extension 'python_setup_py'
+[1.043s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extensions ['ignore', 'ignore_ament_install']
+[1.043s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extension 'ignore'
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extension 'ignore_ament_install'
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extensions ['colcon_pkg']
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extension 'colcon_pkg'
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extensions ['colcon_meta']
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extension 'colcon_meta'
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extensions ['ros']
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extension 'ros'
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extensions ['cmake', 'python']
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extension 'cmake'
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extension 'python'
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extensions ['python_setup_py']
+[1.044s] Level 1:colcon.colcon_core.package_identification:_identify(ulogs) by extension 'python_setup_py'
+[1.045s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults
+[1.045s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) discover
+[1.045s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) using defaults
+[1.045s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) discover
+[1.045s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) using defaults
+[1.090s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) check parameters
+[1.091s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) discover
+[1.097s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 6 installed packages in /root/skybeta_ws/install
+[1.098s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 2 installed packages in /root/team_ws/install
+[1.101s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 431 installed packages in /opt/ros/humble
+[1.105s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) using defaults
+[1.208s] ERROR:colcon:colcon build: Duplicate package names not supported:
+- kestrel_nav:
+  - policies/blocked-recovery/src/kestrel_nav
+  - src/kestrel_nav
+COMPETITOR_PANE
+exec run_competitor.sh                  
+root@skybeta-14:~/skybeta_ws# exec run_competitor.sh                            
+[competitor] building the team workspace                                        
+[1.208s] ERROR:colcon:colcon build: Duplicate package names not supported:      
+- kestrel_nav:      
+  - policies/blocked-recovery/src/kestrel_nav                                   
+  - src/kestrel_nav 
+[team_build] colcon build FAILED (exit 1)                                       
+[competitor] team_ws build failed -- fix it, then:  team_build.sh && ros2 launch kestrel_nav refnav_skybeta.launch.py   
+root@skybeta-14:~/skybeta_ws#           
+
+
+
+
+
+
+
+
+
+
+
+

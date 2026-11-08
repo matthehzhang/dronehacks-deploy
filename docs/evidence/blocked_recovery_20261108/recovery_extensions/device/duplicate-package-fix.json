@@ -1,0 +1,22 @@
+{
+  "result": "PASS",
+  "cause": "Our isolated workspace nested under the recursively discovered main workspace had no ignore boundary.",
+  "duplicate_paths": [
+    "/root/team_ws/src/kestrel_nav",
+    "/root/team_ws/policies/blocked-recovery/src/kestrel_nav"
+  ],
+  "latest_failure_log": "/root/team_ws/log/build_2026-11-08_08-56-41/logger_all.log",
+  "fix": "Created empty /home/dronehacks/team_ws/policies/COLCON_IGNORE",
+  "verification": {
+    "main_workspace_packages": [
+      "kestrel_nav\tsrc/kestrel_nav\t(ros.ament_python)"
+    ],
+    "direct_isolated_packages": [
+      "kestrel_nav\tsrc/kestrel_nav\t(ros.ament_python)"
+    ]
+  },
+  "main_build_rerun": false,
+  "stack_restarted": false,
+  "flight_commanded": false,
+  "rollback": "Remove only /home/dronehacks/team_ws/policies/COLCON_IGNORE"
+}

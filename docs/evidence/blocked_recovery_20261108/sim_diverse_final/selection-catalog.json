@@ -1,0 +1,807 @@
+{
+  "generator": "tools/procgen/gen_diverse_layouts.py",
+  "base_seed": 918246100,
+  "attempts": 1032,
+  "rejections": {
+    "generation": 574,
+    "inventory": 93,
+    "density": 249,
+    "route": 112
+  },
+  "candidate_count": 4,
+  "selection": "maximum D4-aligned wall-centre RMS separation among seeded valid candidates; no policy outcomes used",
+  "wall_center_rms_separation_m": 2.4634415304609933,
+  "minimum_route_m": 10.0,
+  "reference_metrics": {
+    "walls_ok": true,
+    "route_ok": true,
+    "route_min_clear_m": 0.42177762875570474,
+    "route_len_m": 18.414197998535613,
+    "window_ok": true,
+    "window_min_clear_m": 0.35123584049136536,
+    "barrier_sealed": true,
+    "pocket_sealed": true,
+    "gate_width_m": 1.1849790420087605,
+    "launch_clear_m": 0.4064,
+    "pad_clear_m": 1.0058000000000002,
+    "launch_ok": true,
+    "max_open_radius_m": 1.3116393442622953,
+    "high_clearance_area_m2": 3.670806088685837
+  },
+  "layouts": [
+    {
+      "name": "DIVERSE01",
+      "seed": 918246141,
+      "symmetry": "none",
+      "launch": {
+        "x": -0.3186,
+        "y": 2.0278,
+        "yaw_deg": 270.0
+      },
+      "pad_centre_xy": [
+        -2.211,
+        -0.6371
+      ],
+      "real_pad": {
+        "center_xy": [
+          -2.211,
+          -0.6371
+        ],
+        "square_m": 0.64,
+        "yaw_deg": 0.0,
+        "note": "blue rounded-square mat, size ESTIMATED; the 5 ft CAD footprint around it is kept clear"
+      },
+      "pieces": [
+        {
+          "id": "B2",
+          "mesh": "barrier_2",
+          "role": "barrier",
+          "length_m": 1.6129,
+          "p0": [
+            -3.048,
+            0.5402
+          ],
+          "p1": [
+            -1.4351,
+            0.5402
+          ],
+          "x": -2.2416,
+          "y": 0.5402,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "B1",
+          "mesh": "barrier_1",
+          "role": "barrier",
+          "length_m": 1.6129,
+          "p0": [
+            -1.4351,
+            0.5402
+          ],
+          "p1": [
+            0.1778,
+            0.5402
+          ],
+          "x": -0.6287,
+          "y": 0.5402,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "B3",
+          "mesh": "barrier_3_cut_to_55_in",
+          "role": "barrier",
+          "length_m": 1.397,
+          "p0": [
+            0.1778,
+            0.5402
+          ],
+          "p1": [
+            1.5748,
+            0.5402
+          ],
+          "x": 0.8763,
+          "y": 0.5402,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "M2",
+          "mesh": "m2_maze_divider",
+          "role": "loose",
+          "length_m": 1.6129,
+          "p0": [
+            -2.0059,
+            2.993
+          ],
+          "p1": [
+            -1.1995,
+            1.5962
+          ],
+          "x": -1.6027,
+          "y": 2.2946,
+          "yaw_deg": 300.0
+        },
+        {
+          "id": "M3",
+          "mesh": "m3_maze_divider",
+          "role": "loose",
+          "length_m": 1.6129,
+          "p0": [
+            -2.1321,
+            0.6462
+          ],
+          "p1": [
+            -2.1321,
+            2.2591
+          ],
+          "x": -2.1321,
+          "y": 1.4527,
+          "yaw_deg": 90.0
+        },
+        {
+          "id": "M1",
+          "mesh": "m1_maze_divider",
+          "role": "loose",
+          "length_m": 1.6129,
+          "p0": [
+            2.993,
+            2.3638
+          ],
+          "p1": [
+            1.3801,
+            2.3638
+          ],
+          "x": 2.1865,
+          "y": 2.3638,
+          "yaw_deg": 180.0
+        },
+        {
+          "id": "C2b",
+          "mesh": "c2b_chicane_wall",
+          "role": "chicane",
+          "length_m": 1.0287,
+          "p0": [
+            2.993,
+            -1.8202
+          ],
+          "p1": [
+            1.9643,
+            -1.8202
+          ],
+          "x": 2.4787,
+          "y": -1.8202,
+          "yaw_deg": 180.0
+        },
+        {
+          "id": "C1",
+          "mesh": "c1_chicane_wall",
+          "role": "chicane",
+          "length_m": 1.6129,
+          "p0": [
+            1.9643,
+            -1.8202
+          ],
+          "p1": [
+            0.3514,
+            -1.8202
+          ],
+          "x": 1.1578,
+          "y": -1.8202,
+          "yaw_deg": 180.0
+        },
+        {
+          "id": "A1",
+          "mesh": "a1_approach_wall",
+          "role": "chicane",
+          "length_m": 1.0287,
+          "p0": [
+            -0.7377,
+            -1.8202
+          ],
+          "p1": [
+            -0.7377,
+            -0.7915
+          ],
+          "x": -0.7377,
+          "y": -1.3058,
+          "yaw_deg": 90.0
+        },
+        {
+          "id": "C2a",
+          "mesh": "c2a_chicane_wall_window",
+          "role": "chicane",
+          "length_m": 1.6129,
+          "p0": [
+            -0.7377,
+            -0.7915
+          ],
+          "p1": [
+            0.3104,
+            0.4344
+          ],
+          "x": -0.2137,
+          "y": -0.1785,
+          "yaw_deg": 49.47
+        },
+        {
+          "id": "TUBE",
+          "mesh": "tube_oval_58_x_72_x_60 + tube_cradle_1..3",
+          "role": "barrier",
+          "x": 2.3113,
+          "y": 0.5402,
+          "yaw_deg": 90.0,
+          "entrance_xy": [
+            2.3113,
+            1.3022
+          ],
+          "exit_xy": [
+            2.3113,
+            -0.2218
+          ]
+        },
+        {
+          "id": "boulder_3",
+          "mesh": "boulder_3",
+          "role": "boulder",
+          "x": 1.4843,
+          "y": -2.6449,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "boulder_4",
+          "mesh": "boulder_4",
+          "role": "boulder",
+          "x": 2.4849,
+          "y": -2.5025,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "boulder_2",
+          "mesh": "boulder_2",
+          "role": "boulder",
+          "x": -1.1738,
+          "y": -2.3199,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "boulder_5",
+          "mesh": "boulder_5",
+          "role": "boulder",
+          "x": 0.7148,
+          "y": -2.2229,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "boulder_1",
+          "mesh": "boulder_1",
+          "role": "boulder",
+          "x": 0.7582,
+          "y": -0.7547,
+          "yaw_deg": 0.0
+        }
+      ],
+      "checkpoints": [
+        {
+          "index": 1,
+          "name": "start_leg",
+          "points": 4,
+          "lines": [
+            {
+              "name": "cp1",
+              "p0": [
+                1.086786885245902,
+                0.5863278688524596
+              ],
+              "p1": [
+                1.086786885245902,
+                3.0563278688524598
+              ],
+              "forward": [
+                1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "name": "tunnel_entry",
+          "points": 7,
+          "lines": [
+            {
+              "name": "tube_entrance",
+              "centre": [
+                2.3113,
+                1.3022
+              ],
+              "forward": [
+                -0.0,
+                -1.0
+              ],
+              "width_m": 1.473
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "name": "tunnel",
+          "points": 10,
+          "lines": [
+            {
+              "name": "tube_exit",
+              "centre": [
+                2.3113,
+                -0.2218
+              ],
+              "forward": [
+                -0.0,
+                -1.0
+              ],
+              "width_m": 1.473
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "name": "chicane",
+          "points": 7,
+          "lines": [
+            {
+              "name": "gate_b",
+              "p0": [
+                0.3514,
+                -1.8202
+              ],
+              "p1": [
+                -0.7377,
+                -1.8202
+              ],
+              "forward": [
+                -2.0387225901616373e-16,
+                -1.0
+              ]
+            },
+            {
+              "name": "window",
+              "p0": [
+                -0.5106,
+                -0.5259
+              ],
+              "p1": [
+                0.0833,
+                0.1688
+              ],
+              "forward": [
+                -0.7600667410669039,
+                0.6498450193114786
+              ],
+              "z_min": 0.3048,
+              "z_max": 1.2192,
+              "window": true
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "name": "landing",
+          "points": 7,
+          "lines": []
+        }
+      ],
+      "metrics": {
+        "walls_ok": true,
+        "route_ok": true,
+        "route_min_clear_m": 0.474,
+        "route_len_m": 11.514,
+        "window_ok": true,
+        "window_min_clear_m": 0.352,
+        "barrier_sealed": true,
+        "pocket_sealed": true,
+        "gate_width_m": 1.089,
+        "launch_clear_m": 0.93,
+        "pad_clear_m": 0.837,
+        "launch_ok": true,
+        "full_inventory_ok": true,
+        "wall_panel_count": 10,
+        "maze_divider_count": 3,
+        "max_open_radius_m": 1.22,
+        "reference_max_open_radius_m": 1.312,
+        "high_clearance_area_m2": 3.426,
+        "reference_high_clearance_area_m2": 3.671,
+        "route_length_ratio_to_original": 0.625
+      },
+      "tier": "wild",
+      "topology_family": "random_full_chain",
+      "chain": "Random boundary chain containing all four chicane panels and three independently anchored dividers"
+    },
+    {
+      "name": "DIVERSE02",
+      "seed": 918247045,
+      "symmetry": "none",
+      "launch": {
+        "x": -1.4278,
+        "y": 1.923,
+        "yaw_deg": 0.0
+      },
+      "pad_centre_xy": [
+        -2.1111,
+        -2.1111
+      ],
+      "real_pad": {
+        "center_xy": [
+          -2.1111,
+          -2.1111
+        ],
+        "square_m": 0.64,
+        "yaw_deg": 0.0,
+        "note": "blue rounded-square mat, size ESTIMATED; the 5 ft CAD footprint around it is kept clear"
+      },
+      "pieces": [
+        {
+          "id": "B2",
+          "mesh": "barrier_2",
+          "role": "barrier",
+          "length_m": 1.6129,
+          "p0": [
+            -3.048,
+            0.7126
+          ],
+          "p1": [
+            -1.4351,
+            0.7126
+          ],
+          "x": -2.2416,
+          "y": 0.7126,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "B3",
+          "mesh": "barrier_3_cut_to_55_in",
+          "role": "barrier",
+          "length_m": 1.397,
+          "p0": [
+            -1.4351,
+            0.7126
+          ],
+          "p1": [
+            -0.0381,
+            0.7126
+          ],
+          "x": -0.7366,
+          "y": 0.7126,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "B1",
+          "mesh": "barrier_1",
+          "role": "barrier",
+          "length_m": 1.6129,
+          "p0": [
+            1.4349,
+            0.7126
+          ],
+          "p1": [
+            3.0478,
+            0.7126
+          ],
+          "x": 2.2414,
+          "y": 0.7126,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "M2",
+          "mesh": "m2_maze_divider",
+          "role": "loose",
+          "length_m": 1.6129,
+          "p0": [
+            2.993,
+            1.3406
+          ],
+          "p1": [
+            1.8525,
+            2.4811
+          ],
+          "x": 2.4228,
+          "y": 1.9108,
+          "yaw_deg": 135.0
+        },
+        {
+          "id": "M3",
+          "mesh": "m3_maze_divider",
+          "role": "loose",
+          "length_m": 1.6129,
+          "p0": [
+            -2.993,
+            1.6933
+          ],
+          "p1": [
+            -1.8525,
+            2.8337
+          ],
+          "x": -2.4228,
+          "y": 2.2635,
+          "yaw_deg": 45.0
+        },
+        {
+          "id": "M1",
+          "mesh": "m1_maze_divider",
+          "role": "loose",
+          "length_m": 1.6129,
+          "p0": [
+            -2.993,
+            1.038
+          ],
+          "p1": [
+            -1.3801,
+            1.038
+          ],
+          "x": -2.1865,
+          "y": 1.038,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "C1",
+          "mesh": "c1_chicane_wall",
+          "role": "chicane",
+          "length_m": 1.6129,
+          "p0": [
+            1.2486,
+            -2.101
+          ],
+          "p1": [
+            -0.3643,
+            -2.101
+          ],
+          "x": 0.4422,
+          "y": -2.101,
+          "yaw_deg": 180.0
+        },
+        {
+          "id": "C2a",
+          "mesh": "c2a_chicane_wall_window",
+          "role": "chicane",
+          "length_m": 1.6129,
+          "p0": [
+            -0.3643,
+            -2.101
+          ],
+          "p1": [
+            -1.5048,
+            -0.9605
+          ],
+          "x": -0.9345,
+          "y": -1.5307,
+          "yaw_deg": 135.0
+        },
+        {
+          "id": "C2b",
+          "mesh": "c2b_chicane_wall",
+          "role": "chicane",
+          "length_m": 1.0287,
+          "p0": [
+            -1.5048,
+            -0.9605
+          ],
+          "p1": [
+            -1.2385,
+            0.0332
+          ],
+          "x": -1.3717,
+          "y": -0.4637,
+          "yaw_deg": 75.0
+        },
+        {
+          "id": "A1",
+          "mesh": "a1_approach_wall",
+          "role": "chicane",
+          "length_m": 1.0287,
+          "p0": [
+            -1.2385,
+            0.0332
+          ],
+          "p1": [
+            -0.3846,
+            0.6068
+          ],
+          "x": -0.8116,
+          "y": 0.32,
+          "yaw_deg": 33.89
+        },
+        {
+          "id": "TUBE",
+          "mesh": "tube_oval_58_x_72_x_60 + tube_cradle_1..3",
+          "role": "barrier",
+          "x": 0.6984,
+          "y": 0.7126,
+          "yaw_deg": 90.0,
+          "entrance_xy": [
+            0.6984,
+            1.4746
+          ],
+          "exit_xy": [
+            0.6984,
+            -0.0494
+          ]
+        },
+        {
+          "id": "boulder_2",
+          "mesh": "boulder_2",
+          "role": "boulder",
+          "x": 2.1158,
+          "y": 1.2514,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "boulder_1",
+          "mesh": "boulder_1",
+          "role": "boulder",
+          "x": -0.1914,
+          "y": -1.3188,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "boulder_4",
+          "mesh": "boulder_4",
+          "role": "boulder",
+          "x": 2.5538,
+          "y": 0.2699,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "boulder_3",
+          "mesh": "boulder_3",
+          "role": "boulder",
+          "x": 2.2198,
+          "y": -1.7701,
+          "yaw_deg": 0.0
+        },
+        {
+          "id": "boulder_5",
+          "mesh": "boulder_5",
+          "role": "boulder",
+          "x": -2.3442,
+          "y": 0.0702,
+          "yaw_deg": 0.0
+        }
+      ],
+      "checkpoints": [
+        {
+          "index": 1,
+          "name": "start_leg",
+          "points": 4,
+          "lines": [
+            {
+              "name": "cp1",
+              "p0": [
+                -0.1623934426229507,
+                0.7610491803278692
+              ],
+              "p1": [
+                -0.1623934426229507,
+                3.051049180327869
+              ],
+              "forward": [
+                1.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "name": "tunnel_entry",
+          "points": 7,
+          "lines": [
+            {
+              "name": "tube_entrance",
+              "centre": [
+                0.6984,
+                1.4746
+              ],
+              "forward": [
+                -0.0,
+                -1.0
+              ],
+              "width_m": 1.473
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "name": "tunnel",
+          "points": 10,
+          "lines": [
+            {
+              "name": "tube_exit",
+              "centre": [
+                0.6984,
+                -0.0494
+              ],
+              "forward": [
+                -0.0,
+                -1.0
+              ],
+              "width_m": 1.473
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "name": "chicane",
+          "points": 7,
+          "lines": [
+            {
+              "name": "gate_b",
+              "p0": [
+                2.1406,
+                -2.993
+              ],
+              "p1": [
+                1.2486,
+                -2.101
+              ],
+              "forward": [
+                -0.7071067811865476,
+                -0.7071067811865475
+              ]
+            },
+            {
+              "name": "window",
+              "p0": [
+                -0.6114,
+                -1.8539
+              ],
+              "p1": [
+                -1.2577,
+                -1.2076
+              ],
+              "forward": [
+                -0.7071067811865475,
+                -0.7071067811865476
+              ],
+              "z_min": 0.3048,
+              "z_max": 1.2192,
+              "window": true
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "name": "landing",
+          "points": 7,
+          "lines": []
+        }
+      ],
+      "metrics": {
+        "walls_ok": true,
+        "route_ok": true,
+        "route_min_clear_m": 0.434,
+        "route_len_m": 11.163,
+        "window_ok": true,
+        "window_min_clear_m": 0.401,
+        "barrier_sealed": true,
+        "pocket_sealed": true,
+        "gate_width_m": 1.262,
+        "launch_clear_m": 0.834,
+        "pad_clear_m": 0.937,
+        "launch_ok": true,
+        "full_inventory_ok": true,
+        "wall_panel_count": 10,
+        "maze_divider_count": 3,
+        "max_open_radius_m": 1.137,
+        "reference_max_open_radius_m": 1.312,
+        "high_clearance_area_m2": 3.631,
+        "reference_high_clearance_area_m2": 3.671,
+        "route_length_ratio_to_original": 0.606
+      },
+      "tier": "wild",
+      "topology_family": "random_full_chain",
+      "chain": "Random boundary chain containing all four chicane panels and three independently anchored dividers"
+    }
+  ],
+  "candidate_seeds": [
+    918246141,
+    918246447,
+    918247045,
+    918247098
+  ]
+}

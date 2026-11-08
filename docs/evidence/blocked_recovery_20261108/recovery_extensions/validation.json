@@ -31,7 +31,22 @@
     "isolated_and_launcher_hash_verification_files_each": 153,
     "activated": false
   },
-  "dual_gazebo": "pending final commit in diverse worlds",
+  "dual_gazebo": {
+    "status": "FAILED_COMPLETION",
+    "policy_commit": "c52cb7c",
+    "worlds": [
+      "DIVERSE01",
+      "DIVERSE02"
+    ],
+    "checkpoints": [
+      0,
+      0
+    ],
+    "reason": "normal planner failure did not enter recovery; corridor timeout landed both",
+    "natural_disarm": true,
+    "manual_land": false,
+    "evidence": "../sim_diverse_final/"
+  },
   "sha256": {
     "refnav/core.py": "37017697dc093f63c9488e3e11d068233d1a5e1ab3c9f523761c695418ace843",
     "refnav/node.py": "d72d4d0b18b2d46f2cac62e97a2ee77a4f1c351e3d6b807c8306371d246ecf1c",

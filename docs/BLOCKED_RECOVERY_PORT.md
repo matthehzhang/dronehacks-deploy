@@ -175,3 +175,32 @@ published unknown (-1). All 153 committed package files match in both the isolat
 Previous copies are backed up under `~/policies/_replaced/blocked-recovery-before-c52cb7c/`.
 No hardware stack restart, arming or flight was performed. Native evidence is in
 `evidence/blocked_recovery_20261108/recovery_extensions/device/`.
+
+
+## Final diverse-world tests and remaining defect
+
+Both final-policy runs used exact `c52cb7c` sources and the unchanged prior, in verified different
+DIVERSE01/DIVERSE02 geometry. Both failed to complete: zero checkpoints, deliberate off-target
+abort landings, then natural disarming. Grader durations were 24.450 and 17.425 simulation seconds.
+There was no manual LAND intervention, airborne Offboard-loss transition or localizer crash.
+Depth stayed usable and fresh. Neither run emitted a recovery request.
+
+The missing integration is the normal-planner-failure case: `on_plan_result` invalidates the old
+path, then `_go_path` returns before updating along-path clearance. The obstacle-triggered scan
+is never entered and the 10-second corridor timer expires. Entering bounded recovery on loss of a
+previously usable route is still needed; even that will not guarantee a valid detour when retained
+prior constraints conflict with the live map. Exact blocking cells have not been isolated. These
+runs do not validate successful mismatch flight. Evidence: `sim_diverse_final/` beside the earlier
+records, including actual geometry/source verification, logs, traces and matching scorecards.
+
+## Main-workspace installation correction
+
+The initial isolated native build missed a deployment defect: the main workspace recursively
+found both `src/kestrel_nav` and `policies/blocked-recovery/src/kestrel_nav`, producing the logged
+duplicate-package build failure. An ignore marker first proved the discovery fix. Per Matthew's
+subsequent request, the final arrangement instead installs the new exact package directly at
+`~/team_ws/src/kestrel_nav` and deletes the redundant nested isolated workspace. The saved launcher
+copy remains outside the build workspace at `~/policies/group154_blocked_recovery/kestrel_nav`.
+The main workspace now discovers one package, and its actual package build and launch argument
+check pass. No hardware stack restart or arming occurred. PX4 telemetry was unavailable; no
+policy or flight-interface process was running during this inert source installation.

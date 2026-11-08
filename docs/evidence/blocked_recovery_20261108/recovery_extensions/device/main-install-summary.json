@@ -1,0 +1,27 @@
+{
+  "result": "PASS",
+  "utc": "2026-11-08T09:14:58.026726+00:00",
+  "commit": "c52cb7c7fc0f8686bdd36a5769e76cfe9a34d0ea",
+  "branch": "cram304",
+  "active_source": "/home/dronehacks/team_ws/src/kestrel_nav",
+  "previous_active_was_new_commit": false,
+  "active_and_launcher_files_verified": 153,
+  "removed": "/home/dronehacks/team_ws/policies/blocked-recovery",
+  "removed_empty_parent_and_ignore_marker": true,
+  "retained_launcher": "/home/dronehacks/policies/group154_blocked_recovery/kestrel_nav",
+  "retained_previous_backup": "/home/dronehacks/policies/_replaced/blocked-recovery-before-c52cb7c",
+  "main_build": "PASS team_build.sh --packages-select kestrel_nav",
+  "main_packages": [
+    "kestrel_nav src/kestrel_nav"
+  ],
+  "launch_argument_resolution": "PASS",
+  "main_native_constructor_fit_035": "PASS isolated ROS domain77",
+  "px4_telemetry": "unavailable; no /fmu/out topics in configured domain14",
+  "running_policy_before_replacement": false,
+  "running_flight_interface_before_replacement": false,
+  "stack_restarted": false,
+  "policy_started": false,
+  "flight_or_arming_commanded": false,
+  "launch_config_changed": false,
+  "fly_sh_changed": false
+}

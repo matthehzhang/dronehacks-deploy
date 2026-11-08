@@ -1,0 +1,7 @@
+[sim] stopped; managed descendants reaped
+[sim] stopped; managed descendants reaped
+[parallel] preparing isolated policy and PX4 for run 1
+[parallel] preparing isolated policy and PX4 for run 2
+[sim] launch requested (stack); unit=dronehacks-sim-i1.service; logs in /home/matthew/.local/state/dronehacks-sim/instances/1/logs
+[sim] launch requested (stack); unit=dronehacks-sim-i2.service; logs in /home/matthew/.local/state/dronehacks-sim/instances/2/logs
+[parallel] http://100.122.171.110:8088 · runs start disarmed; use parallel.py arm after policy readiness

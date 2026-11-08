@@ -1,0 +1,38 @@
+FASTRTPS_DEFAULT_PROFILES_FILE=/etc/skybeta/fastdds.xml
+ROS_DOMAIN_ID=14
+ROS_LOCALHOST_ONLY=0
+RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+/fmu/in/vehicle_visual_odometry
+/parameter_events
+/rosout
+/visual_slam/status
+/visual_slam/tracking/odometry
+exec run_agent.sh   
+root@skybeta-14:~/skybeta_ws# exec run_agent.sh                                 
+[agent] ROS_DOMAIN_ID=14 (FC UXRCE_DDS_DOM_ID must match), scope local, participant refs /etc/skybeta/agent_refs.xml (FC UXRCE_DDS_PTCFG must be 2)             
+[agent] MicroXRCEAgent serial --dev /dev/ttyTHS1 -b 921600 -r /etc/skybeta/agent_refs.xml           
+[1794128186.314204] info     | TermiosAgentLinux.cpp | init                     | running...             | fd: 3        
+[1794128186.316240] info     | Root.cpp           | set_verbose_level        | logger setup           | verbose_level: 4                                        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+skybeta-stack
+skybeta-ros-status
+total 12
+drwxrwxr-x  3 dronehacks dronehacks 4096 Nov  8 01:11 .
+drwxrwxr-x 14 dronehacks dronehacks 4096 Nov  8 00:28 ..
+drwxrwxr-x  6 dronehacks dronehacks 4096 Nov  8 01:08 blocked-recovery
+-rw-rw-r--  1 dronehacks dronehacks    0 Nov  8 01:11 COLCON_IGNORE
+DRONE_ID=14
+ROS_DOMAIN_ID=14

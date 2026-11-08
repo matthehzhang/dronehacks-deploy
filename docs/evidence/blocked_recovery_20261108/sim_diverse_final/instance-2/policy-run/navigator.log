@@ -1,0 +1,19 @@
+[INFO] [1794129059.005060838] [coursenav_nav]: navigator: 5 legs (3 path legs), cruise 0.50 m/s, buffer 0.41 m
+[INFO] [1794129059.721717117] [coursenav_nav]: pre-planned leg 1: 5.66 m, 2 stop corners
+[INFO] [1794129059.866165566] [coursenav_nav]: pre-planned leg 3: 2.83 m, 0 stop corners
+[INFO] [1794129059.883884336] [coursenav_nav]: pre-planned leg 5: 1.71 m, 0 stop corners
+[INFO] [1794129059.884701124] [coursenav_nav]: pre-planned 3 path legs in 0.9 s
+[WARN] [1794129059.925848846] [coursenav_nav]: prior map dropped: local obstacles near prior surfaces are no longer treated as mapped
+[INFO] [1794129088.383870227] [coursenav_nav]: leg 1: pre-planned path 5.66 m
+[INFO] [1794129090.222183788] [coursenav_nav]: leg 1: path 5.51 m, 5 stop corners, est 22.8 s, 50 local obstacle cells, prior dropped
+[INFO] [1794129092.981354240] [coursenav_nav]: leg 1: path 5.49 m, 5 stop corners, est 22.9 s, 52 local obstacle cells, prior dropped
+[INFO] [1794129094.981854969] [coursenav_nav]: leg 1: path 5.47 m, 5 stop corners, est 23.0 s, 50 local obstacle cells, prior dropped
+[WARN] [1794129096.563416752] [coursenav_nav]: leg 1: no path (no path from [-2.5031361   0.95046183] to [2.3114 2.3692]); refnav holds without one
+[WARN] [1794129098.868128693] [coursenav_nav]: leg 1: no path (no path from [-2.525  0.975] to [2.3114 2.3692]); refnav holds without one
+[WARN] [1794129101.241716325] [coursenav_nav]: leg 1: no path (no path from [-2.52545942  0.96435886] to [2.3114 2.3692]); refnav holds without one
+[WARN] [1794129103.521432330] [coursenav_nav]: leg 1: no path (no path from [-2.5309425   0.95766065] to [2.3114 2.3692]); refnav holds without one
+[WARN] [1794129105.901631640] [coursenav_nav]: leg 1: no path (no path from [-2.52095375  0.96635301] to [2.3114 2.3692]); refnav holds without one
+[WARN] [1794129108.307420888] [coursenav_nav]: leg 1: no path (no path from [-2.51130096  0.9594615 ] to [2.3114 2.3692]); refnav holds without one
+[WARN] [1794129110.623383969] [coursenav_nav]: leg 1: no path (no path from [-2.5191961   0.96723443] to [2.3114 2.3692]); refnav holds without one
+[WARN] [1794129112.787439125] [coursenav_nav]: leg 1: no path (no path from [-2.50172395  0.97251039] to [2.3114 2.3692]); refnav holds without one
+[WARN] [1794129115.261653063] [coursenav_nav]: leg 1: no path (no path from [-2.50635584  0.96828532] to [2.3114 2.3692]); refnav holds without one

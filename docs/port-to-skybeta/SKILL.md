@@ -115,3 +115,15 @@ They remain captured in this branch-specific patch and `assets/new/`; do not app
 to other workspace ports. See `docs/BLOCKED_RECOVERY_PORT.md` for exact limits and validation status.
 The original prior map, PX4 authority boundary, estimator/clearance rules and maximum block count
 remain intact. Downloaded friend's clearing/local-only fallback is deliberately not included.
+
+
+## Nested staging workspace discovery
+
+When staging an isolated build under `~/team_ws/policies/`, create
+`~/team_ws/policies/COLCON_IGNORE` before the main workspace is built. Otherwise the organizer's
+recursive `colcon build` sees both `src/kestrel_nav` and
+`policies/blocked-recovery/src/kestrel_nav` and fails with a duplicate-package error. An isolated
+build passing is not sufficient verification: run `colcon list` from the main workspace and from
+the isolated workspace, confirming exactly one expected package in each. The ignore boundary
+must not be placed inside the package or isolated `src`, because direct isolated builds need it.
+This was a staging defect found in the main drone stack log after the cram304 transfer.

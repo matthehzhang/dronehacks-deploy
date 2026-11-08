@@ -1,0 +1,8 @@
+{"result": "PASS", "commit": "c52cb7c", "branch": "cram304", "root": "/home/dronehacks/team_ws/src/kestrel_nav", "files": 153, "missing": [], "mismatch": [], "extra": [], "map_sha256": "ef86d5ea34edb7d655551ad2faf5bedff6c916425013aeb4e03e927e0b46809b", "fly_sh_sha256": "c70f9d5bb4fce4466c9f0f6a1a8c82988249c001460e097447a46687b4270564"}
+{"result": "PASS", "commit": "c52cb7c", "branch": "cram304", "root": "/home/dronehacks/policies/group154_blocked_recovery/kestrel_nav", "files": 153, "missing": [], "mismatch": [], "extra": [], "map_sha256": "ef86d5ea34edb7d655551ad2faf5bedff6c916425013aeb4e03e927e0b46809b", "fly_sh_sha256": "c70f9d5bb4fce4466c9f0f6a1a8c82988249c001460e097447a46687b4270564"}
+kestrel_nav	src/kestrel_nav	(ros.ament_python)
+[INFO] [1794129288.440876348] [coursenav_loc]: height from /fmu/out/vehicle_local_position dist_bottom (fallback landed_z_m - z)
+[INFO] [1794129288.443350765] [coursenav_loc]: shadow localizer: prior [-2.515  0.914  1.571] sigma (0.05, 0.03490658503988659); depth /camera/depth/image_raw; log /tmp/localizer-startup-6cgl62da/coursenav_20261108T091448.csv
+{"result": "PASS", "fit": 0.35, "restore_fit": 0.35, "course": "/root/team_ws/src/kestrel_nav/course/course_new_origin.json", "domain": 77, "live_map": true, "local_map": true}
+drwxrwxr-x 4 dronehacks dronehacks 4096 Nov  8 01:07 /home/dronehacks/policies/_replaced/blocked-recovery-before-c52cb7c
+c70f9d5bb4fce4466c9f0f6a1a8c82988249c001460e097447a46687b4270564  /home/dronehacks/team_ws/tools/fly.sh
