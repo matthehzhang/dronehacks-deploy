@@ -14,7 +14,8 @@ relative to the aircraft, which odometry gives to centimetres over the seconds t
   window   size_m x size_m around the aircraft, res_m cells; recentred (cells kept at their world place)
            when the aircraft has moved more than recentre_m from the window centre.
   update   per scan: log-odds +l_occ at each return cell, l_free along each beam up to one cell short of it
-           (no return = unknown, never free); beams beyond max_range_m are ignored (stereo error ~ r^2).
+           (no return = unknown, never free); valid distant returns carve only within max_range_m, with a 3-sigma margin;
+           distant endpoints are never marked occupied.
   decay    every cell relaxes toward unknown with time constant decay_s, so a cell nothing sees any more
            fades (a person who walked off, a stereo artefact); one at l_max stays occupied for
            decay_s * ln(l_max / occ_thresh) after the last return (17 s with the defaults): long enough to
@@ -101,10 +102,9 @@ class LocalGrid:
         self.decay(t)
         if scan is None or len(scan) == 0:
             return False
-        keep = scan.range <= self.p.max_range_m
+        valid = np.isfinite(scan.range) & (scan.range > 0) & np.isfinite(scan.bearing)
+        keep = valid & (scan.range <= self.p.max_range_m)
         r, b = scan.range[keep], scan.bearing[keep]
-        if len(r) == 0:
-            return False
         res, shape = self.p.res_m, np.array(self.L.shape)
         x0, y0, th = float(pose[0]), float(pose[1]), float(pose[2])
         ca, sa = np.cos(th + b), np.sin(th + b)
@@ -115,6 +115,34 @@ class LocalGrid:
         fij = fij[np.all((fij >= 0) & (fij < shape), axis=1)]
         eij = np.floor((np.stack([x0 + ca * r, y0 + sa * r], -1) - self.origin) / res).astype(int)
         eij = eij[np.all((eij >= 0) & (eij < shape), axis=1)]
+        # Distant measurements certify only the near segment, from the actual
+        # camera origin. No origin/return/uncertainty means no free evidence.
+        optical = scan.free_origin_xy
+        if optical is not None:
+            optical = np.asarray(optical, float)
+            if (optical.shape == (2,) and np.isfinite(optical).all()
+                    and np.linalg.norm(optical) < self.p.max_range_m):
+                far = (valid & (scan.range > self.p.max_range_m)
+                       & np.isfinite(scan.sigma) & (scan.sigma >= 0))
+                endpoints = np.stack([scan.range[far] * np.cos(scan.bearing[far]),
+                                      scan.range[far] * np.sin(scan.bearing[far])], axis=1)
+                vectors = endpoints - optical
+                lengths = np.linalg.norm(vectors, axis=1)
+                directions = vectors / lengths[:, None]
+                dot = directions @ optical
+                horizon = -dot + np.sqrt(dot ** 2 + self.p.max_range_m ** 2
+                                          - optical @ optical)
+                reach = np.minimum(lengths - 3.0 * scan.sigma[far], horizon) - res
+                # Camera can sit behind the body origin; allow the full chord.
+                steps = np.arange(0., 2 * self.p.max_range_m, res * .5)
+                use = steps[None] < reach[:, None]
+                points = optical + directions[:, None, :] * steps[None, :, None]
+                c, s = math.cos(th), math.sin(th)
+                rotation = np.array([[c, -s], [s, c]])
+                world = points[use] @ rotation.T + [x0, y0]
+                far_ij = np.floor((world - self.origin) / res).astype(int)
+                far_ij = far_ij[np.all((far_ij >= 0) & (far_ij < shape), axis=1)]
+                fij = np.concatenate([fij, far_ij])
         free = np.unique(np.ravel_multi_index(fij.T, self.L.shape)) if len(fij) else np.zeros(0, int)
         occ = np.unique(np.ravel_multi_index(eij.T, self.L.shape)) if len(eij) else np.zeros(0, int)
         free = np.setdiff1d(free, occ, assume_unique=True)
@@ -127,7 +155,7 @@ class LocalGrid:
         np.clip(flat, self.p.l_min, self.p.l_max, out=flat)
         touched = np.concatenate([free, occ])
         seen[touched] = np.minimum(seen[touched].astype(np.int32) + 1, 65535)
-        return True
+        return bool(len(touched))
 
     # ------------------------------------------------------------------ products
     def occupied(self):

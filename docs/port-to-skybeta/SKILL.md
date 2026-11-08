@@ -141,3 +141,13 @@ Hardware adapters, default prior assets, mission targets and authority remain un
 native checks follow device transfer per the explicit user-requested ordering. Always use the active
 `~/team_ws/src/kestrel_nav` plus the saved launcher copy outside the workspace; do not introduce a
 second nested source workspace. Preserve the existing hardware `fly.sh`.
+
+
+## Distant-ray local evidence correction
+
+User authorized the finite-depth range fix: preserve near scan behavior and PF
+input, while using valid distant measurements only for bounded local free evidence.
+The patch includes actual optical origins, measured ray directions, near-bin vetoes
+and three-sigma endpoint margins. No-return values stay unknown. Regression tests
+are included in assets/new/tests/test_local_ray_horizon.py. Stage active and saved
+external launcher copies before running validation, without restarting physical flight.

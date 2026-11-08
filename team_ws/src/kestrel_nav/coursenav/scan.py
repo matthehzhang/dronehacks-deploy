@@ -24,6 +24,7 @@ class Scan:
     bearing: np.ndarray       # rad, + = left
     range: np.ndarray         # m from the body origin, in the horizontal plane
     sigma: np.ndarray         # m, per-beam measurement std
+    free_origin_xy: np.ndarray | None = None  # measured optical origin for far free-only rays
 
     def __len__(self):
         return len(self.range)
@@ -111,3 +112,50 @@ def scan_from_points(pts_level, height_m, zlo=0.3, zhi=1.6, rmin=0.4, rmax=4.0, 
     out_r = np.asarray(out_r)
     return Scan(np.asarray(out_b), out_r, sigma0 + sigma_k * out_r ** 2)
 
+
+
+def local_scan_from_points(pts_level, height_m, zlo=0.3, zhi=1.6, *,
+                           obstacle_range_m=3.0, ray_range_m=12.0,
+                           camera_origin_xy=None, n_bins=48,
+                           hfov_rad=math.radians(76), min_pts=3,
+                           sigma0=0.05, sigma_k=0.02):
+    """Keep the existing near scan; add measured distant rays for bounded free carving.
+
+    A near point vetoes distant evidence in its bin even if it cannot form a
+    supported obstacle return. Far rays retain their actual direction and optical
+    origin; they are never synthetic obstacle endpoints at the local cutoff.
+    """
+    near = scan_from_points(pts_level, height_m, zlo, zhi, rmax=obstacle_range_m,
+                            n_bins=n_bins, hfov_rad=hfov_rad, min_pts=min_pts,
+                            sigma0=sigma0, sigma_k=sigma_k)
+    if camera_origin_xy is None or pts_level is None or not len(pts_level):
+        return near
+    origin = np.asarray(camera_origin_xy, float)
+    if origin.shape != (2,) or not np.isfinite(origin).all():
+        return near
+    pts = np.asarray(pts_level, float)
+    r = np.hypot(pts[:, 0], pts[:, 1])
+    b = np.arctan2(pts[:, 1], pts[:, 0])
+    zw = height_m + pts[:, 2]
+    valid = (np.isfinite(pts).all(axis=1) & (r > 0) & (zw >= zlo) &
+             (zw <= zhi) & (np.abs(b) <= hfov_rad / 2))
+    edges = np.linspace(-hfov_rad / 2, hfov_rad / 2, n_bins + 1)
+    pts, r, b = pts[valid], r[valid], b[valid]
+    bins = np.clip(np.digitize(b, edges) - 1, 0, n_bins - 1)
+    veto = set(bins[r <= obstacle_range_m])
+    out_b, out_r, out_s = [], [], []
+    for i in range(n_bins):
+        if i in veto:
+            continue
+        ids = np.flatnonzero((bins == i) & (r > obstacle_range_m) & (r <= ray_range_m))
+        if len(ids) < min_pts:
+            continue
+        lengths = np.linalg.norm(pts[ids, :2] - origin, axis=1)
+        sigmas = sigma0 + sigma_k * lengths ** 2
+        # Select a real ray with the most conservative uncertainty-adjusted reach.
+        j = int(np.argmin(lengths - 3.0 * sigmas))
+        out_b.append(b[ids[j]])
+        out_r.append(r[ids[j]])
+        out_s.append(sigmas[j])
+    return Scan(np.concatenate([near.bearing, out_b]), np.concatenate([near.range, out_r]),
+                np.concatenate([near.sigma, out_s]), origin.copy())

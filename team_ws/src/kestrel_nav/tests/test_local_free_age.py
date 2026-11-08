@@ -32,11 +32,11 @@ def test_zero_time_free_observation_is_valid_and_republish_does_not_refresh():
     assert value(grid,[1.,0.],now=-.01)==-1  # clock must not precede evidence
 
 
-def test_empty_or_out_of_range_scan_cannot_renew_free_evidence():
+def test_empty_or_nonreturn_scan_cannot_renew_free_evidence():
     grid=free_grid(0.)
     before=grid.last_free.copy()
     assert not grid.integrate(7.,[0.,0.,0.],Scan.empty())
-    assert not grid.integrate(8.1,[0.,0.,0.],ray(4.))
+    assert not grid.integrate(8.1,[0.,0.,0.],ray(float("inf")))
     assert np.array_equal(before,grid.last_free)
     assert value(grid,[1.,0.],now=8.1)==-1
     grid.integrate(8.2,[0.,0.,0.],ray())

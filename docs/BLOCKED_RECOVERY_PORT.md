@@ -246,3 +246,17 @@ The underlying CLI error was the ROS daemon XMLRPC `RuntimeError: !rclpy.ok()`. 
 succeeded. The existing device fly.sh was patched only at that read, keeping its disarmed check.
 A backup was saved outside team_ws and bash syntax validation passed. No stack restart occurred.
 Live telemetry then showed arm phase, healthy estimator, fresh depth, PX4 linked, disarmed/landed.
+
+
+## Finite distant depth rays (2026-11-08)
+
+The local scan previously discarded every return beyond its 3 m obstacle horizon,
+so even valid 5–8 m measurements could not certify nearby free space. Local scan
+extraction now preserves the existing near-obstacle scan and adds measured distant
+rays only in bins without nearer points. Their free segment starts at the calibrated
+camera origin, ends before both the body-centred 3 m horizon and the measured range
+minus three standard deviations (plus a cell margin), and creates no occupied
+endpoint. Missing/invalid depth remains unknown. Prior assets, PF scan extraction,
+clearance, evidence expiry and flight authority are unchanged. Device transfer must
+precede validation; staging does not replace the already-running Python processes.
+Validation for this change is recorded under `evidence/blocked_recovery_20261108/range_ray_fix/`.

@@ -61,7 +61,7 @@ from .localgrid import LocalGrid, LocalParams
 from .occgrid import LiveGrid, OccParams
 from .priorstate import PriorMonitor, PriorParams
 from .pf import CorrectionLimiter, CorrectionPF, PFParams, compose, inverse, project_correction
-from .scan import depth_points_level, level_from_px4_q, scan_from_points
+from .scan import depth_points_level, level_from_px4_q, scan_from_points, local_scan_from_points
 
 PX4_QOS = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                      history=HistoryPolicy.KEEP_LAST, depth=1)
@@ -331,8 +331,11 @@ class LocNode(Node):
                     self._publish_prior()
         if self.local is not None:
             # the aircraft's own height band, at the RAW odometry pose (nominal frame): never gated
-            lscan = scan_from_points(pts, h, max(0.15, h - self.local_band), h + self.local_band,
-                                     rmax=self.local.p.max_range_m)
+            optical_origin = np.asarray(self.cam_cal[2]) @ np.asarray(R_level).T
+            lscan = local_scan_from_points(
+                pts, h, max(0.15, h - self.local_band), h + self.local_band,
+                obstacle_range_m=self.local.p.max_range_m,
+                camera_origin_xy=optical_origin[:2])
             self.local.integrate(t, compose(self.nominal, pose), lscan)
         self.last_update_t = t
         mean, cov = self.pf.estimate(pose)

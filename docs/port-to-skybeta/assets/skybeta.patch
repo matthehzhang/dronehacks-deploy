@@ -1,6 +1,6 @@
 diff -ruN a2/course/course_v3.json b/course/course_v3.json
---- a/course/course_v3.json	2026-11-08 03:29:22.665738198 -0600
-+++ b/course/course_v3.json	2026-11-08 03:29:22.660927528 -0600
+--- a/course/course_v3.json	2026-11-08 04:02:40.248059054 -0600
++++ b/course/course_v3.json	2026-11-08 04:02:40.240027675 -0600
 @@ -282,10 +282,7 @@
      "_keep_path_clearance_note": "planner._simplify_idx: shortcuts keep the clearance of the A* sub-path they replace, capped at 0.6 m = the A* prefer_m (beyond it A* itself does not centre), less half a cell. 0 restores greedy shortcuts."
    },
@@ -14,8 +14,8 @@ diff -ruN a2/course/course_v3.json b/course/course_v3.json
      "refnav": {
        "sim_stuck_land_disarm_s": 0.0
 diff -ruN a2/coursenav/course.py b/coursenav/course.py
---- a/coursenav/course.py	2026-11-08 03:29:22.639431974 -0600
-+++ b/coursenav/course.py	2026-11-08 03:29:22.631663196 -0600
+--- a/coursenav/course.py	2026-11-08 04:02:40.207172480 -0600
++++ b/coursenav/course.py	2026-11-08 04:02:40.198851528 -0600
 @@ -136,12 +136,45 @@
      if dist is None:
          dist = obst.distance()
@@ -66,8 +66,17 @@ diff -ruN a2/coursenav/course.py b/coursenav/course.py
  
  def scan_field(grid: Grid2D, doc):
 diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
---- a/coursenav/loc_node.py	2026-11-08 03:29:22.619165784 -0600
-+++ b/coursenav/loc_node.py	2026-11-08 03:29:22.613342384 -0600
+--- a/coursenav/loc_node.py	2026-11-08 04:02:40.181796390 -0600
++++ b/coursenav/loc_node.py	2026-11-08 04:02:40.173770951 -0600
+@@ -61,7 +61,7 @@
+ from .occgrid import LiveGrid, OccParams
+ from .priorstate import PriorMonitor, PriorParams
+ from .pf import CorrectionLimiter, CorrectionPF, PFParams, compose, inverse, project_correction
+-from .scan import depth_points_level, level_from_px4_q, scan_from_points
++from .scan import depth_points_level, level_from_px4_q, scan_from_points, local_scan_from_points
+ 
+ PX4_QOS = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                      history=HistoryPolicy.KEEP_LAST, depth=1)
 @@ -123,7 +123,7 @@
          self.local_band = float(dp("local_band_m", 0.35).value)
          self.prior_mon = PriorMonitor(PriorParams(drop_fit=float(dp("prior_drop_fit", 0.30).value),
@@ -162,7 +171,21 @@ diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
          else:
              if self.pf.update(pose, scan):
                  self.counts["updates"] += 1
-@@ -296,6 +343,12 @@
+@@ -284,8 +331,11 @@
+                     self._publish_prior()
+         if self.local is not None:
+             # the aircraft's own height band, at the RAW odometry pose (nominal frame): never gated
+-            lscan = scan_from_points(pts, h, max(0.15, h - self.local_band), h + self.local_band,
+-                                     rmax=self.local.p.max_range_m)
++            optical_origin = np.asarray(self.cam_cal[2]) @ np.asarray(R_level).T
++            lscan = local_scan_from_points(
++                pts, h, max(0.15, h - self.local_band), h + self.local_band,
++                obstacle_range_m=self.local.p.max_range_m,
++                camera_origin_xy=optical_origin[:2])
+             self.local.integrate(t, compose(self.nominal, pose), lscan)
+         self.last_update_t = t
+         mean, cov = self.pf.estimate(pose)
+@@ -296,6 +346,12 @@
                  f = self.live.landmark_field()
                  self.pf.set_distance(self.prior_dist if f is None else f)
          self.last_est = (t, mean, cov, pose, h, n_depth)
@@ -175,7 +198,7 @@ diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
          self._publish_pose(m.header.stamp, mean, cov, od[2])
          nominal_body = compose(self.nominal, pose)
          self.ekf.predict(nominal_body, dt)
-@@ -306,6 +359,15 @@
+@@ -306,6 +362,15 @@
                  "stamp": t, "delta": [float(v) for v in self.ekf.x], "nominal": [float(v) for v in nominal_body],
                  "fixture": [float(v) for v in self.nominal], "sigma_xy": self.ekf.sigma_xy(),
                  "accepted": self.ekf.accepted, "rejected": self.ekf.rejected, "resets": self.ekf.resets})))
@@ -191,7 +214,7 @@ diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
          if self.counts["updates"] >= self.min_updates_for_corr:
              nominal = compose(self.nominal, pose)                     # where VIO + fixture put the body
              raw = np.array([mean[0] - nominal[0], mean[1] - nominal[1]])   # course ENU drift of that belief
-@@ -400,9 +462,10 @@
+@@ -400,9 +465,10 @@
      def _publish_local(self):
          if self.local.origin is None:
              return
@@ -205,9 +228,19 @@ diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
          msg.info.resolution = float(res)
          msg.info.width, msg.info.height = int(w), int(hgt)
 diff -ruN a2/coursenav/localgrid.py b/coursenav/localgrid.py
---- a/coursenav/localgrid.py	2026-11-08 03:29:22.603140451 -0600
-+++ b/coursenav/localgrid.py	2026-11-08 03:29:22.597952541 -0600
-@@ -53,6 +53,9 @@
+--- a/coursenav/localgrid.py	2026-11-08 04:02:40.163362638 -0600
++++ b/coursenav/localgrid.py	2026-11-08 04:02:40.154764546 -0600
+@@ -14,7 +14,8 @@
+   window   size_m x size_m around the aircraft, res_m cells; recentred (cells kept at their world place)
+            when the aircraft has moved more than recentre_m from the window centre.
+   update   per scan: log-odds +l_occ at each return cell, l_free along each beam up to one cell short of it
+-           (no return = unknown, never free); beams beyond max_range_m are ignored (stereo error ~ r^2).
++           (no return = unknown, never free); valid distant returns carve only within max_range_m, with a 3-sigma margin;
++           distant endpoints are never marked occupied.
+   decay    every cell relaxes toward unknown with time constant decay_s, so a cell nothing sees any more
+            fades (a person who walked off, a stereo artefact); one at l_max stays occupied for
+            decay_s * ln(l_max / occ_thresh) after the last return (17 s with the defaults): long enough to
+@@ -53,6 +54,9 @@
          self.n = int(round(self.p.size_m / self.p.res_m))
          self.L = np.zeros((self.n, self.n), np.float32)
          self.seen = np.zeros((self.n, self.n), np.uint16)
@@ -217,7 +250,7 @@ diff -ruN a2/coursenav/localgrid.py b/coursenav/localgrid.py
          self.origin = None                 # world (nominal) xy of cell (0, 0)'s corner; cell-aligned
          self.t_last = None
          self.scans_in = 0
-@@ -71,6 +74,7 @@
+@@ -71,6 +75,7 @@
              return
          self.L = _shift(self.L, shift)
          self.seen = _shift(self.seen, shift)
@@ -225,7 +258,54 @@ diff -ruN a2/coursenav/localgrid.py b/coursenav/localgrid.py
          self.origin = self.origin + shift * res
          self.recentres += 1
  
-@@ -117,6 +121,9 @@
+@@ -97,10 +102,9 @@
+         self.decay(t)
+         if scan is None or len(scan) == 0:
+             return False
+-        keep = scan.range <= self.p.max_range_m
++        valid = np.isfinite(scan.range) & (scan.range > 0) & np.isfinite(scan.bearing)
++        keep = valid & (scan.range <= self.p.max_range_m)
+         r, b = scan.range[keep], scan.bearing[keep]
+-        if len(r) == 0:
+-            return False
+         res, shape = self.p.res_m, np.array(self.L.shape)
+         x0, y0, th = float(pose[0]), float(pose[1]), float(pose[2])
+         ca, sa = np.cos(th + b), np.sin(th + b)
+@@ -111,16 +115,47 @@
+         fij = fij[np.all((fij >= 0) & (fij < shape), axis=1)]
+         eij = np.floor((np.stack([x0 + ca * r, y0 + sa * r], -1) - self.origin) / res).astype(int)
+         eij = eij[np.all((eij >= 0) & (eij < shape), axis=1)]
++        # Distant measurements certify only the near segment, from the actual
++        # camera origin. No origin/return/uncertainty means no free evidence.
++        optical = scan.free_origin_xy
++        if optical is not None:
++            optical = np.asarray(optical, float)
++            if (optical.shape == (2,) and np.isfinite(optical).all()
++                    and np.linalg.norm(optical) < self.p.max_range_m):
++                far = (valid & (scan.range > self.p.max_range_m)
++                       & np.isfinite(scan.sigma) & (scan.sigma >= 0))
++                endpoints = np.stack([scan.range[far] * np.cos(scan.bearing[far]),
++                                      scan.range[far] * np.sin(scan.bearing[far])], axis=1)
++                vectors = endpoints - optical
++                lengths = np.linalg.norm(vectors, axis=1)
++                directions = vectors / lengths[:, None]
++                dot = directions @ optical
++                horizon = -dot + np.sqrt(dot ** 2 + self.p.max_range_m ** 2
++                                          - optical @ optical)
++                reach = np.minimum(lengths - 3.0 * scan.sigma[far], horizon) - res
++                # Camera can sit behind the body origin; allow the full chord.
++                steps = np.arange(0., 2 * self.p.max_range_m, res * .5)
++                use = steps[None] < reach[:, None]
++                points = optical + directions[:, None, :] * steps[None, :, None]
++                c, s = math.cos(th), math.sin(th)
++                rotation = np.array([[c, -s], [s, c]])
++                world = points[use] @ rotation.T + [x0, y0]
++                far_ij = np.floor((world - self.origin) / res).astype(int)
++                far_ij = far_ij[np.all((far_ij >= 0) & (far_ij < shape), axis=1)]
++                fij = np.concatenate([fij, far_ij])
+         free = np.unique(np.ravel_multi_index(fij.T, self.L.shape)) if len(fij) else np.zeros(0, int)
+         occ = np.unique(np.ravel_multi_index(eij.T, self.L.shape)) if len(eij) else np.zeros(0, int)
+         free = np.setdiff1d(free, occ, assume_unique=True)
          flat, seen = self.L.reshape(-1), self.seen.reshape(-1)
          flat[free] += self.p.l_free
          flat[occ] += self.p.l_occ
@@ -235,7 +315,12 @@ diff -ruN a2/coursenav/localgrid.py b/coursenav/localgrid.py
          np.clip(flat, self.p.l_min, self.p.l_max, out=flat)
          touched = np.concatenate([free, occ])
          seen[touched] = np.minimum(seen[touched].astype(np.int32) + 1, 65535)
-@@ -143,14 +150,20 @@
+-        return True
++        return bool(len(touched))
+ 
+     # ------------------------------------------------------------------ products
+     def occupied(self):
+@@ -143,14 +178,20 @@
      def probability(self):
          return 1.0 - 1.0 / (1.0 + np.exp(self.L))
  
@@ -258,7 +343,7 @@ diff -ruN a2/coursenav/localgrid.py b/coursenav/localgrid.py
          return self.origin, self.p.res_m, self.n, self.n, prob.T.ravel()
  
      def stats(self):
-@@ -166,9 +179,36 @@
+@@ -166,9 +207,36 @@
      return np.asarray(origin, float) + (ij + 0.5) * float(res)
  
  
@@ -299,8 +384,8 @@ diff -ruN a2/coursenav/localgrid.py b/coursenav/localgrid.py
      n0, n1 = a.shape
      if abs(dx) >= n0 or abs(dy) >= n1:
 diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
---- a/coursenav/nav_node.py	2026-11-08 03:29:22.588265344 -0600
-+++ b/coursenav/nav_node.py	2026-11-08 03:29:22.582031213 -0600
+--- a/coursenav/nav_node.py	2026-11-08 04:02:40.143374123 -0600
++++ b/coursenav/nav_node.py	2026-11-08 04:02:40.135655229 -0600
 @@ -33,15 +33,16 @@
  from scipy import ndimage
  from std_msgs.msg import String
@@ -679,8 +764,8 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
                             stops=list(P.stops),
                             tubes=None if P.tube is None else P.tube.round(4).tolist())
 diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
---- a/coursenav/navigator.py	2026-11-08 03:29:22.569216026 -0600
-+++ b/coursenav/navigator.py	2026-11-08 03:29:22.563040050 -0600
+--- a/coursenav/navigator.py	2026-11-08 04:02:40.122151736 -0600
++++ b/coursenav/navigator.py	2026-11-08 04:02:40.113046885 -0600
 @@ -5,16 +5,16 @@
                 exit line);
      map        prior (the published map, the "origin map": an optimisation, not the truth) + the live
@@ -1002,8 +1087,8 @@ diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
 +        inside = self.prior_obst.inside(cells)
 +        return bool(not inside.all() or np.any(clear[cells[inside, 0], cells[inside, 1]] < self.need))
 diff -ruN a2/coursenav/priorstate.py b/coursenav/priorstate.py
---- a/coursenav/priorstate.py	2026-11-08 03:29:22.539931268 -0600
-+++ b/coursenav/priorstate.py	2026-11-08 03:29:22.535015521 -0600
+--- a/coursenav/priorstate.py	2026-11-08 04:02:40.082244266 -0600
++++ b/coursenav/priorstate.py	2026-11-08 04:02:40.073892496 -0600
 @@ -1,67 +1,93 @@
 -"""Is the prior map describing what the camera sees? The kill switch for the prior. PURE: no ROS.
 +"""Evidence-based prior-map status. PURE: no ROS.
@@ -1138,9 +1223,71 @@ diff -ruN a2/coursenav/priorstate.py b/coursenav/priorstate.py
 +                "drops": self.drops, "changed_t": self.changed_t,
 +                "drop_fit": self.p.drop_fit, "restore_fit": self.p.restore_fit,
 +                "max_fit_gap_s": self.p.max_fit_gap_s, "last_rejection": self.last_rejection}
+diff -ruN a2/coursenav/scan.py b/coursenav/scan.py
+--- a/coursenav/scan.py	2026-11-08 04:02:40.053361012 -0600
++++ b/coursenav/scan.py	2026-11-08 04:02:40.045541422 -0600
+@@ -24,6 +24,7 @@
+     bearing: np.ndarray       # rad, + = left
+     range: np.ndarray         # m from the body origin, in the horizontal plane
+     sigma: np.ndarray         # m, per-beam measurement std
++    free_origin_xy: np.ndarray | None = None  # measured optical origin for far free-only rays
+ 
+     def __len__(self):
+         return len(self.range)
+@@ -111,3 +112,50 @@
+     out_r = np.asarray(out_r)
+     return Scan(np.asarray(out_b), out_r, sigma0 + sigma_k * out_r ** 2)
+ 
++
++
++def local_scan_from_points(pts_level, height_m, zlo=0.3, zhi=1.6, *,
++                           obstacle_range_m=3.0, ray_range_m=12.0,
++                           camera_origin_xy=None, n_bins=48,
++                           hfov_rad=math.radians(76), min_pts=3,
++                           sigma0=0.05, sigma_k=0.02):
++    """Keep the existing near scan; add measured distant rays for bounded free carving.
++
++    A near point vetoes distant evidence in its bin even if it cannot form a
++    supported obstacle return. Far rays retain their actual direction and optical
++    origin; they are never synthetic obstacle endpoints at the local cutoff.
++    """
++    near = scan_from_points(pts_level, height_m, zlo, zhi, rmax=obstacle_range_m,
++                            n_bins=n_bins, hfov_rad=hfov_rad, min_pts=min_pts,
++                            sigma0=sigma0, sigma_k=sigma_k)
++    if camera_origin_xy is None or pts_level is None or not len(pts_level):
++        return near
++    origin = np.asarray(camera_origin_xy, float)
++    if origin.shape != (2,) or not np.isfinite(origin).all():
++        return near
++    pts = np.asarray(pts_level, float)
++    r = np.hypot(pts[:, 0], pts[:, 1])
++    b = np.arctan2(pts[:, 1], pts[:, 0])
++    zw = height_m + pts[:, 2]
++    valid = (np.isfinite(pts).all(axis=1) & (r > 0) & (zw >= zlo) &
++             (zw <= zhi) & (np.abs(b) <= hfov_rad / 2))
++    edges = np.linspace(-hfov_rad / 2, hfov_rad / 2, n_bins + 1)
++    pts, r, b = pts[valid], r[valid], b[valid]
++    bins = np.clip(np.digitize(b, edges) - 1, 0, n_bins - 1)
++    veto = set(bins[r <= obstacle_range_m])
++    out_b, out_r, out_s = [], [], []
++    for i in range(n_bins):
++        if i in veto:
++            continue
++        ids = np.flatnonzero((bins == i) & (r > obstacle_range_m) & (r <= ray_range_m))
++        if len(ids) < min_pts:
++            continue
++        lengths = np.linalg.norm(pts[ids, :2] - origin, axis=1)
++        sigmas = sigma0 + sigma_k * lengths ** 2
++        # Select a real ray with the most conservative uncertainty-adjusted reach.
++        j = int(np.argmin(lengths - 3.0 * sigmas))
++        out_b.append(b[ids[j]])
++        out_r.append(r[ids[j]])
++        out_s.append(sigmas[j])
++    return Scan(np.concatenate([near.bearing, out_b]), np.concatenate([near.range, out_r]),
++                np.concatenate([near.sigma, out_s]), origin.copy())
 diff -ruN a2/fly_course.py b/fly_course.py
---- a/fly_course.py	2026-11-08 03:29:22.513961291 -0600
-+++ b/fly_course.py	2026-11-08 03:29:22.509682706 -0600
+--- a/fly_course.py	2026-11-08 04:02:40.022888113 -0600
++++ b/fly_course.py	2026-11-08 04:02:40.015324099 -0600
 @@ -30,6 +30,7 @@
  import argparse
  import json
@@ -1241,8 +1388,8 @@ diff -ruN a2/fly_course.py b/fly_course.py
          extra += ["-p", "accept_armed_start:=true"]
      extra += [x for x in a.ros_args if x != "--"]
 diff -ruN a2/refnav/core.py b/refnav/core.py
---- a/refnav/core.py	2026-11-08 03:29:22.494990012 -0600
-+++ b/refnav/core.py	2026-11-08 03:29:22.490189220 -0600
+--- a/refnav/core.py	2026-11-08 04:02:39.994527720 -0600
++++ b/refnav/core.py	2026-11-08 04:02:39.989434687 -0600
 @@ -66,7 +66,7 @@
  
  NAV_OFFBOARD = 14
@@ -1680,8 +1827,8 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
                  "tunnel": self.tunnel_active, "align": self.align_result,
                  **self.counts}
 diff -ruN a2/refnav/node.py b/refnav/node.py
---- a/refnav/node.py	2026-11-08 03:29:22.475586436 -0600
-+++ b/refnav/node.py	2026-11-08 03:29:22.471280312 -0600
+--- a/refnav/node.py	2026-11-08 04:02:39.970667200 -0600
++++ b/refnav/node.py	2026-11-08 04:02:39.965194205 -0600
 @@ -129,17 +129,40 @@
          from px4_msgs.msg import (BatteryStatus, EstimatorStatusFlags, OffboardControlMode, TrajectorySetpoint, VehicleAttitude,
                                    VehicleCommand, VehicleLandDetected, VehicleLocalPosition, VehicleStatus)
