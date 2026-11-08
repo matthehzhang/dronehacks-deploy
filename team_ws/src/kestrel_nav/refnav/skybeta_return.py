@@ -62,8 +62,8 @@ class SkybetaReturnMission(C.Mission):
 
     def _begin_return(self, now, v, events):
         # Keep the original floor reference even when the pad is raised or the
-        # second takeoff has a different local Z. Never reinterpret 2.3 m as a
-        # climb of 2.3 m from the pad or use a new map-localized launch target.
+        # second takeoff has a different local Z. Never reinterpret 2.1 m as a
+        # climb of 2.1 m from the pad or use a new map-localized launch target.
         height = float(self.spec['height_above_floor_m'])
         speed = float(self.spec.get('speed_mps', .3))
         if not math.isfinite(height) or height <= 0 or not math.isfinite(speed) or speed <= 0:
@@ -106,7 +106,7 @@ class SkybetaReturnMission(C.Mission):
                 self.return_height_since = now
             if now - self.return_height_since < 1.:
                 return
-            out.events.append('!!!!!!!!!! RETURN HEIGHT READY: 2.3 m climb settled; starting curved return !!!!!!!!!!')
+            out.events.append('!!!!!!!!!! RETURN HEIGHT READY: 2.1 m climb settled; starting curved return !!!!!!!!!!')
         return super()._next_leg(now, out, v, blended=blended)
 
     def step(self, now, v, wall_now=None):
