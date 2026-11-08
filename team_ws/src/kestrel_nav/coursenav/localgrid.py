@@ -179,6 +179,33 @@ def occupied_points_from_grid(origin, res, width, height, data, occ_prob=88):
     return np.asarray(origin, float) + (ij + 0.5) * float(res)
 
 
+def free_points_from_grid(origin, res, width, height, data, free_prob=23):
+    """Fresh, confidently free OccupancyGrid cells -> (k, 2) frame points.
+
+    The publisher must expire per-cell free evidence (LocalGrid.grid_fields(now=...)).
+    Unknown and invalid probability cells are never free. The default 23 percent
+    corresponds approximately to log-odds -1.2: three pass-only updates from zero,
+    not three net passes over hits (weights, saturation and decay differ).
+    """
+    origin = np.asarray(origin, float)
+    if origin.shape != (2,) or not np.isfinite(origin).all():
+        raise ValueError("free grid origin must contain two finite coordinates")
+    res = float(res)
+    if not math.isfinite(res) or res <= 0:
+        raise ValueError("free grid resolution must be finite and positive")
+    if (not isinstance(width, (int, np.integer)) or not isinstance(height, (int, np.integer))
+            or width <= 0 or height <= 0):
+        raise ValueError("free grid dimensions must be positive integers")
+    free_prob = float(free_prob)
+    if not math.isfinite(free_prob) or not 0 <= free_prob < 50:
+        raise ValueError("free probability threshold must be in [0, 50)")
+    prob = np.asarray(data, float).reshape(height, width).T
+    valid = np.isfinite(prob) & (prob >= 0) & (prob <= free_prob)
+    valid &= prob == np.floor(prob)  # OccupancyGrid probabilities are integers.
+    ij = np.argwhere(valid)
+    return origin + (ij + 0.5) * res
+
+
 def _shift(a, shift, fill=0):
     """Move array contents by -shift cells; drop departing cells and initialize new cells with fill."""
     out = np.full_like(a, fill)

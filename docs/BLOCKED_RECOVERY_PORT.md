@@ -204,3 +204,21 @@ copy remains outside the build workspace at `~/policies/group154_blocked_recover
 The main workspace now discovers one package, and its actual package build and launch argument
 check pass. No hardware stack restart or arming occurred. PX4 telemetry was unavailable; no
 policy or flight-interface process was running during this inert source installation.
+
+
+## Prior correction integration candidate
+
+Matthew authorized integrating the friend's prior-wall clearing and local-only fallback, and
+requested device transfer before testing. This candidate adds protected masks and persistent
+camera-confirmed prior walls, clearing only while the prior is dropped using fresh confident
+free-space cells (occupancy probability <=23%, a weighted log-odds threshold, not an exact count
+of hits versus passes). Placement/unknown restores all prior cells and invalidates fallback plans.
+Local-only fallback retains protected/confirmed surfaces, keep-outs, gate walls and a buffered
+enclosure boundary; its entire changed swept footprint must be observed free. Normal full-leg
+fallback requires full observation; bounded recovery may rejoin an unchanged suffix that still
+passes the corrected prior map. Path certification persists after recovery resumes and expires
+with its sensor evidence. Ordinary planner failure now enters the same bounded recovery.
+
+The source map assets, goals, ROS adapters, existing depth/estimator rules and pilot authority
+remain unchanged. Candidate validation is pending at the device-first handoff; this entry is not
+a claim of passing tests or successful simulation flight.

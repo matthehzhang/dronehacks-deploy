@@ -136,12 +136,45 @@ def plan_grids(cmap: CourseMap, doc, cruise_z=None, surface=True):
     if dist is None:
         dist = obst.distance()
     v = doc["vehicle"]
-    blocked = dist < (v["radius_m"] + v["margin_m"])
+    blocked = (dist < (v["radius_m"] + v["margin_m"])) | keepout_mask(cmap, doc)
+    return obst, Grid2D(blocked, obst.origin, cmap.res), dist
+
+
+def keepout_mask(cmap: CourseMap, doc):
+    """The course's keep-outs (doc["keepout"]: groups inflated by their own radius), as a bool mask on the
+    planning grid. Kept apart from the obstacle buffer so the navigator can rebuild the buffer without them."""
+    out = np.zeros(cmap.occupied.shape[:2], bool)
     for ko in doc.get("keepout", []):
         kg = cmap.band(ko["zlo"], ko["zhi"], only_prefixes=ko["groups"])
         kd = ndimage.distance_transform_edt(~kg) * cmap.res
-        blocked |= kd < ko["radius_m"]
-    return obst, Grid2D(blocked, obst.origin, cmap.res), dist
+        out |= kd < ko["radius_m"]
+    return out
+
+
+def protected_mask(cmap: CourseMap, doc, zlo=0.3, zhi=1.6):
+    """Prior cells live depth may NEVER clear, even with the prior dropped: what a horizontal beam passes
+    without it meaning 'not there' (the nets, window openings, tunnel roofs: see_through_grid), keep-out
+    groups, and everything outside the enclosure (the venue's nets and walls)."""
+    prot = see_through_grid(cmap, zlo, zhi) | keepout_mask(cmap, doc)
+    for ko in doc.get("keepout", []):
+        prot |= cmap.band(ko["zlo"], ko["zhi"], only_prefixes=ko["groups"])
+    return prot | enclosure_mask(cmap, doc)
+
+
+def enclosure_mask(cmap: CourseMap, doc):
+    """Cells not wholly inside the resolved enclosure, even when prior occupancy is empty.
+
+    This mask must also enter the navigator's fixed blocked grid directly: intersecting
+    it with prior occupied cells would permit escape through an unoccupied boundary gap.
+    """
+    shape = cmap.occupied.shape[:2]
+    enc = doc.get("enclosure")
+    if not enc:
+        return np.zeros(shape, bool)
+    ij = np.stack(np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), indexing="ij"), -1)
+    lower = cmap.origin[:2] + ij * cmap.res
+    upper = lower + cmap.res
+    return np.any((lower < np.asarray(enc["lo"])) | (upper > np.asarray(enc["hi"])), axis=-1)
 
 
 def scan_field(grid: Grid2D, doc):

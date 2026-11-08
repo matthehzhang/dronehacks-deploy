@@ -1,6 +1,6 @@
 diff -ruN a2/course/course_v3.json b/course/course_v3.json
---- a/course/course_v3.json	2026-11-08 03:06:16.309657351 -0600
-+++ b/course/course_v3.json	2026-11-08 03:06:16.305061515 -0600
+--- a/course/course_v3.json	2026-11-08 03:25:44.102981608 -0600
++++ b/course/course_v3.json	2026-11-08 03:25:44.098100667 -0600
 @@ -282,10 +282,7 @@
      "_keep_path_clearance_note": "planner._simplify_idx: shortcuts keep the clearance of the A* sub-path they replace, capped at 0.6 m = the A* prefer_m (beyond it A* itself does not centre), less half a cell. 0 restores greedy shortcuts."
    },
@@ -13,9 +13,61 @@ diff -ruN a2/course/course_v3.json b/course/course_v3.json
      "_note": "SIMULATION / TRAINING ONLY. The prepared-training world spawns the aircraft 20 cm north of the launch mark (environment.json); this declared offset gives the localizer's prior and the offline tools their start. It is not competition configuration: at the venue the start is the mark itself and fly_course.py takes the start pose from the localizer.",
      "refnav": {
        "sim_stuck_land_disarm_s": 0.0
+diff -ruN a2/coursenav/course.py b/coursenav/course.py
+--- a/coursenav/course.py	2026-11-08 03:25:44.076824284 -0600
++++ b/coursenav/course.py	2026-11-08 03:25:44.070767905 -0600
+@@ -136,12 +136,45 @@
+     if dist is None:
+         dist = obst.distance()
+     v = doc["vehicle"]
+-    blocked = dist < (v["radius_m"] + v["margin_m"])
++    blocked = (dist < (v["radius_m"] + v["margin_m"])) | keepout_mask(cmap, doc)
++    return obst, Grid2D(blocked, obst.origin, cmap.res), dist
++
++
++def keepout_mask(cmap: CourseMap, doc):
++    """The course's keep-outs (doc["keepout"]: groups inflated by their own radius), as a bool mask on the
++    planning grid. Kept apart from the obstacle buffer so the navigator can rebuild the buffer without them."""
++    out = np.zeros(cmap.occupied.shape[:2], bool)
+     for ko in doc.get("keepout", []):
+         kg = cmap.band(ko["zlo"], ko["zhi"], only_prefixes=ko["groups"])
+         kd = ndimage.distance_transform_edt(~kg) * cmap.res
+-        blocked |= kd < ko["radius_m"]
+-    return obst, Grid2D(blocked, obst.origin, cmap.res), dist
++        out |= kd < ko["radius_m"]
++    return out
++
++
++def protected_mask(cmap: CourseMap, doc, zlo=0.3, zhi=1.6):
++    """Prior cells live depth may NEVER clear, even with the prior dropped: what a horizontal beam passes
++    without it meaning 'not there' (the nets, window openings, tunnel roofs: see_through_grid), keep-out
++    groups, and everything outside the enclosure (the venue's nets and walls)."""
++    prot = see_through_grid(cmap, zlo, zhi) | keepout_mask(cmap, doc)
++    for ko in doc.get("keepout", []):
++        prot |= cmap.band(ko["zlo"], ko["zhi"], only_prefixes=ko["groups"])
++    return prot | enclosure_mask(cmap, doc)
++
++
++def enclosure_mask(cmap: CourseMap, doc):
++    """Cells not wholly inside the resolved enclosure, even when prior occupancy is empty.
++
++    This mask must also enter the navigator's fixed blocked grid directly: intersecting
++    it with prior occupied cells would permit escape through an unoccupied boundary gap.
++    """
++    shape = cmap.occupied.shape[:2]
++    enc = doc.get("enclosure")
++    if not enc:
++        return np.zeros(shape, bool)
++    ij = np.stack(np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), indexing="ij"), -1)
++    lower = cmap.origin[:2] + ij * cmap.res
++    upper = lower + cmap.res
++    return np.any((lower < np.asarray(enc["lo"])) | (upper > np.asarray(enc["hi"])), axis=-1)
+ 
+ 
+ def scan_field(grid: Grid2D, doc):
 diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
---- a/coursenav/loc_node.py	2026-11-08 03:06:16.284122518 -0600
-+++ b/coursenav/loc_node.py	2026-11-08 03:06:16.279888231 -0600
+--- a/coursenav/loc_node.py	2026-11-08 03:25:44.060982500 -0600
++++ b/coursenav/loc_node.py	2026-11-08 03:25:44.054591166 -0600
 @@ -123,7 +123,7 @@
          self.local_band = float(dp("local_band_m", 0.35).value)
          self.prior_mon = PriorMonitor(PriorParams(drop_fit=float(dp("prior_drop_fit", 0.30).value),
@@ -153,8 +205,8 @@ diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
          msg.info.resolution = float(res)
          msg.info.width, msg.info.height = int(w), int(hgt)
 diff -ruN a2/coursenav/localgrid.py b/coursenav/localgrid.py
---- a/coursenav/localgrid.py	2026-11-08 03:06:16.274848381 -0600
-+++ b/coursenav/localgrid.py	2026-11-08 03:06:16.271091387 -0600
+--- a/coursenav/localgrid.py	2026-11-08 03:25:44.047247979 -0600
++++ b/coursenav/localgrid.py	2026-11-08 03:25:44.039920332 -0600
 @@ -53,6 +53,9 @@
          self.n = int(round(self.p.size_m / self.p.res_m))
          self.L = np.zeros((self.n, self.n), np.float32)
@@ -206,13 +258,40 @@ diff -ruN a2/coursenav/localgrid.py b/coursenav/localgrid.py
          return self.origin, self.p.res_m, self.n, self.n, prob.T.ravel()
  
      def stats(self):
-@@ -166,9 +179,9 @@
+@@ -166,9 +179,36 @@
      return np.asarray(origin, float) + (ij + 0.5) * float(res)
  
  
 -def _shift(a, shift):
 -    """Move array contents by -shift cells (the window moved +shift): cells leaving are dropped, new cells 0."""
 -    out = np.zeros_like(a)
++def free_points_from_grid(origin, res, width, height, data, free_prob=23):
++    """Fresh, confidently free OccupancyGrid cells -> (k, 2) frame points.
++
++    The publisher must expire per-cell free evidence (LocalGrid.grid_fields(now=...)).
++    Unknown and invalid probability cells are never free. The default 23 percent
++    corresponds approximately to log-odds -1.2: three pass-only updates from zero,
++    not three net passes over hits (weights, saturation and decay differ).
++    """
++    origin = np.asarray(origin, float)
++    if origin.shape != (2,) or not np.isfinite(origin).all():
++        raise ValueError("free grid origin must contain two finite coordinates")
++    res = float(res)
++    if not math.isfinite(res) or res <= 0:
++        raise ValueError("free grid resolution must be finite and positive")
++    if (not isinstance(width, (int, np.integer)) or not isinstance(height, (int, np.integer))
++            or width <= 0 or height <= 0):
++        raise ValueError("free grid dimensions must be positive integers")
++    free_prob = float(free_prob)
++    if not math.isfinite(free_prob) or not 0 <= free_prob < 50:
++        raise ValueError("free probability threshold must be in [0, 50)")
++    prob = np.asarray(data, float).reshape(height, width).T
++    valid = np.isfinite(prob) & (prob >= 0) & (prob <= free_prob)
++    valid &= prob == np.floor(prob)  # OccupancyGrid probabilities are integers.
++    ij = np.argwhere(valid)
++    return origin + (ij + 0.5) * res
++
++
 +def _shift(a, shift, fill=0):
 +    """Move array contents by -shift cells; drop departing cells and initialize new cells with fill."""
 +    out = np.full_like(a, fill)
@@ -220,9 +299,17 @@ diff -ruN a2/coursenav/localgrid.py b/coursenav/localgrid.py
      n0, n1 = a.shape
      if abs(dx) >= n0 or abs(dy) >= n1:
 diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
---- a/coursenav/nav_node.py	2026-11-08 03:06:16.266116781 -0600
-+++ b/coursenav/nav_node.py	2026-11-08 03:06:16.262017579 -0600
-@@ -40,8 +40,9 @@
+--- a/coursenav/nav_node.py	2026-11-08 03:25:44.029745408 -0600
++++ b/coursenav/nav_node.py	2026-11-08 03:25:44.021364103 -0600
+@@ -33,15 +33,16 @@
+ from scipy import ndimage
+ from std_msgs.msg import String
+ 
+-from .course import Grid2D, load_course, plan_grids, resolve, scan_grid
++from .course import Grid2D, load_course, plan_grids, resolve, scan_grid, protected_mask, keepout_mask, enclosure_mask
+ from .drift import DriftEKF
+ from .navigator import Navigator
+ from .navplan import course_to_ned, smooth_params_for
  from .objmap import CourseMap
  from .localgrid import course_mask, occupied_points_from_grid
  from .planner import PlanError
@@ -233,13 +320,27 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
  
  
  class LiveLandmarks:
-@@ -95,13 +96,24 @@
+@@ -90,18 +91,37 @@
+         sp = smooth_params_for(rd.get("navigation", {}), rd.get("params", {}), need)
+         sg = scan_grid(cmap)
+         self.live = LiveLandmarks(sg) if sg.occ.shape == obst.occ.shape else None
+-        self.nav = Navigator(obst, blocked, clearance, need, sp, live=self.live, gate_lines=rd.get("gate_lines"))
++        outside = enclosure_mask(cmap, doc)
++        boundary_buffer = outside | (ndimage.distance_transform_edt(~outside) * obst.res < need + math.sqrt(2.) * obst.res)
++        self.nav = Navigator(obst, blocked, clearance, need, sp, live=self.live, gate_lines=rd.get("gate_lines"),
++                             protect=protected_mask(cmap, doc),
++                             fixed_blocked=keepout_mask(cmap, doc) | boundary_buffer)
+         self.obst = obst
          self.surf_dist = sg.distance() if sg.occ.shape == obst.occ.shape else obst.distance()
          self.local_pts = None                      # (k, 2) nominal-frame obstacle points from the local grid
          self.local_explain_m = float(dp("local_explain_m", 0.15).value)
 -        self.prior_state = "placed"
 +        self.prior_state = "unknown"
 +        self.observed_free = None
++        self.observed_clear = None
++        self.reference_history = {}
++        self.recovery_progress = None
++        self.recovery_require_detour = True
 +        self.recovery = None
 +        self.recovery_reference = None
 +        self.recovery_prefix = None
@@ -259,7 +360,7 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
          self.stats = dict(plans=0, replans=0, plan_errors=0, local_cells=0)
          latched = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                               history=HistoryPolicy.KEEP_LAST, depth=1)
-@@ -114,6 +126,32 @@
+@@ -114,6 +134,32 @@
          self.create_timer(1.0 / float(dp("rate_hz", 10.0).value), self._tick)
          self.get_logger().info(f"navigator: {len(self.nav_legs)} legs ({sum(L['path'] for L in self.nav_legs)} "
                                 f"path legs), cruise {sp.cruise_mps:.2f} m/s, buffer {need:.2f} m")
@@ -292,7 +393,7 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
  
      def _on_drift(self, m):
          try:
-@@ -123,7 +161,30 @@
+@@ -123,7 +169,39 @@
  
      def _on_status(self, m):
          try:
@@ -317,14 +418,23 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
 +            if rid > self.recovery_last_id:
 +                self.recovery_last_id = rid
 +                self.recovery = dict(request_id=rid, leg=leg, plan_state="pending", reason="awaiting observed-free replan")
-+                self.recovery_reference = self.reference_path if self.reference_leg == leg else None
++                entry = getattr(self, "reference_history", {}).get(request.get("reference_pid"))
++                if entry is not None and entry[0] == leg:
++                    self.recovery_reference = entry[1]
++                    self.nav.goals = entry[2]
++                    progress = request.get("reference_progress_s")
++                    self.recovery_progress = float(progress) if isinstance(progress, (float, int)) and math.isfinite(progress) else None
++                else:
++                    self.recovery_reference = self.reference_path if self.reference_leg == leg else None
++                    self.recovery_progress = None
++                self.recovery_require_detour = request.get("require_detour") is not False
 +                self.recovery_prefix = None
 +                self.nav.path = None
 +                self.cache.pop(leg, None)  # a cached global path never satisfies a recovery request
          except ValueError:
              pass
  
-@@ -133,20 +194,93 @@
+@@ -133,33 +211,145 @@
  
      def _on_local(self, m):
          o = m.info.origin.position
@@ -335,7 +445,7 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
 +        if (m.header.frame_id != "coursenav_nominal" or
 +                not np.isfinite([q.x, q.y, q.z, q.w]).all() or
 +                abs(q.x) > 1e-8 or abs(q.y) > 1e-8 or abs(q.z) > 1e-8 or abs(abs(q.w)-1.) > 1e-8):
-+            self.observed_free = None
++            self.observed_free = self.observed_clear = None
 +            return
 +        try:
 +            stamp = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9
@@ -346,14 +456,17 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
 +            self.local_pts = occupied_points_from_grid((o.x, o.y), m.info.resolution,
 +                                                       m.info.width, m.info.height, m.data)
 +            self.observed_free = grid
++            self.observed_clear = ObservedFree.from_grid((o.x, o.y), m.info.resolution,
++                m.info.width, m.info.height, m.data, stamp, free_probability=23)
 +        except (ValueError, TypeError):
-+            self.observed_free = None
++            self.observed_free = self.observed_clear = None
  
      def _on_prior(self, m):
          try:
 -            st = json.loads(m.data).get("state", "placed")
+-        except ValueError:
 +            st = json.loads(m.data).get("state", "unknown")
-         except ValueError:
++        except (ValueError, TypeError, AttributeError):
              return
 +        if st not in ("placed", "dropped", "unknown"):
 +            st = "unknown"
@@ -362,7 +475,36 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
 -                                      f"{'are no longer' if st == 'dropped' else 'are again'} treated as mapped")
 +                                      f"{'are again' if st == 'placed' else 'are no longer'} treated as mapped")
          self.prior_state = st
- 
++        if self.nav.set_prior_dropped(st == "dropped"):
++            self.cache.clear()
++            self.normal_last_attempt = None
++            if self.recovery is not None:
++                self.recovery.update(plan_state="failed", reason="prior trust state changed")
++
++    def _certificate_valid(self, now, to_nominal):
++        prefix = self.nav.path_certificate
++        if prefix is None:
++            return True
++        s = np.r_[0., np.cumsum(np.linalg.norm(np.diff(prefix, axis=0), axis=1))]
++        progress = self.status.get("path_s") if self.status.get("path_pid") == self.pid else 0.
++        progress = float(progress) if isinstance(progress, (float, int)) and math.isfinite(progress) else 0.
++        if progress > s[-1] + .05:
++            return True  # certified prefix already flown; remaining suffix keeps prior constraints
++        start = np.array([np.interp(max(0., progress), s, prefix[:, j]) for j in range(2)])
++        remaining = np.vstack([start, prefix[s > progress]])
++        grid = self.observed_free
++        return bool(grid is not None and grid.fresh(now, self.recovery_grid_max_age_s)
++                    and grid.certifies_path(remaining, to_nominal, self.nav.need))
++
++    def _remember_reference(self, leg):
++        self.reference_path, self.reference_leg = self.nav.path, leg
++        if not hasattr(self, "reference_history"):
++            self.reference_history = {}
++        self.reference_history[self.pid] = (leg, self.nav.path,
++            None if self.nav.goals is None else [g.copy() for g in self.nav.goals])
++        while len(self.reference_history) > 16:
++            del self.reference_history[next(iter(self.reference_history))]
++
 +    def _recovery_plan(self, leg, believed, ekf, nb, now):
 +        r = self.recovery
 +        if r is None:
@@ -375,6 +517,7 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
 +        to_nominal = lambda pts: ekf.to_nominal(pts, nb)
 +        if r["plan_state"] == "ready":
 +            if (grid is None or not grid.fresh(now, self.recovery_grid_max_age_s)
++                    or self.nav.map_changed()
 +                    or self.nav.path is None
 +                    or self.recovery_prefix is None
 +                    or not grid.certifies_path(self.recovery_prefix, to_nominal, self.nav.need)):
@@ -395,7 +538,9 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
 +                raise PlanError("fresh observed-free local grid unavailable")
 +            path, prefix, join = self.nav.plan_recovery(
 +                believed[:2], self.recovery_reference, grid, to_nominal, t=time.monotonic(),
-+                lookahead_m=max(1., float(self.status.get("stop_m") or 0.)))
++                lookahead_m=max(1., float(self.status.get("stop_m") or 0.)),
++                progress_s=getattr(self, "recovery_progress", None),
++                require_detour=getattr(self, "recovery_require_detour", True))
 +            if not grid.fresh(self.get_clock().now().nanoseconds * 1e-9, self.recovery_grid_max_age_s):
 +                raise PlanError("observed-free local grid expired during planning")
 +            self.recovery_prefix = prefix
@@ -410,7 +555,7 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
 +            self.stats["plan_errors"] += 1
 +            r.update(plan_state="failed", reason=str(exc))
 +            self.get_logger().warning(f"recovery request {r['request_id']}: {exc}")
-+
+ 
      def _tick(self):
 -        if self.drift is None or self.status is None:
 +        if self.status is None:
@@ -422,7 +567,10 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
              return
          d = self.drift
          ekf = DriftEKF.from_state(d["delta"], d["nominal"])
-@@ -155,7 +289,7 @@
+         nb = np.array(d["nominal"], float)
+         believed = ekf.body_course(nb)
++        now = self.get_clock().now().nanoseconds * 1e-9
++        to_nominal = lambda pts: ekf.to_nominal(pts, nb)
          if self.local_pts is not None:
              # local obstacles: nominal -> course with the SAME state as the believed pose (relative geometry
              # right even when the course pose is not); prior surfaces explain nearby cells only while placed
@@ -431,7 +579,14 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
              mask = course_mask(ekf.to_course(self.local_pts, nb) if len(self.local_pts) else self.local_pts,
                                 self.obst, self.surf_dist, explain)
              self.nav.set_local(mask)
-@@ -167,13 +301,39 @@
+             self.stats["local_cells"] = int(mask.sum())
++        clear_grid = getattr(self, "observed_clear", None)
++        if clear_grid is not None and clear_grid.fresh(now, self.recovery_grid_max_age_s):
++            self.nav.set_free(clear_grid.allowed_course_cells(self.obst, to_nominal, 0.))
+         leg, phase = int(self.status.get("leg", 0)), self.status.get("phase")
+ 
+         def to_ned(pts):
+@@ -167,18 +357,64 @@
  
          targets = {j: [float(v) for v in to_ned([self.nav_legs[j]["stop"]])[0]]
                     for j in range(leg + 1, len(self.nav_legs))}
@@ -439,26 +594,39 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
 -        if leg < len(self.nav_legs) and self.nav_legs[leg]["path"] and phase in AIRBORNE:
 +        now = self.get_clock().now().nanoseconds * 1e-9
 +        out = {"stamp": now, "leg": leg, "pid": self.pid, "targets_ne": targets,
-+               "request_id": None}
++               "request_id": None, "plan_mode": self.nav.plan_mode,
++               "prior_cleared_cells": int(self.nav.cleared.sum()),
++               "prior_confirmed_cells": int(self.nav.confirmed.sum())}
 +        if self.recovery is not None:
 +            self._recovery_plan(leg, believed, ekf, nb, now)
 +            out.update(self.recovery)
 +            out["recovery_certified"] = self.recovery["plan_state"] == "ready"
 +            if self.recovery["plan_state"] == "ready" and self.nav.path is not None:
++                self._remember_reference(leg)
++                out["plan_mode"] = self.nav.plan_mode
 +                P = self.nav.path
 +                out.update(pid=self.pid, pts_ne=to_ned(P.pts).round(4).tolist(), v=P.v.round(3).tolist(),
 +                           stops=list(P.stops), tubes=None if P.tube is None else P.tube.round(4).tolist())
 +            self.pub.publish(String(data=json.dumps(out)))
 +            return
 +        if 0 <= leg < len(self.nav_legs) and self.nav_legs[leg]["path"] and phase in AIRBORNE:
++            if self.nav.path is not None and not self._certificate_valid(now, to_nominal):
++                self.nav.path = None
++                out.update(plan_state="failed", reason="observed-free path evidence expired or obstructed")
++                self.pub.publish(String(data=json.dumps(out)))
++                return
              L = self.nav_legs[leg]
 -            want = self.nav_leg != leg
 +            want = self.nav_leg != leg or self.nav.path is None
              if not want and self.nav.path is not None:
-                 want = self.nav.needs_replan(time.monotonic(), 0.0)
+-                want = self.nav.needs_replan(time.monotonic(), 0.0)
++                progress = self.status.get("path_s") if self.status.get("path_pid") == self.pid else 0.
++                progress = float(progress) if isinstance(progress, (int, float)) and math.isfinite(progress) else 0.
++                want = self.nav.needs_replan(time.monotonic(), progress)
 +            c = self.cache.pop(leg, None) if self.nav_leg != leg else None
 +            if want and c is not None and np.hypot(*(c[0] - believed[:2])) <= 0.5:
 +                self.nav.path, self.nav.goals, self.nav.t_plan = c[2], c[1], time.monotonic()
++                self.nav.plan_mode, self.nav.path_certificate = "fused", None
 +                self.pid += 1
 +                self.nav_leg = leg
 +                want = False
@@ -474,7 +642,21 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
                  goals = [np.array(g, float) for g in L["goals"]]
                  goals = [g for g in goals[:-1] if np.hypot(*(g - believed[:2])) > 0.3] + [goals[-1]]
                  try:
-@@ -186,10 +346,14 @@
+                     v0 = float(self.status.get("v_cmd") or 0.0) if self.nav_leg == leg else 0.0
+-                    self.nav.plan(believed[:2], goals, t=time.monotonic(), v_start=v0)
++                    observed = self.observed_free
++                    if observed is not None and not observed.fresh(now, self.recovery_grid_max_age_s):
++                        observed = None
++                    self.nav.plan(believed[:2], goals, t=time.monotonic(), v_start=v0,
++                                  observed=observed, to_nominal=to_nominal)
++                    if (self.nav.path_certificate is not None
++                            and (observed is None or not observed.fresh(self.get_clock().now().nanoseconds * 1e-9,
++                                                                       self.recovery_grid_max_age_s))):
++                        raise PlanError("observed-free evidence expired during normal fallback planning")
+                     self.stats["replans" if self.nav_leg == leg else "plans"] += 1
+                     self.pid += 1
+                     self.nav_leg = leg
+@@ -186,10 +422,14 @@
                                             f"{len(self.nav.path.stops)} stop corners, est {self.nav.path.duration():.1f} s, "
                                             f"{self.stats['local_cells']} local obstacle cells, prior {self.prior_state}")
                  except PlanError as e:
@@ -484,14 +666,35 @@ diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
                      self.get_logger().warning(f"leg {leg + 1}: no path ({e}); refnav holds without one")
              if self.nav.path is not None and self.nav_leg == leg:
                  P = self.nav.path
-+                self.reference_path, self.reference_leg = P, leg
-+                out.update(plan_state="ready", reason="regular map path")
++                self._remember_reference(leg)
++                out.update(plan_state="ready", reason="regular map path", plan_mode=self.nav.plan_mode)
                  out.update(pid=self.pid, pts_ne=to_ned(P.pts).round(4).tolist(), v=P.v.round(3).tolist(),
                             stops=list(P.stops),
                             tubes=None if P.tube is None else P.tube.round(4).tolist())
 diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
---- a/coursenav/navigator.py	2026-11-08 03:06:16.256401636 -0600
-+++ b/coursenav/navigator.py	2026-11-08 03:06:16.252077343 -0600
+--- a/coursenav/navigator.py	2026-11-08 03:25:44.007769758 -0600
++++ b/coursenav/navigator.py	2026-11-08 03:25:44.000838903 -0600
+@@ -5,16 +5,16 @@
+                exit line);
+     map        prior (the published map, the "origin map": an optimisation, not the truth) + the live
+                occupancy grid built from depth this run (coursenav.occgrid). Live surfaces the prior does
+-               not explain (landmarks) are added as obstacles; a prior wall is never removed in this
+-               version (safe: at worst a longer path);
++               not explain (landmarks) are added as obstacles; prior walls may be cleared only by recent confident pass-through evidence while dropped;
++               protected and camera-confirmed prior cells remain;
+     buffer     every obstacle is inflated by the vehicle radius + margin (`need`): A* runs on cells with
+                clearance >= need, preferring more (corridor centring);
+     path       A* -> line-of-sight pruning -> map-bounded corner arcs -> time-optimal speed profile
+                (coursenav.smooth);
+     local      obstacles from the LOCAL grid (coursenav.localgrid: odometry frame, never gated on the
+                localizer), converted to the course frame by the caller with the same transform as the
+-               aircraft's believed pose (set_local). ADD-ONLY like the landmarks: live data never removes a
+-               prior wall, net or keep-out (depth sees through the nets);
++               aircraft's believed pose (set_local). Nets, keep-outs, gate walls and enclosure bounds persist.
++               A local-only fallback requires an observed-free swept footprint, never unknown space;
+     re-plan    when a live obstacle appears within `need` of the remaining path, or every
+                `replan_every_s` while the live map grows, from where the aircraft IS (believed course
+                pose) at its current speed;
 @@ -34,7 +34,7 @@
  
  from .course import Grid2D
@@ -501,14 +704,164 @@ diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
  
  
  @dataclass
-@@ -137,9 +137,19 @@
+@@ -43,13 +43,29 @@
+     prefer_m: float = 0.6            # A*: clearance it prefers (corridor centring)
+     crowd_weight: float = 4.0
+     escape_m: float = 0.6            # a start inside the buffer (drifted close to a wall): step out first
++    clear_prior: bool = True
++    fallback_local_only: bool = True
++    confirm_m: float = 0.15
+     escape_creep_mps: float = 0.1    # ... at this speed (the profile is 0 inside the buffer)
+ 
+ 
+ class Navigator:
+     def __init__(self, obst: Grid2D, blocked: Grid2D, clearance, need_m, smooth: SmoothParams = None,
+-                 live=None, params: NavParams = None, gate_lines=None):
++                 live=None, params: NavParams = None, gate_lines=None, protect=None, fixed_blocked=None):
+         blocked = with_walls(blocked, gate_lines)
++        self.protect = None if protect is None else np.asarray(protect, bool).copy()
++        self.fixed = None if fixed_blocked is None else with_walls(
++            Grid2D(np.asarray(fixed_blocked, bool).copy(), obst.origin, obst.res), gate_lines).occ
++        for mask in (self.protect, self.fixed):
++            if mask is not None and mask.shape != obst.occ.shape:
++                raise ValueError("prior protection must share the planning grid")
++        self.prior_dropped = False
++        self.cleared = np.zeros(obst.occ.shape, bool)
++        self.confirmed = np.zeros(obst.occ.shape, bool)
++        self.plan_mode = None
++        self.path_certificate = None
++        self._fused_signature = None
++        self._plan_signature = None
+         self.prior_obst, self.prior_blocked, self.prior_clear = obst, blocked, clearance
+         self.need = float(need_m)
+         self.sp = smooth or SmoothParams(need_m=need_m)
+@@ -84,6 +100,36 @@
+             if not mask.any():
+                 mask = None
+         self.local = mask
++        if self.prior_dropped and mask is not None:
++            near = ndimage.distance_transform_edt(~mask) * self.prior_obst.res <= self.p.confirm_m + 1e-9
++            self.confirmed |= self.prior_obst.occ & near
++            self.cleared &= ~self.confirmed
++
++    def can_correct_prior(self):
++        return self.protect is not None and self.fixed is not None
++
++    def set_prior_dropped(self, dropped):
++        dropped = bool(dropped)
++        if dropped == self.prior_dropped:
++            return False
++        self.prior_dropped = dropped
++        if not dropped:
++            self.cleared[:] = False
++            self.confirmed[:] = False
++        # A local-only/cleared path never survives a trust-mode transition.
++        self.path = None
++        self.path_certificate = None
++        return True
++
++    def set_free(self, mask):
++        if not (self.prior_dropped and self.p.clear_prior and self.can_correct_prior()) or mask is None:
++            return 0
++        mask = np.asarray(mask, bool)
++        if mask.shape != self.prior_obst.occ.shape:
++            raise ValueError("free mask must share the planning grid")
++        new = mask & self.prior_obst.occ & ~self.protect & ~self.fixed & ~self.confirmed & ~self.cleared
++        self.cleared |= new
++        return int(new.sum())
+ 
+     @staticmethod
+     def _sig(mask):
+@@ -92,31 +138,42 @@
+     def _landmarks(self):
+         return None if self.live is None else self.live.landmarks()
+ 
+-    def fuse(self):
+-        """Prior + live landmarks + local obstacles -> (obstacle grid, blocked grid, clearance). Cached until
+-        they change."""
+-        if self.live is None and self.local is None and self._local_sig is None:
+-            return self._fused
++    def _signature(self):
++        return (self.prior_dropped, self._sig(self.local), self._sig(self._landmarks()),
++                self._sig(self.cleared), self._sig(self.confirmed))
++
++    def _build(self, prior_occ, rebuild_buffer=False):
++        occ = prior_occ.copy()
+         lm = self._landmarks()
+-        n = 0 if lm is None else int(lm.sum())
+-        sig = self._sig(self.local)
+-        if n == self._lm_count and sig == self._local_sig:
+-            return self._fused
+-        self._lm_count, self._local_sig = n, sig
+-        occ = self.prior_obst.occ.copy()
+         if lm is not None:
+             occ |= lm
+         if self.local is not None:
+             occ |= self.local
+         clear = ndimage.distance_transform_edt(~occ) * self.prior_obst.res
+-        blocked = Grid2D(self.prior_blocked.occ | (clear < self.need), self.prior_obst.origin, self.prior_obst.res)
+-        self._fused = (Grid2D(occ, self.prior_obst.origin, self.prior_obst.res), blocked, self._effective(clear, blocked))
++        base = self.fixed if rebuild_buffer else self.prior_blocked.occ
++        blocked = Grid2D(base | (clear < self.need), self.prior_obst.origin, self.prior_obst.res)
++        return Grid2D(occ, blocked.origin, blocked.res), blocked, self._effective(clear, blocked)
++
++    def fuse(self):
++        signature = self._signature()
++        if signature != self._fused_signature:
++            lm = self._landmarks()
++            if not self.cleared.any() and self.local is None and (lm is None or not lm.any()):
++                self._fused = (self.prior_obst, self.prior_blocked,
++                               self._effective(self.prior_clear, self.prior_blocked))
++            else:
++                self._fused = self._build(self.prior_obst.occ & ~self.cleared,
++                                          rebuild_buffer=bool(self.cleared.any()))
++            self._fused_signature = signature
+         return self._fused
+ 
++    def local_only_map(self):
++        if not (self.prior_dropped and self.can_correct_prior()):
++            raise PlanError("local-only planning requires a dropped prior and protection masks")
++        return self._build(self.prior_obst.occ & (self.protect | self.confirmed), rebuild_buffer=True)
++
+     def map_changed(self):
+-        lm = self._landmarks()
+-        return ((lm is not None and int(lm.sum()) != self._lm_count)
+-                or self._sig(self.local) != self._local_sig)
++        return self._signature() != self._plan_signature
+ 
+     # ------------------------------------------------------------------ planning
+     def _free_start(self, start, blocked, clear):
+@@ -137,9 +194,40 @@
              raise PlanError(f"start {tuple(np.round(start, 2))} is inside the obstacle buffer with no way out")
          return blocked.xy(np.array(best))
  
 -    def plan(self, start_xy, goals, t=0.0, v_start=0.0, keep_sharp_last=False):
-+    def plan(self, start_xy, goals, t=0.0, v_start=0.0, keep_sharp_last=False, observed_free=None):
-         """Path from start_xy through goals[:-1] (pass-through) to goals[-1] (a stop). -> smooth.Path."""
-         obst, blocked, clear = self.fuse()
+-        """Path from start_xy through goals[:-1] (pass-through) to goals[-1] (a stop). -> smooth.Path."""
+-        obst, blocked, clear = self.fuse()
++    def plan(self, start_xy, goals, t=0.0, v_start=0.0, keep_sharp_last=False,
++             observed_free=None, observed=None, to_nominal=None):
++        """Try corrected prior first; local-only fallback requires a certified whole path."""
++        mode = "fused"
++        try:
++            path = self._plan_on(self.fuse(), start_xy, goals, v_start, observed_free)
++        except PlanError:
++            if not (self.prior_dropped and self.p.fallback_local_only and self.can_correct_prior()
++                    and observed is not None and to_nominal is not None):
++                raise
++            allowed = observed.allowed_course_cells(self.prior_obst, to_nominal, self.need)
++            path = self._plan_on(self.local_only_map(), start_xy, goals, v_start, allowed)
++            if not observed.certifies_path(path.pts, to_nominal, self.need):
++                raise PlanError("local-only swept footprint is not observed free")
++            mode = "local_only"
++        self.path, self.goals, self.t_plan = path, [np.asarray(g, float) for g in goals], t
++        self.plan_mode = mode
++        self.path_certificate = path.pts.copy() if mode == "local_only" else None
++        self._plan_signature = self._signature()
++        self.replans += 1
++        return path
++
++    def _plan_on(self, maps, start_xy, goals, v_start=0., observed_free=None):
++        obst, blocked, clear = maps
 +        if observed_free is not None:
 +            allowed = np.asarray(observed_free, bool)
 +            if allowed.shape != blocked.occ.shape:
@@ -522,11 +875,15 @@ diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
          pts = [np.asarray(start_xy, float)]
          s0 = self._free_start(start_xy, blocked, clear)
          if np.linalg.norm(s0 - pts[0]) > 1e-9:
-@@ -165,6 +175,74 @@
-         self.replans += 1
+@@ -161,23 +249,106 @@
+             creep = min(self.p.escape_creep_mps, float(beyond[0]) if len(beyond) and beyond[0] > 0 else self.p.escape_creep_mps)
+             inside = (path.s > 1e-9) & (path.s <= esc + 1e-9)
+             path.v[inside] = np.maximum(path.v[inside], creep)
+-        self.path, self.goals, self.t_plan = path, [np.asarray(g, float) for g in goals], t
+-        self.replans += 1
          return path
  
-+    def plan_recovery(self, start_xy, reference, observed, to_nominal, t=0., lookahead_m=1.):
++    def plan_recovery(self, start_xy, reference, observed, to_nominal, t=0., lookahead_m=1., progress_s=None, require_detour=True):
 +        """Observed-free detour to an unchanged reference suffix; never clear prior walls.
 +
 +        Only the changed prefix must be fully observed. The suffix remains the exact
@@ -535,7 +892,9 @@ diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
 +        if reference is None or len(reference.pts) < 2:
 +            raise PlanError("no reference path for a bounded recovery detour")
 +        start_xy = np.asarray(start_xy, float)
-+        nearest = int(np.argmin(np.linalg.norm(reference.pts-start_xy, axis=1)))
++        nearest = (int(np.searchsorted(reference.s, max(0., progress_s), side="left"))
++                   if progress_s is not None else int(np.argmin(np.linalg.norm(reference.pts-start_xy, axis=1))))
++        nearest = min(nearest, len(reference.pts)-1)
 +        allowed = observed.allowed_course_cells(self.prior_obst, to_nominal, self.need)
 +        ij = self.prior_obst.ij(reference.pts)
 +        inside = self.prior_obst.inside(ij)
@@ -554,7 +913,10 @@ diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
 +                     if nearest < int(np.argmin(np.linalg.norm(reference.pts-g, axis=1))) < join]
 +            goals.append(reference.pts[join])
 +            try:
-+                prefix = self.plan(start_xy, goals, t=t, v_start=0., observed_free=allowed)
++                prefix = self.plan(start_xy, goals, t=t, v_start=0., observed_free=allowed,
++                                   observed=observed, to_nominal=to_nominal)
++                prefix_mode = self.plan_mode
++                prefix_obst = self.local_only_map()[0] if prefix_mode == "local_only" else obst
 +                if not observed.certifies_path(prefix.pts, to_nominal, self.need):
 +                    raise PlanError("detour swept footprint is not observed free")
 +                # New PID alone is not progress: a real detour must depart from the
@@ -564,7 +926,7 @@ diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
 +                q = prefix.pts[:, None, :]-a[None, :, :]
 +                u = np.clip(np.sum(q*ab, axis=2)/np.maximum(np.sum(ab*ab, axis=1), 1e-12), 0., 1.)
 +                distance = np.linalg.norm(q-u[:, :, None]*ab, axis=2).min(axis=1)
-+                if float(distance.max()) < max(.10, 2*self.prior_obst.res):
++                if require_detour and float(distance.max()) < max(.10, 2*self.prior_obst.res):
 +                    raise PlanError("replan does not leave the blocked reference corridor")
 +                suffix = reference.pts[join:]
 +                if any(segment_min_clearance(obst, clear, a, b) < self.need
@@ -582,11 +944,20 @@ diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
 +                cells = obst.ij(pts);valid = obst.inside(cells)
 +                if not valid.all():
 +                    raise PlanError("recovery path leaves the planning grid")
-+                clearance = np.minimum(clearance, clear[cells[:, 0], cells[:, 1]])
++                # The certified local-only prefix must not inherit the removed prior
++                # wall's zero clearance; only the unchanged suffix uses fused clearance.
++                clearance[k:] = np.minimum(clearance[k:], clear[cells[k:, 0], cells[k:, 1]])
 +                stops = sorted(set(prefix.stops + [k] + [k+s-join for s in reference.stops if s > join]))
 +                path = Path(pts, arc, curvature, heading, np.zeros(len(pts)), clearance, stops)
-+                speed_profile(path, self.sp, v_start=0., v_end=0., stop_caps=stop_approach_caps(path, obst, self.sp))
++                prefix_caps = stop_approach_caps(path, prefix_obst, self.sp)
++                suffix_caps = stop_approach_caps(path, obst, self.sp)
++                caps = dict(prefix_caps)
++                caps.update({i: v for i, v in suffix_caps.items() if i >= k})
++                speed_profile(path, self.sp, v_start=0., v_end=0., stop_caps=caps)
 +                self.path, self.goals, self.t_plan = path, old_goals, t
++                self.plan_mode = prefix_mode
++                self.path_certificate = prefix.pts.copy()
++                self._plan_signature = self._signature()
 +                return path, prefix.pts.copy(), int(join)
 +            except PlanError as exc:
 +                last_reason = str(exc)
@@ -595,11 +966,37 @@ diff -ruN a2/coursenav/navigator.py b/coursenav/navigator.py
 +        raise PlanError(last_reason)
 +
      def needs_replan(self, t, progress_s):
-         """A live obstacle within the buffer of the path still ahead, or the periodic re-plan is due."""
-         if self.path is None or (self.live is None and self.local is None and self._local_sig is None):
+-        """A live obstacle within the buffer of the path still ahead, or the periodic re-plan is due."""
+-        if self.path is None or (self.live is None and self.local is None and self._local_sig is None):
+-            return False
+-        if self.t_plan is not None and t - self.t_plan < self.p.replan_every_s:
++        """Trust/clearing changes invalidate plans; ordinary obstacles replan only the affected path."""
++        if self.path is None:
+             return False
+         if not self.map_changed():
+             return False
+-        _, _, clear = self.fuse()
++        if self.t_plan is not None and t - self.t_plan < self.p.replan_every_s:
++            return False
++        current = self._signature()
++        if (self._plan_signature is None or current[0] != self._plan_signature[0]
++                or current[3:] != self._plan_signature[3:]):
++            return True
++        _, _, clear = self.local_only_map() if self.plan_mode == "local_only" else self.fuse()
+         ahead = self.path.pts[self.path.s >= progress_s]
+-        if len(ahead) == 0:
++        if not len(ahead):
+             return False
+-        ij = self.prior_obst.ij(ahead)
+-        ok = self.prior_obst.inside(ij)
+-        c = clear[ij[ok, 0], ij[ok, 1]]
+-        return bool(len(c) and c.min() < self.need)
++        cells = self.prior_obst.ij(ahead)
++        inside = self.prior_obst.inside(cells)
++        return bool(not inside.all() or np.any(clear[cells[inside, 0], cells[inside, 1]] < self.need))
 diff -ruN a2/coursenav/priorstate.py b/coursenav/priorstate.py
---- a/coursenav/priorstate.py	2026-11-08 03:06:16.238702853 -0600
-+++ b/coursenav/priorstate.py	2026-11-08 03:06:16.235024516 -0600
+--- a/coursenav/priorstate.py	2026-11-08 03:25:43.974031206 -0600
++++ b/coursenav/priorstate.py	2026-11-08 03:25:43.967087566 -0600
 @@ -1,67 +1,93 @@
 -"""Is the prior map describing what the camera sees? The kill switch for the prior. PURE: no ROS.
 +"""Evidence-based prior-map status. PURE: no ROS.
@@ -735,8 +1132,8 @@ diff -ruN a2/coursenav/priorstate.py b/coursenav/priorstate.py
 +                "drop_fit": self.p.drop_fit, "restore_fit": self.p.restore_fit,
 +                "max_fit_gap_s": self.p.max_fit_gap_s, "last_rejection": self.last_rejection}
 diff -ruN a2/fly_course.py b/fly_course.py
---- a/fly_course.py	2026-11-08 03:06:16.216461568 -0600
-+++ b/fly_course.py	2026-11-08 03:06:16.212260369 -0600
+--- a/fly_course.py	2026-11-08 03:25:43.943525450 -0600
++++ b/fly_course.py	2026-11-08 03:25:43.938753917 -0600
 @@ -30,6 +30,7 @@
  import argparse
  import json
@@ -837,8 +1234,8 @@ diff -ruN a2/fly_course.py b/fly_course.py
          extra += ["-p", "accept_armed_start:=true"]
      extra += [x for x in a.ros_args if x != "--"]
 diff -ruN a2/refnav/core.py b/refnav/core.py
---- a/refnav/core.py	2026-11-08 03:06:16.201388890 -0600
-+++ b/refnav/core.py	2026-11-08 03:06:16.197347790 -0600
+--- a/refnav/core.py	2026-11-08 03:25:43.924174295 -0600
++++ b/refnav/core.py	2026-11-08 03:25:43.916381155 -0600
 @@ -66,7 +66,7 @@
  
  NAV_OFFBOARD = 14
@@ -886,7 +1283,26 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
          self.health = Health(params.health_quiet_s, params.health_stale_s)
          self.phase = "wait"
          self.why = ""
-@@ -369,6 +386,9 @@
+@@ -331,6 +348,8 @@
+         self.leg_v_end = 0.0          # speed to carry through this leg's end (> 0: a blended corner)
+         self.a_cmd = 0.0              # pose mode: feed-forward acceleration along the leg (m/s2)
+         self.path = None              # path mode: dict(t, leg, pts (n,2) NED, s, v, heading, kappa, stops)
++        self.plan_reference = None    # last valid path/progress, never used as a live command
++        self.plan_failure = None      # normal no-route reply queued for supervised recovery in step()
+         self.path_s = 0.0             # path mode: progress along the current path (m)
+         self.path_stop_done = -1      # path mode: index of the last interior stop already turned at
+         self.v_vec = None             # path mode: commanded velocity (vn, ve) ...
+@@ -343,7 +362,8 @@
+         self.counts = {"depth_frames": 0, "obstacle_stops": 0, "depth_holds": 0, "unconfirmed_obstacles": 0,
+                        "depth_unusable": 0, "depth_future": 0, "depth_stale": 0, "depth_out_of_order": 0,
+                        "corridor_unobserved": 0, "corrections": 0, "recoveries": 0, "replan_resumes": 0, "blended_turns": 0, "path_waits": 0,
+-                       "alignments": 0, "tunnel_ticks": 0, "tube_holds": 0, "tube_ticks": 0, "retreats": 0}
++                       "alignments": 0, "tunnel_ticks": 0, "tube_holds": 0, "tube_ticks": 0, "retreats": 0,
++                       "plan_stops": 0}
+         self.tube_hold = False        # tube_gate: forward motion held until back inside half the tube
+         self.last_v = None            # the latest Vehicle seen by step (for the safe-landing decision)
+         self.flown = []               # PX4 NE breadcrumbs of the path actually flown (estimate), from take-off
+@@ -369,6 +389,9 @@
          self.corr_applied = (0.0, 0.0)
          self.silence_from = None      # when depth silence started counting (depth_lost_pause_static)
          self.recover = None           # hold-and-recheck state: {"kind", "stage", "t0", "why", ...}
@@ -896,7 +1312,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
          self.leg_blocks = 0           # confirmed blocks on the current leg (blocked_max_per_leg)
          self.prior = None             # latest prior-map report (t, state, fit) from the localizer
          self.clr_min = None           # the SMALLEST clearance of the confirm frames (recovery needs every one clear)
-@@ -439,18 +459,30 @@
+@@ -439,18 +462,32 @@
                  self.leg_dir = ((tn - n0) / L, (te - e0) / L)
                  self.leg_heading = math.atan2(te - e0, tn - n0)
  
@@ -911,6 +1327,8 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
 -        pts = _np.asarray(pts_ne, float)
 -        sp = _np.asarray(speeds, float)
 -        if (len(pts) < 2 or pts.ndim != 2 or pts.shape[1] != 2 or len(sp) != len(pts) or leg < 0
++        if self.plan_failure is not None:
++            return False  # the next supervised step must issue a certified recovery request first
 +        if self.recover is not None and self.p.recovery_replan:
 +            if (self.replan_request is None or request_id != self.replan_request["id"]
 +                    or leg != self.leg or recovery_certified is not True):
@@ -931,12 +1349,13 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
          seg = _np.linalg.norm(_np.diff(pts, axis=0), axis=1)
          s = _np.concatenate([[0.0], _np.cumsum(seg)])
          d = _np.gradient(pts, axis=0)
-@@ -472,10 +504,30 @@
+@@ -472,10 +509,38 @@
          self.path = dict(t=float(t), leg=int(leg), pid=pid, pts=pts, s=s, v=_np.maximum(sp, 0.0), heading=heading,
                           kappa=kappa, stops=sorted(int(i) for i in stops), tube=tb)
          self.targets[leg] = (float(pts[-1, 0]), float(pts[-1, 1]))
 +        self.path["request_id"] = request_id
 +        self.path["recovery_certified"] = bool(recovery_certified)
++        self.plan_reference = (self.path, self.path_s)
 +        if self.recover is not None and self.p.recovery_replan:
 +            self.plan_reply = {"state": "ready", "id": request_id, "t": float(t)}
          if leg == self.leg and self._path_leg():
@@ -952,6 +1371,13 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
 +                return False
 +        elif request_id is not None:
 +            return False
++        if self.path is not None and self.path.get("leg") == leg:
++            self.plan_reference = (self.path, self.path_s)
++        if (state == "failed" and request_id is None and self.p.recovery_replan
++                and self.recover is None and self.plan_failure is None
++                and self.phase in ("turn", "check", "go") and self._path_leg()
++                and self.plan_reference is not None and self.plan_reference[0]["leg"] == leg):
++            self.plan_failure = {"leg": leg, "reason": str(reason), "reference": self.plan_reference}
 +        self.path = None
 +        if (self.sp is not None and self.last_v is not None and self.last_v.pos is not None
 +                and all(math.isfinite(c) for c in self.last_v.pos[:2])):
@@ -962,7 +1388,32 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
      def _path_leg(self, leg=None):
          """Is leg `leg` flown along a navigator path (path mode, a cruise leg: no alignment, no passage)?"""
          if self.p.track_mode != "path":
-@@ -890,6 +942,11 @@
+@@ -590,6 +655,7 @@
+             self.why = why
+ 
+     def _end(self, now, out, result):
++        self.plan_failure = None
+         self.result = result
+         self._set("done", now, out, result)
+ 
+@@ -597,6 +663,7 @@
+         """Land. With safe_land, a fault landing over a column that is not clear (or unknown) first
+         retraces the flown path to the nearest clear column (phase retreat); immediate landings
+         (no trustworthy position) and the planned landing ("route complete") descend where they are."""
++        self.plan_failure = None
+         if self.phase == "retreat" and not immediate:
+             return                                   # already on the way to a clear column
+         if (not immediate and why != "route complete" and self.p.safe_land and self.p.land_columns
+@@ -800,6 +867,8 @@
+                 self._land(now, out, f"depth silent for more than {p.depth_lost_land_s:.0f} s")
+             elif p.prior_required and self.prior is not None and self.prior[1] == "dropped":
+                 self._land(now, out, self._prior_dropped_why())
++            elif self._begin_failed_plan_recovery(now, out, v):
++                pass  # no-route recovery owns its existing bounded timer, not the stale corridor timer
+             elif p.corridor_wait_land_s >= 0 and self.phase in ("check", "go") and self.t_check is not None \
+                     and not tunnel_dark:
+                 seen = self.t_check if self.corr_t is None else max(self.t_check, self.corr_t)
+@@ -890,6 +959,11 @@
          elif ph == "turn":
              if (self._path_leg() and self._path_fresh(now) and self.path_stop_done < 0 and self.path_s == 0.0):
                  self.leg_heading = self._path_at(p.path_lookahead_m)[1]   # face where the path first goes
@@ -974,7 +1425,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
              err = _wrap(self.leg_heading - self.sp[3])
              if p.yaw_accel_dps2 > 0:
                  out.yawspeed = self._slew_yaw(err, dt)
-@@ -938,7 +995,7 @@
+@@ -938,7 +1012,7 @@
                  self.legs_done += 1
                  self.leg += 1
                  self._next_leg(now, out, v)
@@ -983,21 +1434,55 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
              self._recover(now, dt, out, v)
          elif ph == "retreat":
              self._retreat(now, dt, out, v)
-@@ -1021,6 +1078,7 @@
+@@ -1021,6 +1095,10 @@
          self.path_s, self.path_stop_done = 0.0, -1
          self.capture_t, self.tight_since = None, None
          self.leg_blocks = 0
 +        self.replan_request = self.plan_reply = None
++        self.plan_failure = None
++        self.plan_reference = ((self.path, self.path_s)
++                               if self.path is not None and self.path.get("leg") == self.leg else None)
          if self._path_leg() and self.path is not None and self.path["leg"] == self.leg:
              self.leg_heading = float(self.path["heading"][0])
          self.leg_v_end = 0.0 if (self._stops_at_end(self.leg) or self.p.track_mode == "path") else self.p.speed_mps
-@@ -1674,14 +1732,97 @@
-     def _start_recover(self, now, out, kind, why, v):
+@@ -1671,17 +1749,129 @@
+                           f"(width seen {res.get('width_m', float('nan')):.2f} m, {len(self.align_hist)} frames)")
+ 
+     # ------------------------------------------------------------------ hold-and-recheck
+-    def _start_recover(self, now, out, kind, why, v):
++    def _begin_failed_plan_recovery(self, now, out, v):
++        failure = self.plan_failure
++        if failure is None:
++            return False
++        self.plan_failure = None
++        if (failure["leg"] != self.leg or self.phase not in ("turn", "check", "go")
++                or not self._path_leg() or self.recover is not None):
++            return False
++        why = f"navigator has no route for leg {self.leg + 1}: {failure['reason']}"
++        self.sp[0], self.sp[1] = v.pos[:2]
++        self.counts["plan_stops"] += 1
++        self.leg_blocks += 1
++        if self.p.blocked_max_per_leg > 0 and self.leg_blocks > self.p.blocked_max_per_leg:
++            self._land(now, out, f"{why}; blocked {self.leg_blocks} times on this leg "
++                                 f"(blocked_max_per_leg {self.p.blocked_max_per_leg})")
++        elif self.p.blocked_hold_s <= 0:
++            self._land(now, out, why)
++        else:
++            reference, progress = failure["reference"]
++            self._start_recover(now, out, "blocked", why, v, reference, progress)
++            self.recover["cause"] = "no_route"
++            self.replan_request["require_detour"] = False
++        return True
++
++    def _start_recover(self, now, out, kind, why, v, reference=None, reference_s=None):
++        old_path = self.path if reference is None else reference
++        old_s = self.path_s if reference_s is None else reference_s
          self.recover = {"kind": kind, "t0": now, "why": why, "target": None, "t_back": None, "t_re": None,
-                         "pid": self.path.get("pid") if (self.path is not None and self._path_leg()) else None,
+-                        "pid": self.path.get("pid") if (self.path is not None and self._path_leg()) else None,
 -                        "pos": (v.pos[0], v.pos[1])}
++                        "pid": old_path.get("pid") if (old_path is not None and self._path_leg()) else None,
 +                        "pos": (v.pos[0], v.pos[1]), "yaw": self.sp[3],
-+                        "old_path": self.path, "old_path_s": self.path_s, "scan_done": False,
++                        "old_path": old_path, "old_path_s": old_s, "scan_done": False,
 +                        "requests": 0}
 +        self.sp[0], self.sp[1] = v.pos[:2]   # brake at the measured pose, not the old forward carrot
 +        if kind == "blocked" and self._path_leg() and self.p.recovery_replan:
@@ -1009,7 +1494,10 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
 +            return
 +        self.replan_serial += 1
 +        self.recover["requests"] += 1
-+        self.replan_request = {"id": self.replan_serial, "leg": self.leg, "observed_only": True}
++        self.replan_request = {"id": self.replan_serial, "leg": self.leg, "observed_only": True,
++                               "reference_pid": self.recover["pid"],
++                               "reference_progress_s": float(self.recover["old_path_s"]),
++                               "require_detour": self.recover.get("cause") != "no_route"}
 +        self.plan_reply = {"state": "pending", "id": self.replan_serial, "t": now}
 +        self.path = None   # old geometry retained only as a backoff reference, never a fresh command
 +
@@ -1090,7 +1578,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
              if not self.depth_fresh(now):
                  return False
              clr = self._clearance(v)
-@@ -1714,6 +1855,7 @@
+@@ -1714,6 +1904,7 @@
  
      def _resume(self, now, out, v):
          r, self.recover = self.recover, None
@@ -1098,7 +1586,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
          self.counts["recoveries"] += 1
          if r["kind"] == "align":
              self._apply_alignment(now, out, G.combine(self.align_hist[-self.p.align_frames:]))
-@@ -1737,14 +1879,23 @@
+@@ -1737,14 +1928,23 @@
          if r is None:
              self._set("check", now, out)
              return
@@ -1123,7 +1611,7 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
              self.counts["replan_resumes"] += 1
              self.sp[0], self.sp[1] = v.pos[0], v.pos[1]
              self.clr_hist, self.corr_t = [], None
-@@ -1752,31 +1903,30 @@
+@@ -1752,31 +1952,30 @@
              self.turn_start_heading = self.sp[3]
              self._set("turn", now, out, f"re-planned while blocked on leg {self.leg + 1}: turning to the new path")
              return
@@ -1169,19 +1657,21 @@ diff -ruN a2/refnav/core.py b/refnav/core.py
                  self._land(now, out, f"{r['why']}; still blocked after hold, back-off and recheck")
  
      def status(self, now):
-@@ -1794,6 +1944,9 @@
+@@ -1794,6 +1993,11 @@
                  "depth_reject": None if self.depth_reject is None else self.depth_reject[1],
                  "health_bad_s": (None if math.isinf(self.health.bad_for(now)) else round(self.health.bad_for(now), 2)),
                  "recover": None if self.recover is None else {"kind": self.recover["kind"], "stage": self.phase},
 +                "recovery_request": self.replan_request if self.recover is not None else None,
++                "path_s": None if self.path is None else float(self.path_s),
++                "path_pid": None if self.path is None else self.path.get("pid"),
 +                "plan_reply": self.plan_reply,
 +                "prior_state": None if self.prior is None else self.prior[1],
                  "leg_blocks": self.leg_blocks,
                  "tunnel": self.tunnel_active, "align": self.align_result,
                  **self.counts}
 diff -ruN a2/refnav/node.py b/refnav/node.py
---- a/refnav/node.py	2026-11-08 03:06:16.184300330 -0600
-+++ b/refnav/node.py	2026-11-08 03:06:16.181183120 -0600
+--- a/refnav/node.py	2026-11-08 03:25:43.889580271 -0600
++++ b/refnav/node.py	2026-11-08 03:25:43.880240180 -0600
 @@ -129,17 +129,40 @@
          from px4_msgs.msg import (BatteryStatus, EstimatorStatusFlags, OffboardControlMode, TrajectorySetpoint, VehicleAttitude,
                                    VehicleCommand, VehicleLandDetected, VehicleLocalPosition, VehicleStatus)

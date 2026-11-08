@@ -42,7 +42,8 @@ def scanning(**kwargs):
 
 def test_block_requests_immediately_and_invalidates_old_command_path():
     m,v=blocked()
-    assert m.replan_request=={'id':1,'leg':0,'observed_only':True}
+    assert m.replan_request=={'id':1,'leg':0,'observed_only':True,
+                             'reference_pid':1,'reference_progress_s':1.,'require_detour':True}
     assert m.path is None and m.recover['old_path']['pid']==1
     assert m.status(10.)['recovery_request']==m.replan_request
     out=step(m,v,10.1)

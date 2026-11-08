@@ -348,6 +348,8 @@ class Mission:
         self.leg_v_end = 0.0          # speed to carry through this leg's end (> 0: a blended corner)
         self.a_cmd = 0.0              # pose mode: feed-forward acceleration along the leg (m/s2)
         self.path = None              # path mode: dict(t, leg, pts (n,2) NED, s, v, heading, kappa, stops)
+        self.plan_reference = None    # last valid path/progress, never used as a live command
+        self.plan_failure = None      # normal no-route reply queued for supervised recovery in step()
         self.path_s = 0.0             # path mode: progress along the current path (m)
         self.path_stop_done = -1      # path mode: index of the last interior stop already turned at
         self.v_vec = None             # path mode: commanded velocity (vn, ve) ...
@@ -360,7 +362,8 @@ class Mission:
         self.counts = {"depth_frames": 0, "obstacle_stops": 0, "depth_holds": 0, "unconfirmed_obstacles": 0,
                        "depth_unusable": 0, "depth_future": 0, "depth_stale": 0, "depth_out_of_order": 0,
                        "corridor_unobserved": 0, "corrections": 0, "recoveries": 0, "replan_resumes": 0, "blended_turns": 0, "path_waits": 0,
-                       "alignments": 0, "tunnel_ticks": 0, "tube_holds": 0, "tube_ticks": 0, "retreats": 0}
+                       "alignments": 0, "tunnel_ticks": 0, "tube_holds": 0, "tube_ticks": 0, "retreats": 0,
+                       "plan_stops": 0}
         self.tube_hold = False        # tube_gate: forward motion held until back inside half the tube
         self.last_v = None            # the latest Vehicle seen by step (for the safe-landing decision)
         self.flown = []               # PX4 NE breadcrumbs of the path actually flown (estimate), from take-off
@@ -466,6 +469,8 @@ class Mission:
         geometry from the aircraft's position: progress restarts), not when it is only re-expressed in the
         flight frame. The leg's target becomes the path's end."""
         import numpy as _np
+        if self.plan_failure is not None:
+            return False  # the next supervised step must issue a certified recovery request first
         if self.recover is not None and self.p.recovery_replan:
             if (self.replan_request is None or request_id != self.replan_request["id"]
                     or leg != self.leg or recovery_certified is not True):
@@ -506,6 +511,7 @@ class Mission:
         self.targets[leg] = (float(pts[-1, 0]), float(pts[-1, 1]))
         self.path["request_id"] = request_id
         self.path["recovery_certified"] = bool(recovery_certified)
+        self.plan_reference = (self.path, self.path_s)
         if self.recover is not None and self.p.recovery_replan:
             self.plan_reply = {"state": "ready", "id": request_id, "t": float(t)}
         if leg == self.leg and self._path_leg():
@@ -521,6 +527,13 @@ class Mission:
                 return False
         elif request_id is not None:
             return False
+        if self.path is not None and self.path.get("leg") == leg:
+            self.plan_reference = (self.path, self.path_s)
+        if (state == "failed" and request_id is None and self.p.recovery_replan
+                and self.recover is None and self.plan_failure is None
+                and self.phase in ("turn", "check", "go") and self._path_leg()
+                and self.plan_reference is not None and self.plan_reference[0]["leg"] == leg):
+            self.plan_failure = {"leg": leg, "reason": str(reason), "reference": self.plan_reference}
         self.path = None
         if (self.sp is not None and self.last_v is not None and self.last_v.pos is not None
                 and all(math.isfinite(c) for c in self.last_v.pos[:2])):
@@ -642,6 +655,7 @@ class Mission:
             self.why = why
 
     def _end(self, now, out, result):
+        self.plan_failure = None
         self.result = result
         self._set("done", now, out, result)
 
@@ -649,6 +663,7 @@ class Mission:
         """Land. With safe_land, a fault landing over a column that is not clear (or unknown) first
         retraces the flown path to the nearest clear column (phase retreat); immediate landings
         (no trustworthy position) and the planned landing ("route complete") descend where they are."""
+        self.plan_failure = None
         if self.phase == "retreat" and not immediate:
             return                                   # already on the way to a clear column
         if (not immediate and why != "route complete" and self.p.safe_land and self.p.land_columns
@@ -852,6 +867,8 @@ class Mission:
                 self._land(now, out, f"depth silent for more than {p.depth_lost_land_s:.0f} s")
             elif p.prior_required and self.prior is not None and self.prior[1] == "dropped":
                 self._land(now, out, self._prior_dropped_why())
+            elif self._begin_failed_plan_recovery(now, out, v):
+                pass  # no-route recovery owns its existing bounded timer, not the stale corridor timer
             elif p.corridor_wait_land_s >= 0 and self.phase in ("check", "go") and self.t_check is not None \
                     and not tunnel_dark:
                 seen = self.t_check if self.corr_t is None else max(self.t_check, self.corr_t)
@@ -1079,6 +1096,9 @@ class Mission:
         self.capture_t, self.tight_since = None, None
         self.leg_blocks = 0
         self.replan_request = self.plan_reply = None
+        self.plan_failure = None
+        self.plan_reference = ((self.path, self.path_s)
+                               if self.path is not None and self.path.get("leg") == self.leg else None)
         if self._path_leg() and self.path is not None and self.path["leg"] == self.leg:
             self.leg_heading = float(self.path["heading"][0])
         self.leg_v_end = 0.0 if (self._stops_at_end(self.leg) or self.p.track_mode == "path") else self.p.speed_mps
@@ -1729,11 +1749,37 @@ class Mission:
                           f"(width seen {res.get('width_m', float('nan')):.2f} m, {len(self.align_hist)} frames)")
 
     # ------------------------------------------------------------------ hold-and-recheck
-    def _start_recover(self, now, out, kind, why, v):
+    def _begin_failed_plan_recovery(self, now, out, v):
+        failure = self.plan_failure
+        if failure is None:
+            return False
+        self.plan_failure = None
+        if (failure["leg"] != self.leg or self.phase not in ("turn", "check", "go")
+                or not self._path_leg() or self.recover is not None):
+            return False
+        why = f"navigator has no route for leg {self.leg + 1}: {failure['reason']}"
+        self.sp[0], self.sp[1] = v.pos[:2]
+        self.counts["plan_stops"] += 1
+        self.leg_blocks += 1
+        if self.p.blocked_max_per_leg > 0 and self.leg_blocks > self.p.blocked_max_per_leg:
+            self._land(now, out, f"{why}; blocked {self.leg_blocks} times on this leg "
+                                 f"(blocked_max_per_leg {self.p.blocked_max_per_leg})")
+        elif self.p.blocked_hold_s <= 0:
+            self._land(now, out, why)
+        else:
+            reference, progress = failure["reference"]
+            self._start_recover(now, out, "blocked", why, v, reference, progress)
+            self.recover["cause"] = "no_route"
+            self.replan_request["require_detour"] = False
+        return True
+
+    def _start_recover(self, now, out, kind, why, v, reference=None, reference_s=None):
+        old_path = self.path if reference is None else reference
+        old_s = self.path_s if reference_s is None else reference_s
         self.recover = {"kind": kind, "t0": now, "why": why, "target": None, "t_back": None, "t_re": None,
-                        "pid": self.path.get("pid") if (self.path is not None and self._path_leg()) else None,
+                        "pid": old_path.get("pid") if (old_path is not None and self._path_leg()) else None,
                         "pos": (v.pos[0], v.pos[1]), "yaw": self.sp[3],
-                        "old_path": self.path, "old_path_s": self.path_s, "scan_done": False,
+                        "old_path": old_path, "old_path_s": old_s, "scan_done": False,
                         "requests": 0}
         self.sp[0], self.sp[1] = v.pos[:2]   # brake at the measured pose, not the old forward carrot
         if kind == "blocked" and self._path_leg() and self.p.recovery_replan:
@@ -1745,7 +1791,10 @@ class Mission:
             return
         self.replan_serial += 1
         self.recover["requests"] += 1
-        self.replan_request = {"id": self.replan_serial, "leg": self.leg, "observed_only": True}
+        self.replan_request = {"id": self.replan_serial, "leg": self.leg, "observed_only": True,
+                               "reference_pid": self.recover["pid"],
+                               "reference_progress_s": float(self.recover["old_path_s"]),
+                               "require_detour": self.recover.get("cause") != "no_route"}
         self.plan_reply = {"state": "pending", "id": self.replan_serial, "t": now}
         self.path = None   # old geometry retained only as a backoff reference, never a fresh command
 
@@ -1945,6 +1994,8 @@ class Mission:
                 "health_bad_s": (None if math.isinf(self.health.bad_for(now)) else round(self.health.bad_for(now), 2)),
                 "recover": None if self.recover is None else {"kind": self.recover["kind"], "stage": self.phase},
                 "recovery_request": self.replan_request if self.recover is not None else None,
+                "path_s": None if self.path is None else float(self.path_s),
+                "path_pid": None if self.path is None else self.path.get("pid"),
                 "plan_reply": self.plan_reply,
                 "prior_state": None if self.prior is None else self.prior[1],
                 "leg_blocks": self.leg_blocks,
