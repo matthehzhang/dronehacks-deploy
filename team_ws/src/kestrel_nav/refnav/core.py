@@ -176,6 +176,12 @@ class Params:
     recovery_scan_deg: float = 0.0             # bounded yaw sweep, <=45deg each side; zero disables
     recovery_scan_rate_dps: float = 20.0
     recovery_scan_dwell_s: float = 0.5
+    recovery_scan_route_m: float = 0.0         # > 0: centre the sweep on the blocked route's bearing over this
+                                               # arc, starting at the navigator's rejoin lookahead (max(1 m,
+                                               # stop distance)) past the block; the LAST look faces that route,
+                                               # so the newest depth covers the rejoin when the last request goes.
+                                               # 0 = the sweep is centred on the heading at the block (legacy)
+    recovery_scan_route_max_deg: float = 90.0  # the sweep centre turns at most this far from the heading at the block
     recovery_timeout_s: float = 20.0           # whole recovery budget, never reset by planner replies
                                                # (with recovery_creep: only a hop that made progress extends it,
                                                # and never past creep_max_s after the block)
@@ -326,7 +332,8 @@ class Mission:
         self.p = params
         if params.recovery_replan:
             bounds = {"recovery_timeout_s": (0.1, 30.0), "recovery_scan_deg": (0.0, 45.0),
-                      "recovery_scan_rate_dps": (0.1, 20.0), "recovery_scan_dwell_s": (0.2, 2.0)}
+                      "recovery_scan_rate_dps": (0.1, 20.0), "recovery_scan_dwell_s": (0.2, 2.0),
+                      "recovery_scan_route_m": (0.0, 3.0), "recovery_scan_route_max_deg": (0.0, 135.0)}
             if params.recovery_creep:
                 bounds.update({"creep_speed_mps": (0.05, 0.3), "creep_max_hops": (1, 12), "creep_arrive_m": (0.03, 0.3),
                                "creep_max_stalls": (1, 5), "creep_max_s": (5.0, 90.0),
@@ -1863,6 +1870,43 @@ class Mission:
         self.sp[0], self.sp[1] = target
         self._set("backoff", now, out, f"still blocked: backing off up to {d:.2f} m")
 
+    def _route_scan_centre(self, r, v):
+        """Yaw the recovery sweep is centred on.
+
+        Legacy (recovery_scan_route_m == 0, no reference route, no usable pose): the heading at the block.
+        Otherwise: the circular mean bearing from the aircraft to the blocked route over
+        [s0 + lookahead, s0 + lookahead + recovery_scan_route_m], where lookahead = max(1 m, stop distance)
+        is the navigator's own rejoin lookahead. Those are the only route points plan_recovery may rejoin,
+        and the camera must see them, with their clearance disc, for any of them to be certified free.
+        A route that turns off the nose otherwise stays at or beyond the 38 deg edge of the field of view
+        (DIVERSE01: 36-73 deg right of the nose; a sweep centred on the nose certified nothing).
+        The turn is bounded by recovery_scan_route_max_deg; it is a yaw in place, never a translation.
+        """
+        p, home = self.p, r["yaw"]
+        P = r.get("old_path")
+        if (p.recovery_scan_route_m <= 0 or P is None or v.pos is None
+                or not all(math.isfinite(c) for c in v.pos[:2])):
+            return home
+        import numpy as np
+        s = np.asarray(P["s"], float)
+        pts = np.asarray(P["pts"], float)
+        if len(s) < 2 or len(pts) != len(s):
+            return home
+        s0 = float(r.get("old_path_s") or 0.0)
+        a = s0 + max(1.0, self._stop_m(0.0))
+        q = np.clip(np.linspace(a, a + p.recovery_scan_route_m, 9), 0.0, float(s[-1]))
+        d = np.stack([np.interp(q, s, pts[:, 0]) - v.pos[0], np.interp(q, s, pts[:, 1]) - v.pos[1]], axis=1)
+        n = np.linalg.norm(d, axis=1)
+        d = d[n > 0.2] / n[n > 0.2, None]     # a point on top of the aircraft has no bearing
+        if not len(d):
+            return home
+        mean = d.mean(axis=0)
+        if np.linalg.norm(mean) < 0.2:          # route points spread all round: no single direction to face
+            return home
+        off = _wrap(math.atan2(mean[1], mean[0]) - home)
+        cap = math.radians(p.recovery_scan_route_max_deg)
+        return _wrap(home + max(-cap, min(cap, off)))
+
     def _scan_recovery(self, now, dt, out, v):
         r, p = self.recover, self.p
         # Never rotate on missing depth, unsettled translation, or near obstacle returns.
@@ -2131,8 +2175,9 @@ class Mission:
                 if (p.recovery_replan and self._path_leg() and p.recovery_scan_deg > 0
                         and not r["scan_done"]):
                     angle = math.radians(min(45.0, p.recovery_scan_deg))
-                    r.update(scan_i=0, settled=None,
-                             scan_yaws=[_wrap(r["yaw"]-angle), _wrap(r["yaw"]+angle), r["yaw"]])
+                    centre = self._route_scan_centre(r, v)
+                    r.update(scan_i=0, settled=None, scan_centre=centre,
+                             scan_yaws=[_wrap(centre-angle), _wrap(centre+angle), centre])
                     self._set("recovery_scan", now, out, "bounded stationary depth scan for an observed-free detour")
                 else:
                     self._begin_backoff(now, out, v)
@@ -2164,9 +2209,11 @@ class Mission:
                 "depth_valid_frac": None if self.last_valid_frac is None else round(self.last_valid_frac, 3),
                 "depth_reject": None if self.depth_reject is None else self.depth_reject[1],
                 "health_bad_s": (None if math.isinf(self.health.bad_for(now)) else round(self.health.bad_for(now), 2)),
-                "recover": None if self.recover is None else {"kind": self.recover["kind"], "stage": self.phase,
-                                                              "hops": self.recover.get("hops", 0),
-                                                              "stalls": self.recover.get("stalls", 0)},
+                "recover": None if self.recover is None else {
+                    "kind": self.recover["kind"], "stage": self.phase,
+                    "hops": self.recover.get("hops", 0), "stalls": self.recover.get("stalls", 0),
+                    **({} if self.recover.get("scan_centre") is None else
+                       {"scan_centre_deg": round(math.degrees(self.recover["scan_centre"]), 1)})},
                 "recovery_request": self.replan_request if self.recover is not None else None,
                 "path_s": None if self.path is None else float(self.path_s),
                 "path_pid": None if self.path is None else self.path.get("pid"),
