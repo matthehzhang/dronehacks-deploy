@@ -34,7 +34,7 @@ from .navplan import course_to_ned, headings_to_frame, smooth_params_for
 from .objmap import CourseMap
 from .planner import PlanError
 
-AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "align")
+AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "search", "align")
 
 
 class LiveLandmarks:
@@ -90,6 +90,8 @@ class NavNode(Node):
         self.drift = None
         self.status = None
         self.nav_leg, self.pid = None, 0
+        self.last_attempt = -math.inf
+        self.search_replanned = False
         self.stats = dict(plans=0, replans=0, plan_errors=0)
         latched = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                              history=HistoryPolicy.KEEP_LAST, depth=1)
@@ -151,6 +153,8 @@ class NavNode(Node):
         nb = np.array(d["nominal"], float)
         believed = ekf.body_course(nb)
         leg, phase = int(self.status.get("leg", 0)), self.status.get("phase")
+        if phase != 'search':
+            self.search_replanned = False
 
         def to_ned(pts):
             return course_to_ned(ekf.to_nominal(pts, nb), d["fixture"], self.decl)
@@ -160,7 +164,7 @@ class NavNode(Node):
         out = {"stamp": time.time(), "leg": leg, "pid": self.pid, "targets_ne": targets}
         if leg < len(self.nav_legs) and self.nav_legs[leg]["path"] and phase in AIRBORNE:
             L = self.nav_legs[leg]
-            want = self.nav_leg != leg
+            want = self.nav_leg != leg or self.nav.path is None or (phase == 'search' and not self.search_replanned)
             if not want and self.nav.path is not None:
                 want = self.nav.needs_replan(time.monotonic(), 0.0)
             c = self.cache.pop(leg, None) if self.nav_leg != leg else None
@@ -170,7 +174,9 @@ class NavNode(Node):
                 self.nav_leg = leg
                 want = False
                 self.get_logger().info(f"leg {leg + 1}: pre-planned path {self.nav.path.length:.2f} m")
-            if want:
+            if want and time.monotonic()-self.last_attempt >= self.nav.p.replan_every_s:
+                self.last_attempt = time.monotonic()
+                self.search_replanned = phase == 'search'
                 goals = [np.array(g, float) for g in L["goals"]]
                 goals = [g for g in goals[:-1] if np.hypot(*(g - believed[:2])) > 0.3] + [goals[-1]]
                 try:
@@ -182,6 +188,7 @@ class NavNode(Node):
                     self.get_logger().info(f"leg {leg + 1}: path {self.nav.path.length:.2f} m, "
                                            f"{len(self.nav.path.stops)} stop corners, est {self.nav.path.duration():.1f} s")
                 except PlanError as e:
+                    self.nav.path = None
                     self.stats["plan_errors"] += 1
                     self.get_logger().warning(f"leg {leg + 1}: no path ({e}); refnav holds without one")
             if self.nav.path is not None and self.nav_leg == leg:
@@ -191,6 +198,7 @@ class NavNode(Node):
                            tubes=None if P.tube is None else P.tube.round(4).tolist())
                 if P.yaw is not None:                   # CRAB: the heading to hold per point (NED rad)
                     out["yaw_ne"] = headings_to_frame(P.pts, P.yaw, to_ned).round(4).tolist()
+        out['valid'] = bool(out.get('pts_ne'))
         self.pub.publish(String(data=json.dumps(out)))
 
 

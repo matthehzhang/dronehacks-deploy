@@ -66,7 +66,7 @@ from .speed import braking_cap, side_cap
 
 NAV_OFFBOARD = 14
 NAV_AUTO_LAND = 18
-AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "retreat")
+AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "search", "retreat")
 TRANSLATING = ("go", "backoff", "climb")           # phases in which the aircraft is commanded to move
 SILENCE_PAUSED = ("turn", "hold", "excite")                # no translation: depth silence is not counted here
 
@@ -184,6 +184,10 @@ class Params:
     blocked_hold_s: float = 0.0                 # > 0: hover this long on a confirmed obstacle before backing off
     blocked_backoff_m: float = 0.2              # ... then back off this far along the path just flown ...
     blocked_recheck_s: float = 2.0              # ... and recheck this long before landing
+    search_enabled: bool = False               # bounded stationary depth sweep, then require a NEW navigator path
+    search_timeout_s: float = 45.0
+    search_yaw_rate_dps: float = 20.0
+    search_max_per_leg: int = 2
     blocked_clear_margin_m: float = 0.15        # resume only once the clearance exceeds the stop distance by this
     depth_lost_pause_static: bool = False       # depth silence is not counted while turning in place or holding
     stop_per_mps: float = 0.0                   # > 0: stop distance = max(stop_min_m, stop_base_m + this * v)
@@ -390,6 +394,9 @@ class Mission:
         self.corr_applied = (0.0, 0.0)
         self.silence_from = None      # when depth silence started counting (depth_lost_pause_static)
         self.recover = None           # hold-and-recheck state: {"kind", "stage", "t0", "why", ...}
+        self.search = None
+        self.search_attempts = {}
+        self.path_missing_since = None
         self.align_hist = []          # gate alignment measurements for the current leg
         self._align_judged_t = None
         self.align_ok_t = None        # when the current leg's gate alignment succeeded (and for which leg)
@@ -956,6 +963,8 @@ class Mission:
                 self._next_leg(now, out, v)
         elif ph in ("blocked", "backoff", "recheck"):
             self._recover(now, dt, out, v)
+        elif ph == "search":
+            self._search(now, dt, out, v)
         elif ph == "retreat":
             self._retreat(now, dt, out, v)
 
@@ -1049,7 +1058,7 @@ class Mission:
         self.turn_start_heading = self.sp[3]
         self._set("turn", now, out, f"leg {self.leg + 1}/{len(self.targets)}")
 
-    def _slew_yaw(self, err, dt):
+    def _slew_yaw(self, err, dt, rate_dps=None):
         """Trapezoidal yaw-rate profile toward a heading err rad away: the rate rises and falls at no more
         than yaw_accel_dps2, never exceeds yaw_rate_dps, and brakes so it arrives at rate 0
         (|rate| <= sqrt(2 * accel * |err|)). Moves the yaw setpoint; -> the rate (rad/s, NED) for yawspeed."""
@@ -1057,7 +1066,7 @@ class Mission:
         acc = math.radians(p.yaw_accel_dps2)
         # discrete-time braking curve: the largest rate from which steps of decreasing rate (acc*dt less
         # each tick) still stop exactly at the target (continuous sqrt(2*acc*err) overshoots the bound)
-        cap = min(math.radians(p.yaw_rate_dps),
+        cap = min(math.radians(min(p.yaw_rate_dps, rate_dps) if rate_dps is not None else p.yaw_rate_dps),
                   acc * (math.sqrt(max(dt, 1e-3) ** 2 / 4.0 + 2.0 * abs(err) / acc) - max(dt, 1e-3) / 2.0))
         r = abs(self.yaw_rate_cmd) if self.yaw_rate_cmd * err > 0 else 0.0      # a reversal restarts from rest
         r = min(cap, r + acc * dt)
@@ -1313,7 +1322,13 @@ class Mission:
             self.counts["path_waits"] += 1
             self.v_cmd, self.a_cmd = 0.0, 0.0
             self.v_vec, self.a_vec = (0.0, 0.0), (0.0, 0.0)
+            if self.path_missing_since is None:
+                self.path_missing_since = now
+                self.sp[0], self.sp[1] = v.pos[:2]
+            if p.search_enabled and now - self.path_missing_since >= p.blocked_recheck_s:
+                self._start_search(now, out, v, "no usable navigator path")
             return
+        self.path_missing_since = None
         P = self.path
         s_now, seg_i = self._path_project(v.pos)
         self.path_s = max(self.path_s - 0.05, s_now)            # progress: no jumping back along the path
@@ -1447,7 +1462,13 @@ class Mission:
             self.traj = None
             self.v_cmd, self.a_cmd = 0.0, 0.0
             self.v_vec, self.a_vec = (0.0, 0.0), (0.0, 0.0)
+            if self.path_missing_since is None:
+                self.path_missing_since = now
+                self.sp[0], self.sp[1] = v.pos[:2]
+            if p.search_enabled and now-self.path_missing_since >= p.blocked_recheck_s:
+                self._start_search(now, out, v, "no usable navigator path")
             return
+        self.path_missing_since = None
         P = self.path
         s_now, seg_i = self._path_project(v.pos)
         self.path_s = max(self.path_s - 0.05, s_now)
@@ -1946,7 +1967,59 @@ class Mission:
         elif self.phase == "recheck":
             if now - r["t_re"] > p.blocked_recheck_s:
                 self.recover = None
-                self._land(now, out, f"{r['why']}; still blocked after hold, back-off and recheck")
+                if p.search_enabled and r["kind"] == "blocked" and self._path_leg():
+                    self._start_search(now, out, v, r["why"])
+                else:
+                    self._land(now, out, f"{r['why']}; still blocked after hold, back-off and recheck")
+
+    def _start_search(self, now, out, v, why):
+        """Observe from a fixed position; a sweep alone never grants permission to translate."""
+        attempts = self.search_attempts.get(self.leg, 0)
+        if attempts >= self.p.search_max_per_leg:
+            self._land(now, out, f"{why}; bounded search attempts exhausted")
+            return
+        self.search_attempts[self.leg] = attempts + 1
+        self.search = dict(t0=now, index=0, settled=None, old_pid=None if self.path is None else self.path["pid"],
+                           headings=[_wrap(v.heading + math.pi/2*k) for k in (1, 2, 3, 4)], why=why)
+        self.sp = [*v.pos[:2], self.sp[2], v.heading]
+        self.yaw_rate_cmd = 0.0
+        self.clr_hist, self.corr_t = [], None
+        self._set("search", now, out, f"{why}; stationary 360 degree depth search")
+
+    def _search(self, now, dt, out, v):
+        s, p = self.search, self.p
+        if now - s["t0"] > p.search_timeout_s:
+            self._land(now, out, "search timeout: no newly planned route after observing all directions")
+            return
+        # Global airborne supervision still owns health/position/depth loss. Pause yaw immediately
+        # during a short stale interval, rather than continuing to turn without usable observations.
+        if not self.depth_fresh(now) or not self.health.arm_ok(now)[0]:
+            self.yaw_rate_cmd = 0.0
+            out.yawspeed = 0.0
+            return
+        if s["index"] < len(s["headings"]):
+            target = s["headings"][s["index"]]
+            err = _wrap(target - self.sp[3])
+            if p.yaw_accel_dps2 > 0:
+                out.yawspeed = self._slew_yaw(err, dt, p.search_yaw_rate_dps)
+            else:
+                step = math.radians(min(p.yaw_rate_dps, p.search_yaw_rate_dps))*dt
+                self.sp[3] = _wrap(self.sp[3] + max(-step, min(step, err)))
+            if abs(err) < 1e-3 and abs(_wrap(target-v.heading)) < math.radians(p.face_tol_deg):
+                if s["settled"] is None:
+                    s["settled"] = now
+                if now-s["settled"] >= .3 and self.depth_t >= s["settled"]:
+                    s["index"] += 1
+                    s["settled"] = None
+            else:
+                s["settled"] = None
+            return
+        if self._path_fresh(now) and self.path["pid"] != s["old_pid"]:
+            self.search = None
+            self.recover = None
+            self.path_missing_since = None
+            self.counts["recoveries"] += 1
+            self._next_leg(now, out, v)  # turn to the new path, then repeat normal corridor checks
 
     def status(self, now):
         return {"phase": self.phase, "why": self.why, "result": self.result, "started_t": self.t_started, "leg": self.leg,
@@ -1963,5 +2036,7 @@ class Mission:
                 "depth_reject": None if self.depth_reject is None else self.depth_reject[1],
                 "health_bad_s": (None if math.isinf(self.health.bad_for(now)) else round(self.health.bad_for(now), 2)),
                 "recover": None if self.recover is None else {"kind": self.recover["kind"], "stage": self.phase},
+                "search": None if self.phase != "search" else {"directions_observed": self.search["index"],
+                    "attempt": self.search_attempts.get(self.leg, 0)},
                 "tunnel": self.tunnel_active, "align": self.align_result,
                 **self.counts}

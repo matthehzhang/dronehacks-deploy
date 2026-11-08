@@ -6,7 +6,7 @@ package_name = 'kestrel_nav'
 setup(
     name=package_name,
     version='0.1.0',
-    packages=[package_name, package_name + '.coursenav', package_name + '.livenav',
+    packages=[package_name, package_name + '.coursenav', package_name + '.livenav', package_name + '.searchnav',
               'refnav', 'coursenav', 'onboard', 'onboard.vio'],   # group119, vendored (kestral_nav934am)
     py_modules=['fly_course'],
     # the course file, the published OBJ and the prebuilt voxel map travel with the package
@@ -35,6 +35,7 @@ setup(
             'skybeta_health = refnav.skybeta_health:main',
             'tune_mission = kestrel_nav.tune_mission:main',
             'host_depth = kestrel_nav.host_depth:main',
+            'search_mission = kestrel_nav.searchnav.node:main',
         ],
     },
 )

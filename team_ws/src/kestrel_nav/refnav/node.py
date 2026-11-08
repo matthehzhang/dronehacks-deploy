@@ -392,6 +392,9 @@ class RefNav(Node):
         mi = self.mission
         if mi.targets is None:
             return
+        if int(d.get("leg", -1)) == mi.leg and d.get("valid") is False:
+            mi.path = None
+            return
         for j, ne in (d.get("targets_ne") or {}).items():
             j = int(j)
             if mi.leg < j < len(mi.targets) and len(ne) == 2 and all(math.isfinite(float(c)) for c in ne):

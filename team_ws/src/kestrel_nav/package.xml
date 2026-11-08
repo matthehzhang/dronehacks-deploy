@@ -20,6 +20,8 @@
   <exec_depend>isaac_ros_visual_slam_interfaces</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-scipy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
   <exec_depend>skybeta_flight_interface</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>

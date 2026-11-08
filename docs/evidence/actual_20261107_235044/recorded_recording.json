@@ -1,0 +1,16 @@
+{
+  "command": [
+    "ros2",
+    "bag",
+    "record",
+    "-s",
+    "mcap",
+    "-o",
+    "/out/bag",
+    "--max-cache-size",
+    "16777216",
+    "-e",
+    "^(/fmu/(out|in)/.*|/rosout|/tf|/tf_static|/oak/imu/data|/visual_slam/(tracking/odometry|status)|/skybeta/(state|setpoint/pose|setpoint/twist)|/estimator/healthy|/refnav/status|/kestrel_nav/live_status|/coursenav/(status|drift|px4_correction))$"
+  ],
+  "started_unix": 1794124246.1289685
+}

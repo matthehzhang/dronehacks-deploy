@@ -1,0 +1,175 @@
+  0.000 rosbag2_recorder: Subscribed to topic '/fmu/in/vehicle_command'
+  0.000 rosbag2_recorder: Subscribed to topic '/fmu/in/trajectory_setpoint'
+  0.000 rosbag2_recorder: Subscribed to topic '/fmu/in/offboard_control_mode'
+  0.000 rosbag2_recorder: Subscribed to topic '/estimator/healthy'
+  0.000 rosbag2_recorder: Subscribed to topic '/rosout'
+  0.000 rosbag2_recorder: Subscribed to topic '/coursenav/px4_correction'
+  0.000 rosbag2_recorder: Subscribed to topic '/coursenav/status'
+  0.000 rosbag2_recorder: Subscribed to topic '/coursenav/occupancy'
+  0.000 rosbag2_recorder: Subscribed to topic '/coursenav/drift'
+  0.000 rosbag2_recorder: Recording...
+  0.001 coursenav_loc: scan cost: mean 8.8 ms CPU/frame (p90 9.4 ms) over 50 frames
+  0.300 host_depth: depth frames 445  proc 102 ms  valid 64%
+  0.300 host_depth: depth frames 473  proc 115 ms  valid 65%
+  0.314 rosbag2_recorder: Subscribed to topic '/tf_static'
+  0.319 rosbag2_recorder: Subscribed to topic '/kestrel_nav/depth/camera_info'
+  0.940 host_depth: depth frames 496  proc 116 ms  valid 63%
+  1.049 rosbag2_recorder: Subscribed to topic '/fmu/in/vehicle_visual_odometry'
+  1.262 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_local_position'
+  1.264 rosbag2_recorder: Subscribed to topic '/fmu/out/battery_status'
+  1.265 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_status_v1'
+  1.268 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_land_detected'
+  1.897 rosbag2_recorder: Subscribed to topic '/oak/imu/data'
+  1.907 rosbag2_recorder: Subscribed to topic '/visual_slam/status'
+  1.911 rosbag2_recorder: Subscribed to topic '/tf'
+  1.915 rosbag2_recorder: Subscribed to topic '/visual_slam/tracking/odometry'
+  1.916 visual_slam_node: Delta between current and previous frame [66.669710 ms] is above threshold [40.000000 ms]
+  1.916 visual_slam_node: Delta between current and previous frame [66.665957 ms] is above threshold [40.000000 ms]
+  1.916 visual_slam_node: Delta between current and previous frame [66.666464 ms] is above threshold [40.000000 ms]
+  1.916 visual_slam_node: Delta between current and previous frame [66.664755 ms] is above threshold [40.000000 ms]
+  1.916 visual_slam_node: Delta between current and previous frame [66.668376 ms] is above threshold [40.000000 ms]
+  1.916 visual_slam_node: Delta between current and previous frame [100.000254 ms] is above threshold [40.000000 ms]
+  1.916 visual_slam_node: Delta between current and previous frame [66.667903 ms] is above threshold [40.000000 ms]
+  1.916 visual_slam_node: Delta between current and previous frame [66.667874 ms] is above threshold [40.000000 ms]
+  1.916 visual_slam_node: Delta between current and previous frame [66.666157 ms] is above threshold [40.000000 ms]
+  1.916 visual_slam_node: Delta between current and previous frame [66.665174 ms] is above threshold [40.000000 ms]
+  2.082 visual_slam_node: Delta between current and previous frame [66.666169 ms] is above threshold [40.000000 ms]
+  2.682 coursenav_loc: scan cost: mean 9.2 ms CPU/frame (p90 10.4 ms) over 50 frames
+  4.545 visual_slam_node: Delta between current and previous frame [100.000035 ms] is above threshold [40.000000 ms]
+  4.818 visual_slam_node: Delta between current and previous frame [66.666949 ms] is above threshold [40.000000 ms]
+  5.476 visual_slam_node: Delta between current and previous frame [66.667727 ms] is above threshold [40.000000 ms]
+  5.677 visual_slam_node: Delta between current and previous frame [66.668842 ms] is above threshold [40.000000 ms]
+  5.778 visual_slam_node: Delta between current and previous frame [66.665487 ms] is above threshold [40.000000 ms]
+  5.985 host_depth: depth frames 525  proc 142 ms  valid 65%
+  6.131 visual_slam_node: Delta between current and previous frame [66.665440 ms] is above threshold [40.000000 ms]
+  6.382 visual_slam_node: Delta between current and previous frame [66.667470 ms] is above threshold [40.000000 ms]
+  7.777 visual_slam_node: Delta between current and previous frame [66.666699 ms] is above threshold [40.000000 ms]
+  7.778 visual_slam_node: Delta between current and previous frame [66.666783 ms] is above threshold [40.000000 ms]
+  7.778 visual_slam_node: Delta between current and previous frame [66.666767 ms] is above threshold [40.000000 ms]
+  7.778 visual_slam_node: Delta between current and previous frame [66.664944 ms] is above threshold [40.000000 ms]
+  7.778 visual_slam_node: Delta between current and previous frame [66.667041 ms] is above threshold [40.000000 ms]
+  7.778 visual_slam_node: Delta between current and previous frame [66.667520 ms] is above threshold [40.000000 ms]
+ 10.006 flight_interface: auto offboard: armed: waiting for the switch to Position
+ 10.770 visual_slam_node: Delta between current and previous frame [66.664255 ms] is above threshold [40.000000 ms]
+ 10.770 visual_slam_node: Delta between current and previous frame [66.668277 ms] is above threshold [40.000000 ms]
+ 10.770 visual_slam_node: Delta between current and previous frame [66.669194 ms] is above threshold [40.000000 ms]
+ 10.770 visual_slam_node: Delta between current and previous frame [66.665861 ms] is above threshold [40.000000 ms]
+ 10.770 visual_slam_node: Delta between current and previous frame [66.665285 ms] is above threshold [40.000000 ms]
+ 10.770 visual_slam_node: Delta between current and previous frame [66.668834 ms] is above threshold [40.000000 ms]
+ 10.770 visual_slam_node: Delta between current and previous frame [66.664275 ms] is above threshold [40.000000 ms]
+ 10.770 visual_slam_node: Delta between current and previous frame [66.667245 ms] is above threshold [40.000000 ms]
+ 10.770 visual_slam_node: Delta between current and previous frame [133.333582 ms] is above threshold [40.000000 ms]
+ 10.770 visual_slam_node: Delta between current and previous frame [66.666716 ms] is above threshold [40.000000 ms]
+ 10.939 host_depth: depth frames 551  proc 128 ms  valid 63%
+ 11.173 visual_slam_node: Delta between current and previous frame [66.664631 ms] is above threshold [40.000000 ms]
+ 11.278 flight_interface: nav_state ALTCTL -> POSCTL
+ 11.298 flight_interface: auto offboard: switched to Position after arming: requesting Offboard
+ 11.332 flight_interface: nav_state POSCTL -> OFFBOARD
+ 11.338 refnav: arm -> climb
+ 11.397 flight_interface: auto offboard: Offboard active
+ 11.555 visual_slam_node: Delta between current and previous frame [66.665504 ms] is above threshold [40.000000 ms]
+ 11.580 visual_slam_node: Delta between current and previous frame [99.999305 ms] is above threshold [40.000000 ms]
+ 11.957 coursenav_loc: scan cost: mean 9.8 ms CPU/frame (p90 11.9 ms) over 50 frames
+ 12.050 refnav: EKF reset in flight: heading +0.0 deg, xy 0.00 m (counters (252, 81) -> (253, 81)): small, continuing
+ 12.178 visual_slam_node: Delta between current and previous frame [66.667783 ms] is above threshold [40.000000 ms]
+ 12.464 refnav: EKF reset in flight: heading +0.0 deg, xy 0.00 m (counters (253, 81) -> (254, 82)): small, continuing
+ 13.505 visual_slam_node: Delta between current and previous frame [66.666651 ms] is above threshold [40.000000 ms]
+ 13.533 visual_slam_node: Delta between current and previous frame [66.666342 ms] is above threshold [40.000000 ms]
+ 13.633 refnav: EKF reset in flight: heading +0.0 deg, xy 0.02 m (counters (254, 82) -> (255, 82)): small, continuing
+ 14.034 visual_slam_node: Delta between current and previous frame [133.332811 ms] is above threshold [40.000000 ms]
+ 14.074 refnav: EKF reset in flight: heading +0.0 deg, xy 0.01 m (counters (255, 82) -> (0, 82)): small, continuing
+ 14.882 refnav: EKF reset in flight: heading +0.5 deg, xy 0.03 m (counters (0, 82) -> (1, 83)): small, continuing
+ 15.435 visual_slam_node: Delta between current and previous frame [66.666620 ms] is above threshold [40.000000 ms]
+ 15.573 refnav: EKF reset in flight: heading +0.0 deg, xy 0.03 m (counters (1, 83) -> (2, 83)): small, continuing
+ 15.940 host_depth: depth frames 578  proc 112 ms  valid 80%
+ 16.141 refnav: climb -> turn: leg 1/5
+ 16.168 coursenav_nav: leg 1: pre-planned path 9.01 m
+ 16.289 refnav: turn -> check
+ 16.712 refnav: EKF reset in flight: heading -0.2 deg, xy 0.09 m (counters (2, 83) -> (3, 84)): small, continuing
+ 17.338 refnav: EKF reset in flight: heading +0.0 deg, xy 0.05 m (counters (3, 84) -> (4, 84)): small, continuing
+ 17.391 refnav: check -> go
+ 18.141 refnav: EKF reset in flight: heading +0.2 deg, xy 0.01 m (counters (4, 84) -> (5, 85)): small, continuing
+ 19.771 visual_slam_node: Delta between current and previous frame [66.666763 ms] is above threshold [40.000000 ms]
+ 19.771 visual_slam_node: Delta between current and previous frame [66.665853 ms] is above threshold [40.000000 ms]
+ 19.771 visual_slam_node: Delta between current and previous frame [66.666312 ms] is above threshold [40.000000 ms]
+ 19.771 visual_slam_node: Delta between current and previous frame [100.000665 ms] is above threshold [40.000000 ms]
+ 19.945 visual_slam_node: Delta between current and previous frame [66.664723 ms] is above threshold [40.000000 ms]
+ 20.250 visual_slam_node: Delta between current and previous frame [66.667019 ms] is above threshold [40.000000 ms]
+ 20.298 visual_slam_node: Delta between current and previous frame [66.666714 ms] is above threshold [40.000000 ms]
+ 20.310 visual_slam_node: Delta between current and previous frame [66.667764 ms] is above threshold [40.000000 ms]
+ 20.583 visual_slam_node: Delta between current and previous frame [66.667184 ms] is above threshold [40.000000 ms]
+ 20.601 visual_slam_node: Delta between current and previous frame [66.666580 ms] is above threshold [40.000000 ms]
+ 20.612 visual_slam_node: Delta between current and previous frame [99.999470 ms] is above threshold [40.000000 ms]
+ 20.674 refnav: EKF reset in flight: heading +0.0 deg, xy 0.05 m (counters (5, 85) -> (6, 86)): small, continuing
+ 20.940 host_depth: depth frames 601  proc 124 ms  valid 75%
+ 21.041 refnav: go -> turn: path corner on leg 1: stop and turn
+ 21.146 refnav: EKF reset in flight: heading +0.0 deg, xy 0.02 m (counters (6, 86) -> (7, 86)): small, continuing
+ 21.242 refnav: turn -> check
+ 21.694 refnav: check -> go
+ 21.749 refnav: EKF reset in flight: heading +0.3 deg, xy 0.00 m (counters (7, 86) -> (8, 87)): small, continuing
+ 21.825 coursenav_loc: scan cost: mean 10.0 ms CPU/frame (p90 10.9 ms) over 50 frames
+ 23.945 refnav: go -> blocked: route blocked: obstacle 0.93 m ahead on leg 1; holding up to 4 s
+ 25.942 host_depth: depth frames 638  proc 103 ms  valid 76%
+ 27.992 refnav: blocked -> backoff: still blocked after 4 s: backing off 0.20 m
+ 28.574 coursenav_loc: scan cost: mean 10.5 ms CPU/frame (p90 11.4 ms) over 50 frames
+ 28.739 refnav: backoff -> recheck: rechecking for 2 s
+ 29.242 refnav: recheck -> go: recovered: corridor clear again
+ 30.902 refnav: go -> blocked: route blocked: obstacle 0.95 m ahead on leg 1; holding up to 4 s
+ 30.988 host_depth: depth frames 674  proc 104 ms  valid 76%
+ 30.992 refnav: blocked -> go: recovered: corridor clear again
+ 31.752 refnav: go -> blocked: route blocked: obstacle 0.85 m ahead on leg 1; holding up to 4 s
+ 35.791 refnav: blocked -> backoff: still blocked after 4 s: backing off 0.20 m
+ 35.956 host_depth: depth frames 706  proc 105 ms  valid 75%
+ 35.966 coursenav_loc: scan cost: mean 10.7 ms CPU/frame (p90 11.4 ms) over 50 frames
+ 36.690 refnav: backoff -> recheck: rechecking for 2 s
+ 37.789 refnav: recheck -> go: recovered: corridor clear again
+ 37.841 refnav: tube: 0.173 m off the path on leg 1 > 0.111 m: holding until back inside 0.055 m
+ 38.198 refnav: go -> blocked: route blocked: obstacle 0.89 m ahead on leg 1; holding up to 4 s
+ 38.391 refnav: blocked -> go: recovered: corridor clear again
+ 38.745 refnav: go -> blocked: route blocked: obstacle 0.93 m ahead on leg 1; holding up to 4 s
+ 38.839 refnav: blocked -> go: recovered: corridor clear again
+ 38.890 refnav: tube: back inside 0.055 m on leg 1: advancing
+ 39.251 refnav: go -> blocked: route blocked: obstacle 0.92 m ahead on leg 1; holding up to 4 s
+ 39.391 refnav: blocked -> go: recovered: corridor clear again
+ 39.743 refnav: go -> blocked: route blocked: obstacle 0.90 m ahead on leg 1; holding up to 4 s
+ 39.892 refnav: blocked -> go: recovered: corridor clear again
+ 40.246 refnav: go -> blocked: route blocked: obstacle 0.87 m ahead on leg 1; holding up to 4 s
+ 40.389 refnav: blocked -> go: recovered: corridor clear again
+ 40.801 refnav: go -> blocked: route blocked: obstacle 0.86 m ahead on leg 1; holding up to 4 s
+ 40.987 host_depth: depth frames 744  proc 108 ms  valid 77%
+ 42.704 coursenav_loc: scan cost: mean 10.9 ms CPU/frame (p90 11.7 ms) over 50 frames
+ 44.840 refnav: blocked -> backoff: still blocked after 4 s: backing off 0.20 m
+ 45.742 refnav: backoff -> recheck: rechecking for 2 s
+ 45.968 host_depth: depth frames 780  proc 104 ms  valid 76%
+ 46.143 refnav: recheck -> go: recovered: corridor clear again
+ 46.510 refnav: go -> blocked: route blocked: obstacle 0.94 m ahead on leg 1; holding up to 4 s
+ 46.593 refnav: blocked -> go: recovered: corridor clear again
+ 48.294 refnav: go -> blocked: route blocked: obstacle 0.93 m ahead on leg 1; holding up to 4 s
+ 49.527 coursenav_loc: scan cost: mean 10.7 ms CPU/frame (p90 11.9 ms) over 50 frames
+ 50.942 host_depth: depth frames 818  proc 106 ms  valid 76%
+ 52.341 refnav: blocked -> backoff: still blocked after 4 s: backing off 0.20 m
+ 53.195 refnav: backoff -> recheck: rechecking for 2 s
+ 53.589 refnav: recheck -> go: recovered: corridor clear again
+ 53.641 refnav: tube: 0.131 m off the path on leg 1 > 0.111 m: holding until back inside 0.055 m
+ 55.096 refnav: tube: back inside 0.055 m on leg 1: advancing
+ 55.951 host_depth: depth frames 854  proc 129 ms  valid 79%
+ 56.423 coursenav_loc: scan cost: mean 10.8 ms CPU/frame (p90 11.6 ms) over 50 frames
+ 56.693 refnav: go -> blocked: route blocked: obstacle 0.94 m ahead on leg 1; holding up to 4 s
+ 56.842 refnav: blocked -> go: recovered: corridor clear again
+ 57.193 refnav: go -> blocked: route blocked: obstacle 0.84 m ahead on leg 1; holding up to 4 s
+ 60.961 host_depth: depth frames 888  proc 111 ms  valid 76%
+ 61.239 refnav: blocked -> backoff: still blocked after 4 s: backing off 0.20 m
+ 62.039 refnav: backoff -> recheck: rechecking for 2 s
+ 62.341 refnav: recheck -> go: recovered: corridor clear again
+ 62.799 refnav: go -> blocked: route blocked: obstacle 0.91 m ahead on leg 1; holding up to 4 s
+ 62.941 refnav: blocked -> go: recovered: corridor clear again
+ 63.386 coursenav_loc: scan cost: mean 10.6 ms CPU/frame (p90 11.3 ms) over 50 frames
+ 63.643 refnav: go -> blocked: route blocked: obstacle 0.94 m ahead on leg 1; holding up to 4 s
+ 63.790 refnav: blocked -> go: recovered: corridor clear again
+ 63.993 visual_slam_node: Delta between current and previous frame [100.000147 ms] is above threshold [40.000000 ms]
+ 64.343 refnav: go -> blocked: route blocked: obstacle 0.90 m ahead on leg 1; holding up to 4 s
+ 65.967 host_depth: depth frames 924  proc 116 ms  valid 76%
+ 67.710 flight_interface: nav_state OFFBOARD -> POSCTL
+ 67.742 refnav: blocked -> done: yielded: PX4 left Offboard (nav_state 2): a pilot or a failsafe has it
+ 67.750 refnav: mission done: yielded: PX4 left Offboard (nav_state 2): a pilot or a failsafe has it
+ 68.798 flight_interface: twist setpoint stale (1.09s > 1.00s) - holding position. A pose setpoint does not expire; a twist setpoint must be refreshed.

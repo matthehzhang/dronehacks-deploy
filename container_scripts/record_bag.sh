@@ -7,6 +7,7 @@
 #   record_bag.sh                       record until Ctrl-C
 #   record_bag.sh --duration 60         record 60 s and stop
 #   record_bag.sh --all                 every topic on the graph
+#   record_bag.sh --search              add map-free search/depth/command diagnostics
 #   record_bag.sh -o /bags/square-01    explicit output directory
 #   record_bag.sh -- --compression-mode file --compression-format zstd
 #
@@ -18,15 +19,17 @@ set -euo pipefail
 BAG_DIR="${BAG_DIR:-${BAGDIR:-/root/bags}}"
 DURATION=""
 RECORD_ALL=0
+RECORD_SEARCH=0
 OUTPUT=""
 EXTRA=()
 
- usage() { sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+ usage() { sed -n '2,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -d|--duration) DURATION="${2:-}"; shift 2 ;;
     -a|--all)      RECORD_ALL=1; shift ;;
+    --search)      RECORD_SEARCH=1; shift ;;
     -o|--output)   OUTPUT="${2:-}"; shift 2 ;;
     -h|--help)     usage; exit 0 ;;
     --)            shift; EXTRA=("$@"); break ;;
@@ -68,6 +71,18 @@ else
     /visual_slam/status
     /fmu/in/vehicle_visual_odometry
   )
+  if [[ ${RECORD_SEARCH} -eq 1 ]]; then
+    TOPICS+=(
+      /clock /tf /tf_static /rosout /oak/left/image_mono
+      /oak/rgb/image_raw /oak/rgb/camera_info
+      /kestrel_nav/depth /kestrel_nav/depth/camera_info
+      /estimator/healthy /skybeta/state /skybeta/setpoint/twist
+      /fmu/in/trajectory_setpoint /fmu/in/offboard_control_mode /fmu/in/vehicle_command
+      /searchnav/status /searchnav/occupancy /searchnav/traversability
+      /searchnav/path /searchnav/candidates /searchnav/command
+      /searchnav/target_image /searchnav/blue_mask /searchnav/opening
+    )
+  fi
   while IFS= read -r t; do
     if [[ -n "${t}" ]]; then TOPICS+=("${t}"); fi
   done < <(ros2 topic list 2>/dev/null | grep '^/fmu/out/' || true)

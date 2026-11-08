@@ -1,0 +1,509 @@
+{
+  "bag": "/mnt/c/Users/anshu/Downloads/20261107-201744_bag/20261107-201744_bag/bag/bag_0.mcap",
+  "duration_s": 70.90376353263855,
+  "counts": {
+    "/skybeta/setpoint/twist": 1355,
+    "/fmu/in/trajectory_setpoint": 710,
+    "/fmu/in/offboard_control_mode": 710,
+    "/rosout": 175,
+    "/coursenav/occupancy": 72,
+    "/coursenav/drift": 461,
+    "/coursenav/status": 142,
+    "/skybeta/state": 355,
+    "/estimator/healthy": 354,
+    "/tf_static": 4,
+    "/kestrel_nav/depth/camera_info": 463,
+    "/fmu/in/vehicle_visual_odometry": 2045,
+    "/fmu/out/battery_status": 6962,
+    "/fmu/out/vehicle_local_position": 6878,
+    "/fmu/out/vehicle_land_detected": 228,
+    "/fmu/out/vehicle_status_v1": 192,
+    "/oak/imu/data": 13546,
+    "/tf": 1800,
+    "/visual_slam/status": 2007,
+    "/visual_slam/tracking/odometry": 2008,
+    "/fmu/in/vehicle_command": 1
+  },
+  "decode_errors": {},
+  "unavailable_types": {
+    "/visual_slam/status": "No module named 'isaac_ros_visual_slam_interfaces'"
+  },
+  "starts_utc_epoch": 1794111471.2440698,
+  "ends_utc_epoch": 1794111542.1478333,
+  "events": [
+    {
+      "t": 1794111482.5224938,
+      "node": "flight_interface",
+      "level": 20,
+      "text": "nav_state ALTCTL -> POSCTL",
+      "relative_s": 11.27842402458191
+    },
+    {
+      "t": 1794111482.5764904,
+      "node": "flight_interface",
+      "level": 20,
+      "text": "nav_state POSCTL -> OFFBOARD",
+      "relative_s": 11.332420587539673
+    },
+    {
+      "t": 1794111482.5821354,
+      "node": "refnav",
+      "level": 20,
+      "text": "arm -> climb",
+      "relative_s": 11.33806562423706
+    },
+    {
+      "t": 1794111483.293607,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading +0.0 deg, xy 0.00 m (counters (252, 81) -> (253, 81)): small, continuing",
+      "relative_s": 12.049537181854248
+    },
+    {
+      "t": 1794111483.708178,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading +0.0 deg, xy 0.00 m (counters (253, 81) -> (254, 82)): small, continuing",
+      "relative_s": 12.464108228683472
+    },
+    {
+      "t": 1794111484.8770514,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading +0.0 deg, xy 0.02 m (counters (254, 82) -> (255, 82)): small, continuing",
+      "relative_s": 13.632981538772583
+    },
+    {
+      "t": 1794111485.3185303,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading +0.0 deg, xy 0.01 m (counters (255, 82) -> (0, 82)): small, continuing",
+      "relative_s": 14.074460506439209
+    },
+    {
+      "t": 1794111486.1262429,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading +0.5 deg, xy 0.03 m (counters (0, 82) -> (1, 83)): small, continuing",
+      "relative_s": 14.88217306137085
+    },
+    {
+      "t": 1794111486.8166044,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading +0.0 deg, xy 0.03 m (counters (1, 83) -> (2, 83)): small, continuing",
+      "relative_s": 15.572534561157227
+    },
+    {
+      "t": 1794111487.3854249,
+      "node": "refnav",
+      "level": 20,
+      "text": "climb -> turn: leg 1/5",
+      "relative_s": 16.14135503768921
+    },
+    {
+      "t": 1794111487.411849,
+      "node": "coursenav_nav",
+      "level": 20,
+      "text": "leg 1: pre-planned path 9.01 m",
+      "relative_s": 16.167779207229614
+    },
+    {
+      "t": 1794111487.5326388,
+      "node": "refnav",
+      "level": 20,
+      "text": "turn -> check",
+      "relative_s": 16.28856897354126
+    },
+    {
+      "t": 1794111487.955656,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading -0.2 deg, xy 0.09 m (counters (2, 83) -> (3, 84)): small, continuing",
+      "relative_s": 16.711586236953735
+    },
+    {
+      "t": 1794111488.5822122,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading +0.0 deg, xy 0.05 m (counters (3, 84) -> (4, 84)): small, continuing",
+      "relative_s": 17.33814239501953
+    },
+    {
+      "t": 1794111488.634854,
+      "node": "refnav",
+      "level": 20,
+      "text": "check -> go",
+      "relative_s": 17.39078426361084
+    },
+    {
+      "t": 1794111489.3852072,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading +0.2 deg, xy 0.01 m (counters (4, 84) -> (5, 85)): small, continuing",
+      "relative_s": 18.14113736152649
+    },
+    {
+      "t": 1794111491.9182723,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading +0.0 deg, xy 0.05 m (counters (5, 85) -> (6, 86)): small, continuing",
+      "relative_s": 20.67420244216919
+    },
+    {
+      "t": 1794111492.2851958,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> turn: path corner on leg 1: stop and turn",
+      "relative_s": 21.041126012802124
+    },
+    {
+      "t": 1794111492.3896708,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading +0.0 deg, xy 0.02 m (counters (6, 86) -> (7, 86)): small, continuing",
+      "relative_s": 21.14560103416443
+    },
+    {
+      "t": 1794111492.4855888,
+      "node": "refnav",
+      "level": 20,
+      "text": "turn -> check",
+      "relative_s": 21.2415189743042
+    },
+    {
+      "t": 1794111492.9383268,
+      "node": "refnav",
+      "level": 20,
+      "text": "check -> go",
+      "relative_s": 21.694257020950317
+    },
+    {
+      "t": 1794111492.9926744,
+      "node": "refnav",
+      "level": 20,
+      "text": "EKF reset in flight: heading +0.3 deg, xy 0.00 m (counters (7, 86) -> (8, 87)): small, continuing",
+      "relative_s": 21.74860453605652
+    },
+    {
+      "t": 1794111495.1892211,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.93 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 23.945151329040527
+    },
+    {
+      "t": 1794111499.235644,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> backoff: still blocked after 4 s: backing off 0.20 m",
+      "relative_s": 27.99157428741455
+    },
+    {
+      "t": 1794111499.9829113,
+      "node": "refnav",
+      "level": 20,
+      "text": "backoff -> recheck: rechecking for 2 s",
+      "relative_s": 28.73884153366089
+    },
+    {
+      "t": 1794111500.4858792,
+      "node": "refnav",
+      "level": 20,
+      "text": "recheck -> go: recovered: corridor clear again",
+      "relative_s": 29.241809368133545
+    },
+    {
+      "t": 1794111502.1465094,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.95 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 30.9024395942688
+    },
+    {
+      "t": 1794111502.2357411,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> go: recovered: corridor clear again",
+      "relative_s": 30.991671323776245
+    },
+    {
+      "t": 1794111502.99627,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.85 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 31.75220012664795
+    },
+    {
+      "t": 1794111507.0348673,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> backoff: still blocked after 4 s: backing off 0.20 m",
+      "relative_s": 35.79079747200012
+    },
+    {
+      "t": 1794111507.9344573,
+      "node": "refnav",
+      "level": 20,
+      "text": "backoff -> recheck: rechecking for 2 s",
+      "relative_s": 36.6903874874115
+    },
+    {
+      "t": 1794111509.0335507,
+      "node": "refnav",
+      "level": 20,
+      "text": "recheck -> go: recovered: corridor clear again",
+      "relative_s": 37.78948092460632
+    },
+    {
+      "t": 1794111509.4425087,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.89 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 38.19843888282776
+    },
+    {
+      "t": 1794111509.634969,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> go: recovered: corridor clear again",
+      "relative_s": 38.39089918136597
+    },
+    {
+      "t": 1794111509.9894474,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.93 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 38.74537754058838
+    },
+    {
+      "t": 1794111510.0833123,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> go: recovered: corridor clear again",
+      "relative_s": 38.839242458343506
+    },
+    {
+      "t": 1794111510.4949865,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.92 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 39.250916719436646
+    },
+    {
+      "t": 1794111510.63466,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> go: recovered: corridor clear again",
+      "relative_s": 39.39059019088745
+    },
+    {
+      "t": 1794111510.987421,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.90 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 39.743351221084595
+    },
+    {
+      "t": 1794111511.13622,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> go: recovered: corridor clear again",
+      "relative_s": 39.89215016365051
+    },
+    {
+      "t": 1794111511.4896438,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.87 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 40.24557399749756
+    },
+    {
+      "t": 1794111511.633542,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> go: recovered: corridor clear again",
+      "relative_s": 40.389472246170044
+    },
+    {
+      "t": 1794111512.0447545,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.86 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 40.800684690475464
+    },
+    {
+      "t": 1794111516.083888,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> backoff: still blocked after 4 s: backing off 0.20 m",
+      "relative_s": 44.839818239212036
+    },
+    {
+      "t": 1794111516.985704,
+      "node": "refnav",
+      "level": 20,
+      "text": "backoff -> recheck: rechecking for 2 s",
+      "relative_s": 45.741634130477905
+    },
+    {
+      "t": 1794111517.3872454,
+      "node": "refnav",
+      "level": 20,
+      "text": "recheck -> go: recovered: corridor clear again",
+      "relative_s": 46.14317560195923
+    },
+    {
+      "t": 1794111517.7543845,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.94 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 46.51031470298767
+    },
+    {
+      "t": 1794111517.8375325,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> go: recovered: corridor clear again",
+      "relative_s": 46.59346270561218
+    },
+    {
+      "t": 1794111519.537684,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.93 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 48.29361414909363
+    },
+    {
+      "t": 1794111523.5854154,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> backoff: still blocked after 4 s: backing off 0.20 m",
+      "relative_s": 52.34134554862976
+    },
+    {
+      "t": 1794111524.4390836,
+      "node": "refnav",
+      "level": 20,
+      "text": "backoff -> recheck: rechecking for 2 s",
+      "relative_s": 53.195013761520386
+    },
+    {
+      "t": 1794111524.832743,
+      "node": "refnav",
+      "level": 20,
+      "text": "recheck -> go: recovered: corridor clear again",
+      "relative_s": 53.58867311477661
+    },
+    {
+      "t": 1794111527.9368334,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.94 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 56.692763566970825
+    },
+    {
+      "t": 1794111528.0855699,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> go: recovered: corridor clear again",
+      "relative_s": 56.84150004386902
+    },
+    {
+      "t": 1794111528.4372118,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.84 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 57.19314193725586
+    },
+    {
+      "t": 1794111532.483188,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> backoff: still blocked after 4 s: backing off 0.20 m",
+      "relative_s": 61.23911809921265
+    },
+    {
+      "t": 1794111533.2831943,
+      "node": "refnav",
+      "level": 20,
+      "text": "backoff -> recheck: rechecking for 2 s",
+      "relative_s": 62.039124488830566
+    },
+    {
+      "t": 1794111533.585131,
+      "node": "refnav",
+      "level": 20,
+      "text": "recheck -> go: recovered: corridor clear again",
+      "relative_s": 62.34106111526489
+    },
+    {
+      "t": 1794111534.0426679,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.91 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 62.79859805107117
+    },
+    {
+      "t": 1794111534.184677,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> go: recovered: corridor clear again",
+      "relative_s": 62.94060707092285
+    },
+    {
+      "t": 1794111534.8871558,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.94 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 63.643085956573486
+    },
+    {
+      "t": 1794111535.0344808,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> go: recovered: corridor clear again",
+      "relative_s": 63.7904109954834
+    },
+    {
+      "t": 1794111535.5866446,
+      "node": "refnav",
+      "level": 20,
+      "text": "go -> blocked: route blocked: obstacle 0.90 m ahead on leg 1; holding up to 4 s",
+      "relative_s": 64.34257483482361
+    },
+    {
+      "t": 1794111538.9535944,
+      "node": "flight_interface",
+      "level": 20,
+      "text": "nav_state OFFBOARD -> POSCTL",
+      "relative_s": 67.70952463150024
+    },
+    {
+      "t": 1794111538.9858394,
+      "node": "refnav",
+      "level": 20,
+      "text": "blocked -> done: yielded: PX4 left Offboard (nav_state 2): a pilot or a failsafe has it",
+      "relative_s": 67.74176955223083
+    },
+    {
+      "t": 1794111538.9943922,
+      "node": "refnav",
+      "level": 20,
+      "text": "mission done: yielded: PX4 left Offboard (nav_state 2): a pilot or a failsafe has it",
+      "relative_s": 67.75032234191895
+    }
+  ],
+  "no_raw_images_or_depth": true,
+  "no_recorded_refnav_path": true,
+  "occupancy_messages": 72,
+  "health_false_samples": 0,
+  "max_command_yaw_dps": 20.432415279444765,
+  "yaw_command_samples_over_5dps": 64,
+  "vio_yaw_span_deg": 14.269527716370115,
+  "px4_yaw_span_deg": 14.919250505950552,
+  "grid_changes": 1,
+  "final_known_cells": 390,
+  "final_occupied_cells": 0,
+  "source_sha256": "14e7bcec2f6e69cf2e04121a67c5555fd2802295b2449388a653e9f1111beb94"
+}

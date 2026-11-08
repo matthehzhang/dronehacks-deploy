@@ -1,0 +1,189 @@
+  0.000 rosbag2_recorder: Press SPACE for pausing/resuming
+  0.000 rosbag2_recorder: Listening for topics...
+  0.000 rosbag2_recorder: Event publisher thread: Starting
+  0.000 rosbag2_recorder: Subscribed to topic '/rosout'
+  0.000 rosbag2_recorder: Recording...
+  3.173 base_link_to_oak: Spinning until stopped - publishing transform
+translation: ('0.105300', '0.000000', '0.030400')
+rotation: ('0.000000', '0.000000', '0.000000', '1.000000')
+from 'base_link' to 'oak_parent_frame'
+  3.257 rosbag2_recorder: Subscribed to topic '/tf_static'
+  3.343 vslam_container: Load Library: /opt/ros/humble/lib/libimage_format_converter_node.so
+  3.388 vslam_container: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::ImageFormatConverterNode>
+  3.388 vslam_container: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::ImageFormatConverterNode>
+  3.413 left_format_converter: [NitrosNode] Initializing NitrosNode
+  3.443 left_format_converter: [ImageFormatConverterNode] Set output data format to: "nitros_image_mono8"
+  3.443 left_format_converter: [NitrosNode] Starting NitrosNode
+  3.459 left_format_converter: [NitrosNode] Loading extensions
+  3.459 left_format_converter: [NitrosContext] Loading extension: gxf/lib/multimedia/libgxf_multimedia.so
+  3.461 rosbag2_recorder: Subscribed to topic '/tf'
+  3.463 left_format_converter: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_message_compositor.so
+  3.464 left_format_converter: [NitrosContext] Loading extension: gxf/lib/cuda/libgxf_cuda.so
+  3.468 left_format_converter: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_tensorops.so
+  3.474 left_format_converter: [NitrosNode] Loading graph to the optimizer
+  3.476 left_format_converter: [NitrosNode] Running optimization
+  3.493 oak_container: Load Library: /opt/ros/humble/lib/librobot_state_publisher_node.so
+  3.493 oak_container: Found class: rclcpp_components::NodeFactoryTemplate<robot_state_publisher::RobotStatePublisher>
+  3.493 oak_container: Instantiate class: rclcpp_components::NodeFactoryTemplate<robot_state_publisher::RobotStatePublisher>
+  3.493 oak_state_publisher: got segment oak
+  3.493 oak_state_publisher: got segment oak_model_origin
+  3.493 oak_state_publisher: got segment oak_parent_frame
+  3.493 oak_container: Load Library: /opt/ros/humble/lib/libdepthai_ros_driver_v3.so
+  3.568 left_format_converter: [NitrosNode] Obtaining graph IO group info from the optimizer
+  3.579 left_format_converter: [NitrosPublisherSubscriberGroup] Pinning the component "sink/sink" (type="nvidia::isaac_ros::MessageRelay") to use its compatible format only: "nitros_image_mono8"
+  3.586 left_format_converter: [NitrosNode] Starting negotiation...
+  3.591 vslam_container: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::ImageFormatConverterNode>
+  3.591 vslam_container: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::ImageFormatConverterNode>
+  3.604 oak_container: Found class: rclcpp_components::NodeFactoryTemplate<depthai_ros_driver::Driver>
+  3.604 oak_container: Instantiate class: rclcpp_components::NodeFactoryTemplate<depthai_ros_driver::Driver>
+  3.618 right_format_converter: [NitrosNode] Initializing NitrosNode
+  3.629 right_format_converter: [ImageFormatConverterNode] Set output data format to: "nitros_image_mono8"
+  3.629 right_format_converter: [NitrosNode] Starting NitrosNode
+  3.643 right_format_converter: [NitrosNode] Loading extensions
+  3.644 right_format_converter: [NitrosNode] Loading graph to the optimizer
+  3.646 right_format_converter: [NitrosNode] Running optimization
+  3.728 right_format_converter: [NitrosNode] Obtaining graph IO group info from the optimizer
+  3.742 right_format_converter: [NitrosPublisherSubscriberGroup] Pinning the component "sink/sink" (type="nvidia::isaac_ros::MessageRelay") to use its compatible format only: "nitros_image_mono8"
+  3.745 right_format_converter: [NitrosNode] Starting negotiation...
+  3.750 vslam_container: Load Library: /opt/ros/humble/lib/libvisual_slam_node.so
+  3.792 vslam_container: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::visual_slam::VisualSlamNode>
+  3.792 vslam_container: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::visual_slam::VisualSlamNode>
+  3.811 left_format_converter: Negotiating
+  3.811 left_format_converter: Could not negotiate
+  3.813 right_format_converter: Negotiating
+  3.813 right_format_converter: Could not negotiate
+  3.844 visual_slam_node: cuVSLAM version: 12.6
+  3.870 rosbag2_recorder: Subscribed to topic '/visual_slam/status'
+  3.873 rosbag2_recorder: Subscribed to topic '/visual_slam/tracking/odometry'
+  3.949 visual_slam_node: Time taken by CUVSLAM_WarmUpGPU(): 0.104618
+  4.587 left_format_converter: [NitrosNode] Starting post negotiation setup
+  4.587 left_format_converter: [NitrosNode] Getting data format negotiation results
+  4.587 left_format_converter: [NitrosPublisher] Negotiation ended with no results
+  4.587 left_format_converter: [NitrosPublisher] Use only the compatible publisher: topic_name="/oak/left/image_mono", data_format="nitros_image_mono8"
+  4.587 left_format_converter: [NitrosSubscriber] Negotiation ended with no results
+  4.587 left_format_converter: [NitrosSubscriber] Use the compatible subscriber: topic_name="/oak/left/image_raw", data_format="nitros_image_rgb8"
+  4.587 left_format_converter: [NitrosNode] Exporting the final graph based on the negotiation results
+  4.601 left_format_converter: [NitrosNode] Wrote the final top level YAML graph to "/tmp/isaac_ros_nitros/graphs/WJVOWQNLZW/WJVOWQNLZW.yaml"
+  4.601 left_format_converter: [NitrosNode] Loading application
+  4.603 left_format_converter: [ImageFormatConverterNode] postLoadGraphCallback().
+  4.604 left_format_converter: [NitrosNode] Initializing and running GXF graph
+  4.626 oak: Starting driver.
+  4.628 left_format_converter: [NitrosNode] Node was started
+  4.629 oak: No ip/ID specified, connecting to the next available device.
+  4.746 right_format_converter: [NitrosNode] Starting post negotiation setup
+  4.746 right_format_converter: [NitrosNode] Getting data format negotiation results
+  4.746 right_format_converter: [NitrosPublisher] Negotiation ended with no results
+  4.746 right_format_converter: [NitrosPublisher] Use only the compatible publisher: topic_name="/oak/right/image_mono", data_format="nitros_image_mono8"
+  4.746 right_format_converter: [NitrosSubscriber] Negotiation ended with no results
+  4.746 right_format_converter: [NitrosSubscriber] Use the compatible subscriber: topic_name="/oak/right/image_raw", data_format="nitros_image_rgb8"
+  4.746 right_format_converter: [NitrosNode] Exporting the final graph based on the negotiation results
+  4.761 right_format_converter: [NitrosNode] Wrote the final top level YAML graph to "/tmp/isaac_ros_nitros/graphs/QRMGHQJIIJ/QRMGHQJIIJ.yaml"
+  4.761 right_format_converter: [NitrosNode] Loading application
+  4.762 right_format_converter: [ImageFormatConverterNode] postLoadGraphCallback().
+  4.762 right_format_converter: [NitrosNode] Initializing and running GXF graph
+  4.767 right_format_converter: [NitrosNode] Node was started
+  5.927 rosbag2_recorder: Subscribed to topic '/fmu/out/position_setpoint_triplet'
+  5.930 rosbag2_recorder: Subscribed to topic '/fmu/out/mode_completed'
+  5.931 rosbag2_recorder: Subscribed to topic '/fmu/out/message_format_response'
+  5.933 rosbag2_recorder: Subscribed to topic '/fmu/out/manual_control_setpoint'
+  5.934 rosbag2_recorder: Subscribed to topic '/fmu/out/timesync_status'
+  5.935 rosbag2_recorder: Subscribed to topic '/fmu/out/register_ext_component_reply'
+  5.937 rosbag2_recorder: Subscribed to topic '/fmu/out/failsafe_flags'
+  5.939 rosbag2_recorder: Subscribed to topic '/fmu/out/estimator_status_flags'
+  5.940 rosbag2_recorder: Subscribed to topic '/fmu/out/sensor_combined'
+  5.942 rosbag2_recorder: Subscribed to topic '/fmu/out/collision_constraints'
+  5.943 rosbag2_recorder: Subscribed to topic '/fmu/out/battery_status'
+  5.945 rosbag2_recorder: Subscribed to topic '/fmu/out/arming_check_request'
+  6.052 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_control_mode'
+  6.053 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_land_detected'
+  6.055 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_attitude'
+  6.057 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_gps_position'
+  6.058 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_command_ack'
+  6.059 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_global_position'
+  6.061 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_local_position'
+  6.062 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_odometry'
+  6.171 rosbag2_recorder: Subscribed to topic '/fmu/out/vehicle_status_v1'
+  6.280 rosbag2_recorder: Subscribed to topic '/fmu/out/vtol_vehicle_status'
+  6.283 rosbag2_recorder: Subscribed to topic '/fmu/out/home_position'
+  6.285 rosbag2_recorder: Subscribed to topic '/fmu/out/airspeed_validated'
+  7.594 oak: Driver with ID: 19443010F1D45F4800 and Name: 1.2.3 connected!
+  7.596 oak: USB SPEED: SUPER
+  7.676 oak: Device type: OAK-D-S2
+  7.731 oak: Creating pipeline for device: OAK-D-S2
+  7.732 oak: Pipeline type: stereo
+  7.990 rosbag2_recorder: Subscribed to topic '/oak/imu/data'
+  7.992 oak: Finished setting up pipeline.
+  8.259 oak: Published URDF
+  8.495 oak: If you detect any issues with Kilted release, please report issues to GH: https://github.com/luxonis/depthai-ros/issues/719
+  8.501 oak: Driver ready!
+  8.516 oak_state_publisher: got segment oak
+  8.516 oak_state_publisher: got segment oak_model_origin
+  8.516 oak_state_publisher: got segment oak_parent_frame
+  8.700 visual_slam_node: Initializing cuVSLAM.
+  8.701 visual_slam_node: Use use_gpu: true
+  8.701 visual_slam_node: Enable IMU Fusion: false
+  9.069 visual_slam_node: Time taken by CUVSLAM_CreateTracker(): 0.367781
+  9.069 visual_slam_node: cuVSLAM tracker was successfully initialized.
+  9.426 visual_slam_node: Delta between current and previous frame [399.993675 ms] is above threshold [40.000000 ms]
+ 12.496 px4_odom_bridge: PX4 odom bridge up: /visual_slam/tracking/odometry -> /fmu/in/vehicle_visual_odometry (velocity=on, pose_frame=FRD[2], status=/visual_slam/status)
+ 12.506 rosbag2_recorder: Subscribed to topic '/fmu/in/vehicle_visual_odometry'
+ 23.601 rosbag2_recorder: Subscribed to topic '/estimator/healthy'
+ 24.471 rosbag2_recorder: Subscribed to topic '/skybeta/state'
+ 24.479 rosbag2_recorder: Subscribed to topic '/fmu/in/vehicle_command'
+ 24.497 rosbag2_recorder: Subscribed to topic '/fmu/in/trajectory_setpoint'
+ 24.513 rosbag2_recorder: Subscribed to topic '/fmu/in/offboard_control_mode'
+ 24.519 flight_interface: skybeta flight interface up @ 10.0 Hz
+  envelope: altitude 0.30-3.00 m, speed <= 1.50 m/s
+  px4_msgs msg dir: /root/skybeta_ws/install/px4_msgs/share/px4_msgs/msg
+  resolved topics:
+    offboard_control_mode    /fmu/in/offboard_control_mode
+    trajectory_setpoint      /fmu/in/trajectory_setpoint
+    vehicle_command          /fmu/in/vehicle_command
+    vehicle_land_detected    /fmu/out/vehicle_land_detected
+    vehicle_local_position   /fmu/out/vehicle_local_position
+    vehicle_status           /fmu/out/vehicle_status_v1
+  mode requests: disabled
+  Offboard on the switch to Position after arming: ON
+ 24.519 flight_interface: This node never arms: the safety pilot does, on RC.
+ 24.908 flight_interface: envelope origin captured at ENU (0.00, -0.00, -0.00); altitude 0.30-3.00 m, speed <= 1.50 m/s
+ 24.919 flight_interface: PX4 link up: nav_state=1 (ALTCTL), armed=False
+ 27.549 host_depth: host_depth: /oak/left/image_mono + /oak/right/image_mono -> /kestrel_nav/depth at <= 8.0 Hz, scale 0.5, 64 disparities, 2 threads
+ 27.549 host_depth: rectified 1024x640 -> 512x320  f=335.7px  baseline=75.3mm  swap=False  min depth 0.39 m at 64 disparities
+ 30.566 host_depth: depth frames 35  proc 74 ms  valid 66%
+ 35.588 host_depth: depth frames 72  proc 78 ms  valid 65%
+ 37.991 rosbag2_recorder: Subscribed to topic '/coursenav/status'
+ 38.109 rosbag2_recorder: Subscribed to topic '/coursenav/drift'
+ 38.112 rosbag2_recorder: Subscribed to topic '/coursenav/px4_correction'
+ 38.750 coursenav_loc: height from /fmu/out/vehicle_local_position dist_bottom (fallback landed_z_m - z)
+ 38.754 coursenav_loc: shadow localizer: prior [-2.515  0.914  1.571] sigma (0.05, 0.03490658503988659); depth /kestrel_nav/depth; log /root/team_ws/src/kestrel_nav/logs/coursenav_20261108T075125.csv
+ 38.759 coursenav_loc: particle filter initialised from the course start prior
+ 40.577 host_depth: depth frames 108  proc 58 ms  valid 65%
+ 44.884 coursenav_loc: scan cost: mean 9.5 ms CPU/frame (p90 10.3 ms) over 50 frames
+ 45.564 host_depth: depth frames 148  proc 41 ms  valid 63%
+ 50.566 host_depth: depth frames 187  proc 42 ms  valid 67%
+ 51.228 coursenav_loc: scan cost: mean 9.5 ms CPU/frame (p90 10.5 ms) over 50 frames
+ 55.218 coursenav_nav: navigator: 5 legs (3 path legs), cruise 0.50 m/s, buffer 0.41 m
+ 55.381 coursenav_nav: pre-planned leg 1: 5.66 m, 2 stop corners
+ 55.409 coursenav_nav: pre-planned leg 3: 2.83 m, 0 stop corners
+ 55.415 coursenav_nav: pre-planned leg 5: 1.71 m, 0 stop corners
+ 55.416 coursenav_nav: pre-planned 3 path legs in 0.2 s
+ 55.564 host_depth: depth frames 227  proc 50 ms  valid 68%
+ 57.466 rosbag2_recorder: Subscribed to topic '/refnav/status'
+ 57.468 rosbag2_recorder: Subscribed to topic '/skybeta/setpoint/twist'
+ 57.502 refnav: skybeta output: twist only, no /fmu/in; PX4 topics /fmu/out/vehicle_local_position, /fmu/out/vehicle_status_v1, /fmu/out/vehicle_land_detected
+ 57.502 refnav: route 5 legs; depth /kestrel_nav/depth; health /estimator/healthy; sim time False
+ 57.502 refnav: depth frame not used (1x): no TF base_link <- oak_left_rect_frame (ConnectivityException)
+ 57.615 coursenav_loc: scan cost: mean 9.6 ms CPU/frame (p90 10.4 ms) over 50 frames
+ 57.846 refnav: calibration from TF: base_link <- oak_left_rect_frame t=(0.106,0.038,0.031) optical axis 0.5 deg off forward
+ 60.564 host_depth: depth frames 266  proc 45 ms  valid 68%
+ 60.869 refnav: wait -> arm
+ 63.928 coursenav_loc: scan cost: mean 9.5 ms CPU/frame (p90 10.6 ms) over 50 frames
+ 65.566 host_depth: depth frames 305  proc 49 ms  valid 68%
+ 70.261 coursenav_loc: scan cost: mean 9.4 ms CPU/frame (p90 10.1 ms) over 50 frames
+ 70.568 host_depth: depth frames 345  proc 37 ms  valid 67%
+ 73.074 flight_interface: auto offboard: armed: waiting for the switch to Position
+ 74.692 flight_interface: nav_state ALTCTL -> POSCTL
+ 74.774 flight_interface: auto offboard: switched to Position after arming: requesting Offboard
+ 74.806 flight_interface: nav_state POSCTL -> OFFBOARD
+ 74.821 refnav: arm -> climb
+ 74.873 flight_interface: auto offboard: Offboard active

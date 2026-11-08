@@ -53,6 +53,7 @@ class Navigator:
         self.p = params or NavParams()
         self._fused = (obst, blocked, self._effective(clearance, blocked))
         self._lm_count = 0
+        self._lm_cached = np.zeros(obst.occ.shape, bool)
         self.t_plan = None
         self.path: Path | None = None
         self.goals = None
@@ -74,9 +75,10 @@ class Navigator:
             return self._fused
         lm = self.live.landmarks()
         n = int(lm.sum())
-        if n == self._lm_count:
+        if np.array_equal(lm, self._lm_cached):
             return self._fused
         self._lm_count = n
+        self._lm_cached = lm.copy()
         occ = self.prior_obst.occ | lm
         clear = ndimage.distance_transform_edt(~occ) * self.prior_obst.res
         blocked = Grid2D(self.prior_blocked.occ | (clear < self.need), self.prior_obst.origin, self.prior_obst.res)
@@ -84,7 +86,7 @@ class Navigator:
         return self._fused
 
     def map_changed(self):
-        return self.live is not None and int(self.live.landmarks().sum()) != self._lm_count
+        return self.live is not None and not np.array_equal(self.live.landmarks(), self._lm_cached)
 
     # ------------------------------------------------------------------ planning
     def _free_start(self, start, blocked, clear):

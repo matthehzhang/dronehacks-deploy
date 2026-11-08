@@ -6,7 +6,6 @@ reports health, with the bridge's rule: cuVSLAM odometry passes VioHealth (no im
 a quiet interval after a bad sample), tracking status is success, and the last good sample is fresher
 than health_stale_s. It publishes NOTHING to PX4."""
 import math
-import time
 
 import rclpy
 from nav_msgs.msg import Odometry
@@ -46,10 +45,13 @@ class SkybetaHealth(Node):
         p = m.pose.pose.position
         ok, self.reason = self.health.update(t, (p.x, p.y, p.z))
         if ok:
-            self.last_good = time.monotonic()
+            # Same clock as the ROS timer and the mission. Wall-time freshness
+            # falsely expires when a valid simulated freeze runs below real time.
+            self.last_good = self.get_clock().now().nanoseconds * 1e-9
 
     def _healthy(self):
-        return bool(self.tracking_ok and self.last_good is not None and 0 <= time.monotonic() - self.last_good < self.stale_s)
+        now = self.get_clock().now().nanoseconds * 1e-9
+        return bool(self.tracking_ok and self.last_good is not None and 0 <= now - self.last_good < self.stale_s)
 
     def _publish(self):
         self.pub.publish(Bool(data=self._healthy()))
