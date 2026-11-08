@@ -62,3 +62,22 @@ Both sim localizers refused startup because upstream declared `min_fit_frac` twi
 The prior monitor now reuses the PF parameter value, preserving threshold and overrides.
 No simulated pilot armed during the failed attempt. Native build/import/launch-description
 checks did not expose this constructor-only error; the live ROS startup did.
+
+## Constructor fix verified on the actual drone
+
+`tools/check_localizer_startup.py` passed twice on skybeta-14 ARM64 / ROS Humble:
+default fit 0.35 and custom fit 0.42. Both PF and prior monitor retained the requested
+value. The complete constructor loaded the new map and live/local grids; timers ran
+for 1.2 seconds; shutdown completed cleanly. Domain 77 isolated these checks from
+flight traffic. This verifies startup and timer paths, not future sensor callbacks
+or hardware flight reliability. Four strict constructor regression cases also pass.
+Both Gazebo localizers subsequently initialized and published ready=true with prior
+placed and fit=1.0; the original startup failure is preserved in simulation evidence.
+
+## Range investigation
+
+See `docs/evidence/blocked_recovery_20261108/RANGE_FINDINGS.md` and the reproducible
+range probe. Out-of-range/invalid forward stereo becomes unknown, not a near wall.
+Unknown coverage can stop and eventually land the policy. The retained real-bag
+segment instead shows finite near obstacle hits and eventual Offboard exit; depth
+images were absent, so the causes of those near returns cannot be established.

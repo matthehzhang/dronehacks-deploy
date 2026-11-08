@@ -1,0 +1,6 @@
+[INFO] [1794126931.931986963] [coursenav_loc]: height from /fmu/out/vehicle_local_position dist_bottom (fallback landed_z_m - z)
+[INFO] [1794126931.934779555] [coursenav_loc]: shadow localizer: prior [-2.515  0.914  1.571] sigma (0.05, 0.03490658503988659); depth /camera/depth/image_raw; log /tmp/localizer-startup-hccdf9g_/coursenav_20261108T083531.csv
+{"result": "PASS", "fit": 0.35, "restore_fit": 0.35, "course": "/root/team_ws/policies/blocked-recovery/src/kestrel_nav/course/course_new_origin.json", "domain": 77, "live_map": true, "local_map": true}
+[INFO] [1794126941.982293650] [coursenav_loc]: height from /fmu/out/vehicle_local_position dist_bottom (fallback landed_z_m - z)
+[INFO] [1794126941.985377480] [coursenav_loc]: shadow localizer: prior [-2.515  0.914  1.571] sigma (0.05, 0.03490658503988659); depth /camera/depth/image_raw; log /tmp/localizer-startup-pgwa6scy/coursenav_20261108T083541.csv
+{"result": "PASS", "fit": 0.42, "restore_fit": 0.42, "course": "/root/team_ws/policies/blocked-recovery/src/kestrel_nav/course/course_new_origin.json", "domain": 77, "live_map": true, "local_map": true}

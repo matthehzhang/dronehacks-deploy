@@ -1,0 +1,415 @@
+{
+  "bag": "drone_logs/flight_logs/20261107-201744_bag/bag/bag_0.recovered.mcap",
+  "rows": [
+    {
+      "t": 1794111471.5443904,
+      "node": "host_depth",
+      "message": "depth frames 445  proc 102 ms  valid 64%"
+    },
+    {
+      "t": 1794111471.544456,
+      "node": "host_depth",
+      "message": "depth frames 473  proc 115 ms  valid 65%"
+    },
+    {
+      "t": 1794111472.183964,
+      "node": "host_depth",
+      "message": "depth frames 496  proc 116 ms  valid 63%"
+    },
+    {
+      "t": 1794111477.2289386,
+      "node": "host_depth",
+      "message": "depth frames 525  proc 142 ms  valid 65%"
+    },
+    {
+      "t": 1794111482.1834328,
+      "node": "host_depth",
+      "message": "depth frames 551  proc 128 ms  valid 63%"
+    },
+    {
+      "t": 1794111482.5821352,
+      "node": "refnav",
+      "message": "arm -> climb"
+    },
+    {
+      "t": 1794111483.293607,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading +0.0 deg, xy 0.00 m (counters (252, 81) -> (253, 81)): small, continuing"
+    },
+    {
+      "t": 1794111483.7081778,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading +0.0 deg, xy 0.00 m (counters (253, 81) -> (254, 82)): small, continuing"
+    },
+    {
+      "t": 1794111484.877051,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading +0.0 deg, xy 0.02 m (counters (254, 82) -> (255, 82)): small, continuing"
+    },
+    {
+      "t": 1794111485.3185303,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading +0.0 deg, xy 0.01 m (counters (255, 82) -> (0, 82)): small, continuing"
+    },
+    {
+      "t": 1794111486.1262429,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading +0.5 deg, xy 0.03 m (counters (0, 82) -> (1, 83)): small, continuing"
+    },
+    {
+      "t": 1794111486.8166041,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading +0.0 deg, xy 0.03 m (counters (1, 83) -> (2, 83)): small, continuing"
+    },
+    {
+      "t": 1794111487.1836116,
+      "node": "host_depth",
+      "message": "depth frames 578  proc 112 ms  valid 80%"
+    },
+    {
+      "t": 1794111487.3854246,
+      "node": "refnav",
+      "message": "climb -> turn: leg 1/5"
+    },
+    {
+      "t": 1794111487.5326388,
+      "node": "refnav",
+      "message": "turn -> check"
+    },
+    {
+      "t": 1794111487.955656,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading -0.2 deg, xy 0.09 m (counters (2, 83) -> (3, 84)): small, continuing"
+    },
+    {
+      "t": 1794111488.5822122,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading +0.0 deg, xy 0.05 m (counters (3, 84) -> (4, 84)): small, continuing"
+    },
+    {
+      "t": 1794111488.6348538,
+      "node": "refnav",
+      "message": "check -> go"
+    },
+    {
+      "t": 1794111489.385207,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading +0.2 deg, xy 0.01 m (counters (4, 84) -> (5, 85)): small, continuing"
+    },
+    {
+      "t": 1794111491.9182723,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading +0.0 deg, xy 0.05 m (counters (5, 85) -> (6, 86)): small, continuing"
+    },
+    {
+      "t": 1794111492.183954,
+      "node": "host_depth",
+      "message": "depth frames 601  proc 124 ms  valid 75%"
+    },
+    {
+      "t": 1794111492.2851958,
+      "node": "refnav",
+      "message": "go -> turn: path corner on leg 1: stop and turn"
+    },
+    {
+      "t": 1794111492.3896706,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading +0.0 deg, xy 0.02 m (counters (6, 86) -> (7, 86)): small, continuing"
+    },
+    {
+      "t": 1794111492.4855888,
+      "node": "refnav",
+      "message": "turn -> check"
+    },
+    {
+      "t": 1794111492.9383268,
+      "node": "refnav",
+      "message": "check -> go"
+    },
+    {
+      "t": 1794111492.9926744,
+      "node": "refnav",
+      "message": "EKF reset in flight: heading +0.3 deg, xy 0.00 m (counters (7, 86) -> (8, 87)): small, continuing"
+    },
+    {
+      "t": 1794111495.1892211,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.93 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111497.1864882,
+      "node": "host_depth",
+      "message": "depth frames 638  proc 103 ms  valid 76%"
+    },
+    {
+      "t": 1794111499.2356439,
+      "node": "refnav",
+      "message": "blocked -> backoff: still blocked after 4 s: backing off 0.20 m"
+    },
+    {
+      "t": 1794111499.9829113,
+      "node": "refnav",
+      "message": "backoff -> recheck: rechecking for 2 s"
+    },
+    {
+      "t": 1794111500.485879,
+      "node": "refnav",
+      "message": "recheck -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111502.1465094,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.95 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111502.2316484,
+      "node": "host_depth",
+      "message": "depth frames 674  proc 104 ms  valid 76%"
+    },
+    {
+      "t": 1794111502.235741,
+      "node": "refnav",
+      "message": "blocked -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111502.99627,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.85 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111507.0348673,
+      "node": "refnav",
+      "message": "blocked -> backoff: still blocked after 4 s: backing off 0.20 m"
+    },
+    {
+      "t": 1794111507.2002757,
+      "node": "host_depth",
+      "message": "depth frames 706  proc 105 ms  valid 75%"
+    },
+    {
+      "t": 1794111507.934457,
+      "node": "refnav",
+      "message": "backoff -> recheck: rechecking for 2 s"
+    },
+    {
+      "t": 1794111509.0335505,
+      "node": "refnav",
+      "message": "recheck -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111509.0847898,
+      "node": "refnav",
+      "message": "tube: 0.173 m off the path on leg 1 > 0.111 m: holding until back inside 0.055 m"
+    },
+    {
+      "t": 1794111509.4425085,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.89 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111509.6349688,
+      "node": "refnav",
+      "message": "blocked -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111509.989447,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.93 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111510.083312,
+      "node": "refnav",
+      "message": "blocked -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111510.1341531,
+      "node": "refnav",
+      "message": "tube: back inside 0.055 m on leg 1: advancing"
+    },
+    {
+      "t": 1794111510.4949865,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.92 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111510.6346598,
+      "node": "refnav",
+      "message": "blocked -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111510.987421,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.90 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111511.13622,
+      "node": "refnav",
+      "message": "blocked -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111511.4896438,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.87 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111511.6335418,
+      "node": "refnav",
+      "message": "blocked -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111512.0447545,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.86 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111512.23129,
+      "node": "host_depth",
+      "message": "depth frames 744  proc 108 ms  valid 77%"
+    },
+    {
+      "t": 1794111516.0838878,
+      "node": "refnav",
+      "message": "blocked -> backoff: still blocked after 4 s: backing off 0.20 m"
+    },
+    {
+      "t": 1794111516.985704,
+      "node": "refnav",
+      "message": "backoff -> recheck: rechecking for 2 s"
+    },
+    {
+      "t": 1794111517.2120948,
+      "node": "host_depth",
+      "message": "depth frames 780  proc 104 ms  valid 76%"
+    },
+    {
+      "t": 1794111517.3872454,
+      "node": "refnav",
+      "message": "recheck -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111517.7543843,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.94 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111517.8375325,
+      "node": "refnav",
+      "message": "blocked -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111519.537684,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.93 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111522.1856809,
+      "node": "host_depth",
+      "message": "depth frames 818  proc 106 ms  valid 76%"
+    },
+    {
+      "t": 1794111523.5854151,
+      "node": "refnav",
+      "message": "blocked -> backoff: still blocked after 4 s: backing off 0.20 m"
+    },
+    {
+      "t": 1794111524.4390836,
+      "node": "refnav",
+      "message": "backoff -> recheck: rechecking for 2 s"
+    },
+    {
+      "t": 1794111524.832743,
+      "node": "refnav",
+      "message": "recheck -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111524.884653,
+      "node": "refnav",
+      "message": "tube: 0.131 m off the path on leg 1 > 0.111 m: holding until back inside 0.055 m"
+    },
+    {
+      "t": 1794111526.3405018,
+      "node": "refnav",
+      "message": "tube: back inside 0.055 m on leg 1: advancing"
+    },
+    {
+      "t": 1794111527.1952326,
+      "node": "host_depth",
+      "message": "depth frames 854  proc 129 ms  valid 79%"
+    },
+    {
+      "t": 1794111527.9368334,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.94 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111528.0855699,
+      "node": "refnav",
+      "message": "blocked -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111528.4372118,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.84 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111532.2052157,
+      "node": "host_depth",
+      "message": "depth frames 888  proc 111 ms  valid 76%"
+    },
+    {
+      "t": 1794111532.4831877,
+      "node": "refnav",
+      "message": "blocked -> backoff: still blocked after 4 s: backing off 0.20 m"
+    },
+    {
+      "t": 1794111533.283194,
+      "node": "refnav",
+      "message": "backoff -> recheck: rechecking for 2 s"
+    },
+    {
+      "t": 1794111533.5851307,
+      "node": "refnav",
+      "message": "recheck -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111534.0426679,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.91 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111534.184677,
+      "node": "refnav",
+      "message": "blocked -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111534.8871558,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.94 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111535.0344806,
+      "node": "refnav",
+      "message": "blocked -> go: recovered: corridor clear again"
+    },
+    {
+      "t": 1794111535.5866444,
+      "node": "refnav",
+      "message": "go -> blocked: route blocked: obstacle 0.90 m ahead on leg 1; holding up to 4 s"
+    },
+    {
+      "t": 1794111537.2110114,
+      "node": "host_depth",
+      "message": "depth frames 924  proc 116 ms  valid 76%"
+    },
+    {
+      "t": 1794111538.9858394,
+      "node": "refnav",
+      "message": "blocked -> done: yielded: PX4 left Offboard (nav_state 2): a pilot or a failsafe has it"
+    },
+    {
+      "t": 1794111538.9943922,
+      "node": "refnav",
+      "message": "mission done: yielded: PX4 left Offboard (nav_state 2): a pilot or a failsafe has it"
+    }
+  ]
+}
