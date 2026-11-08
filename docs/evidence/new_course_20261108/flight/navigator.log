@@ -1,0 +1,9 @@
+[INFO] [1794120713.480140690] [coursenav_nav]: navigator: 5 legs (3 path legs), cruise 0.50 m/s, buffer 0.41 m
+[INFO] [1794120713.699463713] [coursenav_nav]: pre-planned leg 1: 5.66 m, 2 stop corners
+[INFO] [1794120713.738430519] [coursenav_nav]: pre-planned leg 3: 2.83 m, 0 stop corners
+[INFO] [1794120713.753669668] [coursenav_nav]: pre-planned leg 5: 1.71 m, 0 stop corners
+[INFO] [1794120713.754082305] [coursenav_nav]: pre-planned 3 path legs in 0.3 s
+[INFO] [1794120736.714501814] [coursenav_nav]: leg 1: pre-planned path 5.66 m
+[INFO] [1794120755.545499630] [coursenav_nav]: leg 1: path 4.26 m, 1 stop corners, est 13.1 s
+[INFO] [1794120795.708710515] [coursenav_nav]: leg 3: pre-planned path 2.83 m
+[INFO] [1794120827.401789005] [coursenav_nav]: leg 5: pre-planned path 1.71 m

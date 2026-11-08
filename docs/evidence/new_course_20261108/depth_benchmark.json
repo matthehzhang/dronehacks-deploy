@@ -1,0 +1,13 @@
+{
+  "host": "compute",
+  "payload_bytes": 327680,
+  "validation_false": {
+    "bytes_median_cpu_ms": 0.014096,
+    "uint8_array_median_cpu_ms": 0.081583
+  },
+  "validation_true": {
+    "bytes_median_cpu_ms": 18.822217,
+    "uint8_array_median_cpu_ms": 0.06387
+  },
+  "messages_and_serialization_roundtrips_identical": true
+}

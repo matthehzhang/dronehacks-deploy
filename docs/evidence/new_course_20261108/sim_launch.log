@@ -1,0 +1,466 @@
+[INFO] [launch]: All log files can be found below /home/matthew/.ros/log/2026-11-07-22-50-21-928985-compute-96015
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: [dronehacks_sim] world=/home/matthew/dronehacks-sim/runs/episodes/c3578bb298624c228aae0596dd25c382/world.sdf model=sky_beta_0 spawn=(-2.515,0.914,0.17) yaw=1.5707963267948966 headless=True px4=/home/matthew/PX4-Autopilot/build/px4_sitl_default autostart=4030
+[INFO] [gz_server-1]: process started with pid [96063]
+[INFO] [xrce_agent-2]: process started with pid [96064]
+[xrce_agent-2] [35m[1794120622.059186][m info     | [34mUDPv4AgentLinux.cpp[m | [37minit                    [m | [32mrunning...[m             | port: 8888
+[xrce_agent-2] [35m[1794120622.059761][m info     | [34mRoot.cpp          [m | [37mset_verbose_level       [m | [32mlogger setup[m           | verbose_level: 4
+[INFO] [px4-3]: process started with pid [96101]
+[INFO] [launch.user]: [dronehacks_sim] ros_gz_bridge config: /home/matthew/.ros/dronehacks_sim/gz_bridge_dronehacks_course_sky_beta_0.yaml
+[INFO] [launch.user]: [dronehacks_sim] /fmu resolved: {'offboard_control_mode': '/fmu/in/offboard_control_mode', 'trajectory_setpoint': '/fmu/in/trajectory_setpoint', 'vehicle_command': '/fmu/in/vehicle_command', 'vehicle_visual_odometry': '/fmu/in/vehicle_visual_odometry', 'distance_sensor': '/fmu/in/distance_sensor', 'vehicle_status': '/fmu/out/vehicle_status_v1', 'vehicle_local_position': '/fmu/out/vehicle_local_position', 'vehicle_land_detected': '/fmu/out/vehicle_land_detected', 'vehicle_odometry': '/fmu/out/vehicle_odometry', 'vehicle_attitude': '/fmu/out/vehicle_attitude', 'vehicle_command_ack': '/fmu/out/vehicle_command_ack'}; lab relays: {'/fmu/out/vehicle_local_position': '/fmu/out/vehicle_local_position_v1'}
+[INFO] [topdown_view-4]: process started with pid [96116]
+[INFO] [parameter_bridge-5]: process started with pid [96117]
+[INFO] [static_transform_publisher-6]: process started with pid [96118]
+[INFO] [static_transform_publisher-7]: process started with pid [96119]
+[INFO] [static_transform_publisher-8]: process started with pid [96120]
+[INFO] [static_transform_publisher-9]: process started with pid [96121]
+[INFO] [static_transform_publisher-10]: process started with pid [96122]
+[INFO] [static_transform_publisher-11]: process started with pid [96123]
+[INFO] [static_transform_publisher-12]: process started with pid [96124]
+[INFO] [static_transform_publisher-13]: process started with pid [96125]
+[INFO] [rangefinder_node-14]: process started with pid [96126]
+[INFO] [mono_relay-15]: process started with pid [96127]
+[INFO] [mono_relay-16]: process started with pid [96128]
+[INFO] [relay-17]: process started with pid [96129]
+[INFO] [runtime_monitor-18]: process started with pid [96130]
+[INFO] [grader-19]: process started with pid [96134]
+[INFO] [foxglove_bridge-20]: process started with pid [96135]
+[INFO] [rosbag2-21]: process started with pid [96148]
+[static_transform_publisher-12] [INFO] [1794120628.115538181] [stf_lidar_sensor_link]: Spinning until stopped - publishing transform
+[static_transform_publisher-12] translation: ('0.000000', '0.027400', '-0.046000')
+[static_transform_publisher-12] rotation: ('0.000000', '0.707107', '0.000000', '0.707107')
+[static_transform_publisher-12] from 'base_link' to 'lidar_sensor_link'
+[static_transform_publisher-13] [INFO] [1794120628.120690269] [stf_vl53l1x_frame]: Spinning until stopped - publishing transform
+[static_transform_publisher-13] translation: ('0.000000', '0.000000', '0.000000')
+[static_transform_publisher-13] rotation: ('0.000000', '0.000000', '0.000000', '1.000000')
+[static_transform_publisher-13] from 'lidar_sensor_link' to 'vl53l1x_frame'
+[static_transform_publisher-6] [INFO] [1794120628.124112879] [stf_oak_parent_frame]: Spinning until stopped - publishing transform
+[static_transform_publisher-6] translation: ('0.102300', '0.000000', '0.046500')
+[static_transform_publisher-6] rotation: ('0.000000', '0.000000', '0.000000', '1.000000')
+[static_transform_publisher-6] from 'base_link' to 'oak_parent_frame'
+[static_transform_publisher-8] [INFO] [1794120628.128521829] [stf_oak_right_camera_optical_frame]: Spinning until stopped - publishing transform
+[static_transform_publisher-8] translation: ('0.000000', '-0.037500', '0.000000')
+[static_transform_publisher-8] rotation: ('-0.500000', '0.500000', '-0.500000', '0.500000')
+[static_transform_publisher-8] from 'oak_parent_frame' to 'oak_right_camera_optical_frame'
+[static_transform_publisher-11] [INFO] [1794120628.131738702] [stf_oak_imu_frame]: Spinning until stopped - publishing transform
+[static_transform_publisher-11] translation: ('-0.012000', '0.000000', '0.004000')
+[static_transform_publisher-11] rotation: ('0.000000', '0.000000', '0.000000', '1.000000')
+[static_transform_publisher-11] from 'oak_parent_frame' to 'oak_imu_frame'
+[static_transform_publisher-10] [INFO] [1794120628.148744208] [stf_oak_depth_optical_frame]: Spinning until stopped - publishing transform
+[static_transform_publisher-10] translation: ('0.000000', '0.000000', '0.000000')
+[static_transform_publisher-10] rotation: ('-0.500000', '0.500000', '-0.500000', '0.500000')
+[static_transform_publisher-10] from 'oak_parent_frame' to 'oak_depth_optical_frame'
+[static_transform_publisher-9] [INFO] [1794120628.159200866] [stf_oak_rgb_camera_optical_frame]: Spinning until stopped - publishing transform
+[static_transform_publisher-9] translation: ('0.000000', '0.000000', '0.000000')
+[static_transform_publisher-9] rotation: ('-0.500000', '0.500000', '-0.500000', '0.500000')
+[static_transform_publisher-9] from 'oak_parent_frame' to 'oak_rgb_camera_optical_frame'
+[static_transform_publisher-7] [INFO] [1794120628.161557909] [stf_oak_left_camera_optical_frame]: Spinning until stopped - publishing transform
+[static_transform_publisher-7] translation: ('0.000000', '0.037500', '0.000000')
+[static_transform_publisher-7] rotation: ('-0.500000', '0.500000', '-0.500000', '0.500000')
+[static_transform_publisher-7] from 'oak_parent_frame' to 'oak_left_camera_optical_frame'
+[foxglove_bridge-20] [INFO] [1794120628.176936352] [foxglove_bridge]: Starting foxglove_bridge (jazzy, 3.6.0@)
+[foxglove_bridge-20] [2026-11-08T06:50:28Z INFO  foxglove::websocket::server] Started server on 0.0.0.0:8765
+[foxglove_bridge-20] [INFO] [1794120628.179451799] [foxglove_bridge]: Server listening on port 8765
+[foxglove_bridge-20] [INFO] [1794120628.180859868] [foxglove_bridge]: Advertising new channel 2 for topic "/rosout"
+[foxglove_bridge-20] [INFO] [1794120628.181406593] [foxglove_bridge]: Advertising new channel 3 for topic "/parameter_events"
+[foxglove_bridge-20] [INFO] [1794120628.181893242] [foxglove_bridge]: Advertising new channel 4 for topic "/clock"
+[mono_relay-15] [INFO] [1794120628.475541754] [mono_relay_left]: /oak/left/image_raw -> /oak/left/image_mono (mono8)
+[rosbag2-21] [WARN] [ros2bag]: Positional "topics" argument deprecated. Please use optional "--topics" argument instead.
+[topdown_view-4] [INFO] [1794120628.506683821] [topdown_view]: Observer on port 8088; depth preview=disabled
+[rosbag2-21] stdin is not a terminal device. Keyboard handling disabled.[INFO] [1794120628.506964977] [rosbag2_recorder]: Press SPACE for pausing/resuming
+[rosbag2-21] [INFO] [1794120628.507014337] [rosbag2_recorder]: Event publisher thread: Started
+[rosbag2-21] [INFO] [1794120628.514665091] [rosbag2_recorder]: Starting recording to '/home/matthew/dronehacks-sim/runs/bag_20261107_225022'
+[mono_relay-16] [INFO] [1794120628.517162917] [mono_relay_right]: /oak/right/image_raw -> /oak/right/image_mono (mono8)
+[rosbag2-21] [INFO] [1794120628.518262585] [rosbag2_recorder]: Listening for topics...
+[rosbag2-21] [INFO] [1794120628.518306881] [rosbag2_recorder]: Recording...
+[rosbag2-21] [INFO] [1794120628.518310866] [rosbag2_recorder]: Topics discovery started.
+[rosbag2-21] [INFO] [1794120628.624659640] [rosbag2_recorder]: Subscribed to topic '/tf_static'
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="sky_beta"]/link[@name="base_link"]/sensor[@name="air_pressure_sensor"]/gz_frame_id:/home/matthew/dronehacks-sim/runs/episodes/c3578bb298624c228aae0596dd25c382/models/sky_beta/model.sdf:L112]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="sky_beta"]/link[@name="base_link"]/sensor[@name="magnetometer_sensor"]/gz_frame_id:/home/matthew/dronehacks-sim/runs/episodes/c3578bb298624c228aae0596dd25c382/models/sky_beta/model.sdf:L120]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="sky_beta"]/link[@name="base_link"]/sensor[@name="imu_sensor"]/gz_frame_id:/home/matthew/dronehacks-sim/runs/episodes/c3578bb298624c228aae0596dd25c382/models/sky_beta/model.sdf:L131]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="sky_beta"]/link[@name="base_link"]/sensor[@name="navsat_sensor"]/gz_frame_id:/home/matthew/dronehacks-sim/runs/episodes/c3578bb298624c228aae0596dd25c382/models/sky_beta/model.sdf:L159]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="sky_beta"]/link[@name="lidar_sensor_link"]/sensor[@name="lidar"]/gz_frame_id:/home/matthew/dronehacks-sim/runs/episodes/c3578bb298624c228aae0596dd25c382/models/sky_beta/model.sdf:L181]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="sky_beta"]/link[@name="lidar_sensor_link"]/sensor[@name="lidar"]/ray/noise[@type="gaussian"]:/home/matthew/dronehacks-sim/runs/episodes/c3578bb298624c228aae0596dd25c382/models/sky_beta/model.sdf:L195]: XML Attribute[type] in element[noise] not defined in SDF.
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="oak_d_s2"]/link[@name="oak_parent_frame"]/sensor[@name="left_cam"]/gz_frame_id:/home/matthew/dronehacks-sim/models_lite/oak_d_s2/model.sdf:L49]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="oak_d_s2"]/link[@name="oak_parent_frame"]/sensor[@name="right_cam"]/gz_frame_id:/home/matthew/dronehacks-sim/models_lite/oak_d_s2/model.sdf:L75]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="oak_d_s2"]/link[@name="oak_parent_frame"]/sensor[@name="rgb_cam"]/gz_frame_id:/home/matthew/dronehacks-sim/models_lite/oak_d_s2/model.sdf:L102]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="oak_d_s2"]/link[@name="oak_parent_frame"]/sensor[@name="depth_cam"]/gz_frame_id:/home/matthew/dronehacks-sim/models_lite/oak_d_s2/model.sdf:L131]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="oak_d_s2"]/link[@name="oak_parent_frame"]/sensor[@name="oak_imu"]/gz_frame_id:/home/matthew/dronehacks-sim/models_lite/oak_d_s2/model.sdf:L159]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[gz_server-1] [1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="oak_d_s2"]/link[@name="oak_parent_frame"]/sensor[@name="oak_imu"]/enable_orientation:/home/matthew/dronehacks-sim/models_lite/oak_d_s2/model.sdf:L164]: XML Element[enable_orientation], child of element[sensor], not defined in SDF. Copying[enable_orientation] as children of [sensor].
+[foxglove_bridge-20] [INFO] [1794120628.693178323] [foxglove_bridge]: Advertising new channel 5 for topic "/rangefinder/scan"
+[foxglove_bridge-20] [INFO] [1794120628.693462954] [foxglove_bridge]: Advertising new channel 6 for topic "/rangefinder/range"
+[foxglove_bridge-20] [INFO] [1794120628.693647392] [foxglove_bridge]: Advertising new channel 7 for topic "/oak/right/image_raw"
+[foxglove_bridge-20] [INFO] [1794120628.693663776] [foxglove_bridge]: Advertising new channel 8 for topic "/oak/left/image_raw"
+[foxglove_bridge-20] [INFO] [1794120628.694205145] [foxglove_bridge]: Advertising new channel 9 for topic "/tf_static"
+[foxglove_bridge-20] [INFO] [1794120628.694372921] [foxglove_bridge]: Advertising new channel 10 for topic "/sim/runtime"
+[foxglove_bridge-20] [INFO] [1794120628.694387562] [foxglove_bridge]: Advertising new channel 11 for topic "/oak/left/image_mono"
+[foxglove_bridge-20] [INFO] [1794120628.694393252] [foxglove_bridge]: Advertising new channel 12 for topic "/grader/status"
+[foxglove_bridge-20] [INFO] [1794120628.695534669] [foxglove_bridge]: Advertising new channel 13 for topic "/events/write_split"
+[foxglove_bridge-20] [INFO] [1794120628.696417577] [foxglove_bridge]: Advertising new channel 14 for topic "/sim/truth_odom"
+[foxglove_bridge-20] [INFO] [1794120628.696456211] [foxglove_bridge]: Advertising new channel 15 for topic "/oak/right/image_mono"
+[rosbag2-21] [INFO] [1794120628.761434136] [rosbag2_recorder]: Subscribed to topic '/rangefinder/range'
+[parameter_bridge-5] [INFO] [1794120629.169569148] [gz_bridge]: Creating GZ->ROS Bridge: [/clock (gz.msgs.Clock) -> /clock (rosgraph_msgs/msg/Clock)] (Lazy 0)
+[parameter_bridge-5] [INFO] [1794120629.174484833] [gz_bridge]: Creating GZ->ROS Bridge: [/oak/left/image_raw (gz.msgs.Image) -> /oak/left/image_raw (sensor_msgs/msg/Image)] (Lazy 0)
+[rosbag2-21] [INFO] [1794120629.177474193] [rosbag2_recorder]: Subscribed to topic '/clock'
+[parameter_bridge-5] [INFO] [1794120629.180344260] [gz_bridge]: Creating GZ->ROS Bridge: [/oak/left/camera_info (gz.msgs.CameraInfo) -> /oak/left/camera_info (sensor_msgs/msg/CameraInfo)] (Lazy 0)
+[parameter_bridge-5] [INFO] [1794120629.184607811] [gz_bridge]: Creating GZ->ROS Bridge: [/oak/right/image_raw (gz.msgs.Image) -> /oak/right/image_raw (sensor_msgs/msg/Image)] (Lazy 0)
+[parameter_bridge-5] [INFO] [1794120629.188798519] [gz_bridge]: Creating GZ->ROS Bridge: [/oak/right/camera_info (gz.msgs.CameraInfo) -> /oak/right/camera_info (sensor_msgs/msg/CameraInfo)] (Lazy 0)
+[parameter_bridge-5] [INFO] [1794120629.192998291] [gz_bridge]: Creating GZ->ROS Bridge: [/oak/depth/image (gz.msgs.Image) -> /oak/depth/image (sensor_msgs/msg/Image)] (Lazy 0)
+[parameter_bridge-5] [INFO] [1794120629.197369860] [gz_bridge]: Creating GZ->ROS Bridge: [/oak/depth/camera_info (gz.msgs.CameraInfo) -> /oak/depth/camera_info (sensor_msgs/msg/CameraInfo)] (Lazy 0)
+[rosbag2-21] [INFO] [1794120629.200357927] [rosbag2_recorder]: Subscribed to topic '/oak/depth/image'
+[parameter_bridge-5] [INFO] [1794120629.200880512] [gz_bridge]: Creating GZ->ROS Bridge: [/oak/rgb/image (gz.msgs.Image) -> /oak/rgb/image (sensor_msgs/msg/Image)] (Lazy 0)
+[rosbag2-21] [INFO] [1794120629.203722579] [rosbag2_recorder]: Subscribed to topic '/oak/depth/camera_info'
+[parameter_bridge-5] [INFO] [1794120629.204314980] [gz_bridge]: Creating GZ->ROS Bridge: [/oak/rgb/camera_info (gz.msgs.CameraInfo) -> /oak/rgb/camera_info (sensor_msgs/msg/CameraInfo)] (Lazy 0)
+[parameter_bridge-5] [INFO] [1794120629.208133319] [gz_bridge]: Creating GZ->ROS Bridge: [/oak/imu/data (gz.msgs.IMU) -> /oak/imu/data (sensor_msgs/msg/Imu)] (Lazy 0)
+[parameter_bridge-5] [INFO] [1794120629.213062863] [gz_bridge]: Creating GZ->ROS Bridge: [/world/dronehacks_course/model/sky_beta_0/link/lidar_sensor_link/sensor/lidar/scan (gz.msgs.LaserScan) -> /rangefinder/scan (sensor_msgs/msg/LaserScan)] (Lazy 0)
+[parameter_bridge-5] [INFO] [1794120629.217448527] [gz_bridge]: Creating GZ->ROS Bridge: [/world/dronehacks_course/dynamic_pose/info (gz.msgs.Pose_V) -> /sim/truth_tf (tf2_msgs/msg/TFMessage)] (Lazy 0)
+[parameter_bridge-5] [INFO] [1794120629.222821472] [gz_bridge]: Creating GZ->ROS Bridge: [/model/sky_beta_0/odometry (gz.msgs.Odometry) -> /sim/truth_odom (nav_msgs/msg/Odometry)] (Lazy 0)
+[rosbag2-21] [INFO] [1794120629.223465557] [rosbag2_recorder]: Subscribed to topic '/sim/truth_tf'
+[parameter_bridge-5] [INFO] [1794120629.227242767] [gz_bridge]: Creating GZ->ROS Bridge: [/world/dronehacks_course/model/sky_beta_0/link/base_link/sensor/contact_sensor/contact (gz.msgs.Contacts) -> /sim/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)
+[rosbag2-21] [INFO] [1794120629.237404356] [rosbag2_recorder]: Subscribed to topic '/sim/contacts'
+[foxglove_bridge-20] [INFO] [1794120629.567316966] [foxglove_bridge]: Advertising new channel 16 for topic "/sim/contacts"
+[foxglove_bridge-20] [INFO] [1794120629.567725653] [foxglove_bridge]: Advertising new channel 17 for topic "/oak/right/camera_info"
+[foxglove_bridge-20] [INFO] [1794120629.567739646] [foxglove_bridge]: Advertising new channel 18 for topic "/oak/rgb/image"
+[foxglove_bridge-20] [INFO] [1794120629.567747958] [foxglove_bridge]: Advertising new channel 19 for topic "/oak/rgb/camera_info"
+[foxglove_bridge-20] [INFO] [1794120629.567753972] [foxglove_bridge]: Advertising new channel 20 for topic "/oak/left/camera_info"
+[foxglove_bridge-20] [INFO] [1794120629.567759986] [foxglove_bridge]: Advertising new channel 21 for topic "/oak/depth/image"
+[foxglove_bridge-20] [INFO] [1794120629.567766316] [foxglove_bridge]: Advertising new channel 22 for topic "/oak/depth/camera_info"
+[foxglove_bridge-20] [INFO] [1794120629.567905448] [foxglove_bridge]: Advertising new channel 23 for topic "/oak/imu/data"
+[foxglove_bridge-20] [INFO] [1794120629.567918134] [foxglove_bridge]: Advertising new channel 24 for topic "/sim/truth_tf"
+[mono_relay-15] [INFO] [1794120630.316737694] [mono_relay_left]: left: first frame 1024x640 rgb8 -> mono8
+[mono_relay-16] [INFO] [1794120630.327966433] [mono_relay_right]: right: first frame 1024x640 rgb8 -> mono8
+[rangefinder_node-14] [INFO] [1794120630.550011488] [rangefinder_node]: first scan: 1 rays, frame lidar_sensor_link -> 0.117 m
+[px4-3] [spawn] sky_beta_0 settled at (-2.515, 0.914) yaw=90.0; starting PX4
+[px4-3] 
+[px4-3] ______  __   __    ___ 
+[px4-3] | ___ \ \ \ / /   /   |
+[px4-3] | |_/ /  \ V /   / /| |
+[px4-3] |  __/   /   \  / /_| |
+[px4-3] | |     / /^\ \ \___  |
+[px4-3] \_|     \/   \/     |_/
+[px4-3] 
+[px4-3] px4 starting.
+[px4-3] 
+[px4-3] INFO  [px4] startup script: /bin/sh etc/init.d-posix/rcS 0
+[px4-3] env SYS_AUTOSTART: 4030
+[px4-3] INFO  [param] selected parameter default file parameters.bson
+[px4-3] INFO  [param] importing from 'parameters.bson'
+[px4-3] INFO  [parameters] BSON document size 493 bytes, decoded 493 bytes (INT32:16, FLOAT:8)
+[px4-3] INFO  [param] selected parameter backup file parameters_backup.bson
+[px4-3] ERROR [param] Parameter SENS_EN_VL53L1X not found.
+[px4-3] INFO  [dataman] data manager file './dataman' size is 1208528 bytes
+[px4-3] INFO  [init] Gazebo simulator
+[px4-3] INFO  [init] Standalone PX4 launch, waiting for Gazebo
+[grader-19] [INFO] [1794120633.866845571] [grader]: clearance rule ON: margin 2.0 cm, action touch, prop diameter 17.8 cm, surfaces course_surface_pts.npz
+[grader-19] [INFO] [1794120633.925868385] [grader]: grader ready: model=sky_beta_0 geometry=/home/matthew/dronehacks-sim/layouts/built/new_course_origin/course_geometry.json r=0.294082845 launch=(-2.5, 0.9) pad=(-2.0422, -0.7925) R=0.762 cps=['first_corridor', 'maze', 'tunnel', 'chicane', 'landing']
+[rosbag2-21] [INFO] [1794120633.926634545] [rosbag2_recorder]: Subscribed to topic '/grader/status'
+[foxglove_bridge-20] [INFO] [1794120634.407779366] [foxglove_bridge]: Advertising new channel 25 for topic "/fmu/out/vehicle_land_detected"
+[foxglove_bridge-20] [INFO] [1794120634.408302510] [foxglove_bridge]: Advertising new channel 26 for topic "/fmu/out/vehicle_status_v1"
+[px4-3] INFO  [init] Gazebo world is ready
+[px4-3] INFO  [init] PX4_GZ_MODEL_NAME set, PX4 will attach to existing model
+[px4-3] INFO  [gz_bridge] world: dronehacks_course, model: sky_beta_0
+[px4-3] INFO  [lockstep_scheduler] setting initial absolute time to 10312498 us
+[px4-3] INFO  [commander] LED: open /dev/led0 failed (22)
+[px4-3] WARN  [health_and_arming_checks] Preflight Fail: ekf2 missing data
+[px4-3] INFO  [uxrce_dds_client] init UDP agent IP:127.0.0.1, port:8888
+[xrce_agent-2] [35m[1794120637.926168][m info     | [34mRoot.cpp          [m | [37mcreate_client           [m | [32mcreate[m                 | client_key: 0x00000001, session_id: 0x81
+[xrce_agent-2] [35m[1794120637.926214][m info     | [34mSessionManager.hpp[m | [37mestablish_session       [m | [32msession established[m    | client_key: 0x00000001, address: 127.0.0.1:30344
+[xrce_agent-2] [35m[1794120637.931374][m info     | [34mProxyClient.cpp   [m | [37mcreate_participant      [m | [32mparticipant created[m    | client_key: 0x00000001, participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.931827][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x800(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.931944][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x800(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.933354][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x800(6), subscriber_id: 0x800(4)
+[xrce_agent-2] [35m[1794120637.933748][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x801(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.933830][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x801(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.934317][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x801(6), subscriber_id: 0x801(4)
+[xrce_agent-2] [35m[1794120637.935220][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x802(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.935451][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x802(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.936231][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x802(6), subscriber_id: 0x802(4)
+[xrce_agent-2] [35m[1794120637.936574][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x803(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.936645][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x803(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.937520][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x803(6), subscriber_id: 0x803(4)
+[xrce_agent-2] [35m[1794120637.938163][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x804(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.938250][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x804(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.939359][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x804(6), subscriber_id: 0x804(4)
+[xrce_agent-2] [35m[1794120637.939678][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x805(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.939727][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x805(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.940655][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x805(6), subscriber_id: 0x805(4)
+[xrce_agent-2] [35m[1794120637.940946][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x806(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.940987][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x806(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.942188][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x806(6), subscriber_id: 0x806(4)
+[xrce_agent-2] [35m[1794120637.942527][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x807(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.942558][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x807(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.943257][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x807(6), subscriber_id: 0x807(4)
+[xrce_agent-2] [35m[1794120637.943659][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x808(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.943691][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x808(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.944878][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x808(6), subscriber_id: 0x808(4)
+[xrce_agent-2] [35m[1794120637.945246][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x809(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.945314][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x809(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.945925][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x809(6), subscriber_id: 0x809(4)
+[xrce_agent-2] [35m[1794120637.946272][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80A(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.946334][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80A(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.946790][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80A(6), subscriber_id: 0x80A(4)
+[xrce_agent-2] [35m[1794120637.947173][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80B(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.947219][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80B(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.947809][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80B(6), subscriber_id: 0x80B(4)
+[xrce_agent-2] [35m[1794120637.948270][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80C(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.948654][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80C(4), participant_id: 0x001(1)
+[foxglove_bridge-20] [INFO] [1794120637.949079449] [foxglove_bridge]: Advertising new channel 27 for topic "/fmu/in/unregister_ext_component"
+[foxglove_bridge-20] [INFO] [1794120637.949564696] [foxglove_bridge]: Advertising new channel 28 for topic "/fmu/in/register_ext_component_request"
+[xrce_agent-2] [35m[1794120637.949624][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80C(6), subscriber_id: 0x80C(4)
+[foxglove_bridge-20] [INFO] [1794120637.949868063] [foxglove_bridge]: Advertising new channel 29 for topic "/fmu/in/onboard_computer_status"
+[xrce_agent-2] [35m[1794120637.949917][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80D(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.949978][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80D(4), participant_id: 0x001(1)
+[foxglove_bridge-20] [INFO] [1794120637.950126045] [foxglove_bridge]: Advertising new channel 30 for topic "/fmu/in/offboard_control_mode"
+[foxglove_bridge-20] [INFO] [1794120637.950356447] [foxglove_bridge]: Advertising new channel 31 for topic "/fmu/in/mode_completed"
+[xrce_agent-2] [35m[1794120637.950492][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80D(6), subscriber_id: 0x80D(4)
+[foxglove_bridge-20] [INFO] [1794120637.950684144] [foxglove_bridge]: Advertising new channel 32 for topic "/fmu/in/manual_control_input"
+[foxglove_bridge-20] [INFO] [1794120637.951000142] [foxglove_bridge]: Advertising new channel 33 for topic "/fmu/in/distance_sensor"
+[foxglove_bridge-20] [INFO] [1794120637.951297926] [foxglove_bridge]: Advertising new channel 34 for topic "/fmu/in/config_overrides_request"
+[foxglove_bridge-20] [INFO] [1794120637.951909952] [foxglove_bridge]: Advertising new channel 35 for topic "/fmu/in/message_format_request"
+[xrce_agent-2] [35m[1794120637.952113][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80E(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.952190][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80E(4), participant_id: 0x001(1)
+[foxglove_bridge-20] [INFO] [1794120637.952350974] [foxglove_bridge]: Advertising new channel 36 for topic "/fmu/in/config_control_setpoints"
+[xrce_agent-2] [35m[1794120637.952709][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80E(6), subscriber_id: 0x80E(4)
+[foxglove_bridge-20] [INFO] [1794120637.952733736] [foxglove_bridge]: Advertising new channel 37 for topic "/fmu/in/arming_check_reply"
+[xrce_agent-2] [35m[1794120637.952921][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80F(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.952965][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80F(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.953531][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80F(6), subscriber_id: 0x80F(4)
+[xrce_agent-2] [35m[1794120637.953982][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x810(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.954058][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x810(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.955194][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x810(6), subscriber_id: 0x810(4)
+[xrce_agent-2] [35m[1794120637.955861][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x811(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.955930][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x811(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.957107][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x811(6), subscriber_id: 0x811(4)
+[xrce_agent-2] [35m[1794120637.957466][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x812(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.957514][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x812(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.958162][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x812(6), subscriber_id: 0x812(4)
+[xrce_agent-2] [35m[1794120637.958550][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x813(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.958601][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x813(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.959188][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x813(6), subscriber_id: 0x813(4)
+[xrce_agent-2] [35m[1794120637.959450][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x814(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.959488][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x814(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.960134][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x814(6), subscriber_id: 0x814(4)
+[xrce_agent-2] [35m[1794120637.960439][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x815(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.960479][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x815(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.960961][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x815(6), subscriber_id: 0x815(4)
+[xrce_agent-2] [35m[1794120637.961205][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x816(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.961255][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x816(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.961856][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x816(6), subscriber_id: 0x816(4)
+[xrce_agent-2] [35m[1794120637.962131][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x817(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.962172][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x817(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.962940][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x817(6), subscriber_id: 0x817(4)
+[xrce_agent-2] [35m[1794120637.963227][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x818(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.963272][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x818(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.963950][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x818(6), subscriber_id: 0x818(4)
+[xrce_agent-2] [35m[1794120637.964565][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x819(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.964639][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x819(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.965326][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x819(6), subscriber_id: 0x819(4)
+[xrce_agent-2] [35m[1794120637.965627][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81A(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.965701][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81A(4), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.966403][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81A(6), subscriber_id: 0x81A(4)
+[xrce_agent-2] [35m[1794120637.966798][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0C6(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.967439][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0C6(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.967979][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0C6(5), publisher_id: 0x0C6(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/register_ext_component_reply data writer, topic id: 198
+[xrce_agent-2] [35m[1794120637.968576][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x011(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.968621][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x011(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.968937][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x011(5), publisher_id: 0x011(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/arming_check_request data writer, topic id: 17
+[xrce_agent-2] [35m[1794120637.969369][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x096(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.969427][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x096(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.969886][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x096(5), publisher_id: 0x096(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/mode_completed data writer, topic id: 150
+[xrce_agent-2] [35m[1794120637.970094][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x014(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.970138][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x014(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.970600][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x014(5), publisher_id: 0x014(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/battery_status data writer, topic id: 20
+[xrce_agent-2] [35m[1794120637.970792][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x01B(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.970861][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x01B(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.971298][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x01B(5), publisher_id: 0x01B(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/collision_constraints data writer, topic id: 27
+[xrce_agent-2] [35m[1794120637.971563][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x055(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.971604][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x055(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.972036][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x055(5), publisher_id: 0x055(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/estimator_status_flags data writer, topic id: 85
+[xrce_agent-2] [35m[1794120637.972222][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x05B(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.972268][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x05B(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.972704][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x05B(5), publisher_id: 0x05B(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/failsafe_flags data writer, topic id: 91
+[xrce_agent-2] [35m[1794120637.972890][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x08D(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.972929][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x08D(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.973380][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x08D(5), publisher_id: 0x08D(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/manual_control_setpoint data writer, topic id: 141
+[xrce_agent-2] [35m[1794120637.973568][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x093(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.973634][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x093(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.974060][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x093(5), publisher_id: 0x093(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/message_format_response data writer, topic id: 147
+[xrce_agent-2] [35m[1794120637.974252][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0B9(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.974325][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0B9(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.974835][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0B9(5), publisher_id: 0x0B9(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/position_setpoint_triplet data writer, topic id: 185
+[xrce_agent-2] [35m[1794120637.975075][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0D9(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.975127][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0D9(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.975653][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0D9(5), publisher_id: 0x0D9(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/sensor_combined data writer, topic id: 217
+[xrce_agent-2] [35m[1794120637.975882][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0F0(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.975934][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0F0(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.976374][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0F0(5), publisher_id: 0x0F0(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/timesync_status data writer, topic id: 240
+[xrce_agent-2] [35m[1794120637.976677][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x10C(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.976705][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x10C(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.976974][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x10C(5), publisher_id: 0x10C(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/vehicle_land_detected data writer, topic id: 268
+[xrce_agent-2] [35m[1794120637.977570][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0FF(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.977636][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0FF(3), participant_id: 0x001(1)
+[rosbag2-21] [INFO] [1794120637.978153462] [rosbag2_recorder]: Subscribed to topic '/fmu/out/estimator_status_flags'
+[xrce_agent-2] [35m[1794120637.978242][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0FF(5), publisher_id: 0x0FF(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/vehicle_attitude data writer, topic id: 255
+[xrce_agent-2] [35m[1794120637.978408][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x106(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.978436][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x106(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.978705][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x106(5), publisher_id: 0x106(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/vehicle_control_mode data writer, topic id: 262
+[xrce_agent-2] [35m[1794120637.978994][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x103(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.979049][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x103(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.979571][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x103(5), publisher_id: 0x103(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/vehicle_command_ack data writer, topic id: 259
+[xrce_agent-2] [35m[1794120637.979789][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x107(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.979831][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x107(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.980265][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x107(5), publisher_id: 0x107(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/vehicle_global_position data writer, topic id: 263
+[xrce_agent-2] [35m[1794120637.980550][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x109(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.980624][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x109(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.981109][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x109(5), publisher_id: 0x109(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/vehicle_gps_position data writer, topic id: 265
+[xrce_agent-2] [35m[1794120637.981361][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x10D(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.981400][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x10D(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.981688][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x10D(5), publisher_id: 0x10D(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/vehicle_local_position data writer, topic id: 269
+[xrce_agent-2] [35m[1794120637.981950][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x112(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.981972][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x112(3), participant_id: 0x001(1)
+[rosbag2-21] [INFO] [1794120637.982254926] [rosbag2_recorder]: Subscribed to topic '/fmu/out/vehicle_attitude'
+[xrce_agent-2] [35m[1794120637.982264][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x112(5), publisher_id: 0x112(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/vehicle_odometry data writer, topic id: 274
+[xrce_agent-2] [35m[1794120637.982875][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x117(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.982961][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x117(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.983412][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x117(5), publisher_id: 0x117(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/vehicle_status_v1 data writer, topic id: 279
+[xrce_agent-2] [35m[1794120637.984046][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x00E(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.984091][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x00E(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.984604][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x00E(5), publisher_id: 0x00E(3)
+[rosbag2-21] [INFO] [1794120637.984934619] [rosbag2_recorder]: Subscribed to topic '/fmu/out/failsafe_flags'
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/airspeed_validated data writer, topic id: 14
+[xrce_agent-2] [35m[1794120637.985081][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x120(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.985151][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x120(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.985635][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x120(5), publisher_id: 0x120(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/vtol_vehicle_status data writer, topic id: 288
+[xrce_agent-2] [35m[1794120637.985920][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x07B(2), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.986003][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x07B(3), participant_id: 0x001(1)
+[xrce_agent-2] [35m[1794120637.986544][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x07B(5), publisher_id: 0x07B(3)
+[px4-3] INFO  [uxrce_dds_client] successfully created rt/fmu/out/home_position data writer, topic id: 123
+[rosbag2-21] [INFO] [1794120637.988007447] [rosbag2_recorder]: Subscribed to topic '/fmu/out/vehicle_land_detected'
+[xrce_agent-2] [35m[1794120637.988112][m info     | [34mProxyClient.cpp   [m | [37mcreate_replier          [m | [32mreplier created[m        | client_key: 0x00000001, requester_id: 0x800(7), participant_id: 0x001(1)
+[rosbag2-21] [INFO] [1794120637.991970095] [rosbag2_recorder]: Subscribed to topic '/fmu/out/vehicle_status_v1'
+[rosbag2-21] [INFO] [1794120637.994751288] [rosbag2_recorder]: Subscribed to topic '/fmu/out/vehicle_odometry'
+[rosbag2-21] [INFO] [1794120637.998231760] [rosbag2_recorder]: Subscribed to topic '/fmu/out/vehicle_local_position'
+[rosbag2-21] [INFO] [1794120638.000967396] [rosbag2_recorder]: Subscribed to topic '/fmu/out/vehicle_command_ack'
+[px4-3] INFO  [mavlink] mode: Normal, data rate: 4000000 B/s on udp port 18570 remote port 14550
+[px4-3] INFO  [mavlink] mode: Onboard, data rate: 4000000 B/s on udp port 14580 remote port 14540
+[px4-3] INFO  [mavlink] mode: Onboard, data rate: 4000 B/s on udp port 14280 remote port 14030
+[px4-3] INFO  [mavlink] mode: Gimbal, data rate: 400000 B/s on udp port 13030 remote port 13280
+[foxglove_bridge-20] [INFO] [1794120638.454342373] [foxglove_bridge]: Advertising new channel 38 for topic "/fmu/out/vtol_vehicle_status"
+[foxglove_bridge-20] [INFO] [1794120638.454797586] [foxglove_bridge]: Advertising new channel 39 for topic "/fmu/out/vehicle_local_position"
+[foxglove_bridge-20] [INFO] [1794120638.455156606] [foxglove_bridge]: Advertising new channel 40 for topic "/fmu/out/vehicle_gps_position"
+[foxglove_bridge-20] [INFO] [1794120638.455227656] [foxglove_bridge]: Advertising new channel 41 for topic "/fmu/out/vehicle_control_mode"
+[foxglove_bridge-20] [INFO] [1794120638.455497533] [foxglove_bridge]: Advertising new channel 42 for topic "/fmu/out/timesync_status"
+[foxglove_bridge-20] [INFO] [1794120638.455832866] [foxglove_bridge]: Advertising new channel 43 for topic "/fmu/out/vehicle_odometry"
+[foxglove_bridge-20] [INFO] [1794120638.456312932] [foxglove_bridge]: Advertising new channel 44 for topic "/fmu/out/position_setpoint_triplet"
+[foxglove_bridge-20] [INFO] [1794120638.456612601] [foxglove_bridge]: Advertising new channel 45 for topic "/fmu/out/mode_completed"
+[foxglove_bridge-20] [INFO] [1794120638.456827534] [foxglove_bridge]: Advertising new channel 46 for topic "/fmu/out/home_position"
+[foxglove_bridge-20] [INFO] [1794120638.456990304] [foxglove_bridge]: Advertising new channel 47 for topic "/fmu/out/collision_constraints"
+[foxglove_bridge-20] [INFO] [1794120638.457252889] [foxglove_bridge]: Advertising new channel 48 for topic "/fmu/out/battery_status"
+[foxglove_bridge-20] [INFO] [1794120638.457519068] [foxglove_bridge]: Advertising new channel 49 for topic "/fmu/out/arming_check_request"
+[foxglove_bridge-20] [INFO] [1794120638.457837046] [foxglove_bridge]: Advertising new channel 50 for topic "/fmu/out/vehicle_attitude"
+[foxglove_bridge-20] [INFO] [1794120638.458095261] [foxglove_bridge]: Advertising new channel 51 for topic "/fmu/out/airspeed_validated"
+[foxglove_bridge-20] [INFO] [1794120638.458497780] [foxglove_bridge]: Advertising new channel 52 for topic "/fmu/in/vehicle_thrust_setpoint"
+[foxglove_bridge-20] [INFO] [1794120638.458589575] [foxglove_bridge]: Advertising new channel 53 for topic "/fmu/in/vehicle_mocap_odometry"
+[foxglove_bridge-20] [INFO] [1794120638.459596529] [foxglove_bridge]: Advertising new channel 54 for topic "/fmu/in/vehicle_command_mode_executor"
+[foxglove_bridge-20] [INFO] [1794120638.459673712] [foxglove_bridge]: Advertising new channel 55 for topic "/fmu/in/vehicle_command"
+[foxglove_bridge-20] [INFO] [1794120638.459972485] [foxglove_bridge]: Advertising new channel 56 for topic "/fmu/in/vehicle_attitude_setpoint"
+[foxglove_bridge-20] [INFO] [1794120638.460265404] [foxglove_bridge]: Advertising new channel 57 for topic "/fmu/in/trajectory_setpoint"
+[foxglove_bridge-20] [INFO] [1794120638.460584707] [foxglove_bridge]: Advertising new channel 58 for topic "/fmu/out/message_format_response"
+[foxglove_bridge-20] [INFO] [1794120638.460906074] [foxglove_bridge]: Advertising new channel 59 for topic "/fmu/in/sensor_optical_flow"
+[foxglove_bridge-20] [INFO] [1794120638.461440076] [foxglove_bridge]: Advertising new channel 60 for topic "/fmu/in/vehicle_torque_setpoint"
+[foxglove_bridge-20] [INFO] [1794120638.461919153] [foxglove_bridge]: Advertising new channel 61 for topic "/fmu/out/failsafe_flags"
+[foxglove_bridge-20] [INFO] [1794120638.462257913] [foxglove_bridge]: Advertising new channel 62 for topic "/fmu/in/obstacle_distance"
+[foxglove_bridge-20] [INFO] [1794120638.462680327] [foxglove_bridge]: Advertising new channel 63 for topic "/fmu/in/telemetry_status"
+[foxglove_bridge-20] [INFO] [1794120638.463052007] [foxglove_bridge]: Advertising new channel 64 for topic "/fmu/out/vehicle_global_position"
+[foxglove_bridge-20] [INFO] [1794120638.463341929] [foxglove_bridge]: Advertising new channel 65 for topic "/fmu/out/register_ext_component_reply"
+[foxglove_bridge-20] [INFO] [1794120638.463607800] [foxglove_bridge]: Advertising new channel 66 for topic "/fmu/in/goto_setpoint"
+[foxglove_bridge-20] [INFO] [1794120638.463940417] [foxglove_bridge]: Advertising new channel 67 for topic "/fmu/in/vehicle_rates_setpoint"
+[foxglove_bridge-20] [INFO] [1794120638.464023922] [foxglove_bridge]: Advertising new channel 68 for topic "/fmu/in/aux_global_position"
+[foxglove_bridge-20] [INFO] [1794120638.464391298] [foxglove_bridge]: Advertising new channel 69 for topic "/fmu/out/estimator_status_flags"
+[foxglove_bridge-20] [INFO] [1794120638.464465354] [foxglove_bridge]: Advertising new channel 70 for topic "/fmu/in/vehicle_visual_odometry"
+[foxglove_bridge-20] [INFO] [1794120638.464742457] [foxglove_bridge]: Advertising new channel 71 for topic "/fmu/in/actuator_servos"
+[foxglove_bridge-20] [INFO] [1794120638.465080106] [foxglove_bridge]: Advertising new channel 72 for topic "/fmu/out/vehicle_command_ack"
+[foxglove_bridge-20] [INFO] [1794120638.465143650] [foxglove_bridge]: Advertising new channel 73 for topic "/fmu/out/manual_control_setpoint"
+[foxglove_bridge-20] [INFO] [1794120638.465346930] [foxglove_bridge]: Advertising new channel 74 for topic "/fmu/in/actuator_motors"
+[foxglove_bridge-20] [INFO] [1794120638.465666065] [foxglove_bridge]: Advertising new channel 75 for topic "/fmu/out/sensor_combined"
+[px4-3] INFO  [logger] logger started (mode=all)
+[px4-3] INFO  [logger] Start file log (type: full)
+[px4-3] INFO  [logger] [logger] ./log/2026-11-08/06_50_38.ulg	
+[px4-3] INFO  [logger] Opened full log file: ./log/2026-11-08/06_50_38.ulg
+[px4-3] INFO  [mavlink] MAVLink only on localhost (set param MAV_{i}_BROADCAST = 1 to enable network)
+[px4-3] INFO  [mavlink] MAVLink only on localhost (set param MAV_{i}_BROADCAST = 1 to enable network)
+[px4-3] INFO  [px4] Startup script returned successfully
+[foxglove_bridge-20] [INFO] [1794120640.939310067] [foxglove_bridge]: Advertising new channel 76 for topic "/fmu/out/vehicle_local_position_v1"
+[foxglove_bridge-20] [INFO] [1794120650.439717360] [foxglove_bridge]: Advertising new channel 77 for topic "/estimator/healthy"
+[foxglove_bridge-20] [INFO] [1794120650.977047105] [foxglove_bridge]: Advertising new channel 78 for topic "/visual_slam/tracking/odometry"
+[foxglove_bridge-20] [INFO] [1794120650.977478901] [foxglove_bridge]: Advertising new channel 79 for topic "/visual_slam/status"
+[rosbag2-21] [INFO] [1794120651.281865088] [rosbag2_recorder]: Subscribed to topic '/fmu/in/vehicle_visual_odometry'
+[rosbag2-21] [INFO] [1794120651.597347301] [rosbag2_recorder]: Subscribed to topic '/fmu/in/offboard_control_mode'
+[rosbag2-21] [INFO] [1794120651.620042358] [rosbag2_recorder]: Subscribed to topic '/fmu/in/trajectory_setpoint'
+[rosbag2-21] [INFO] [1794120651.625868776] [rosbag2_recorder]: Subscribed to topic '/fmu/in/vehicle_command'
+[rosbag2-21] [INFO] [1794120651.701126251] [rosbag2_recorder]: Subscribed to topic '/visual_slam/tracking/odometry'
+[rosbag2-21] [INFO] [1794120651.705163053] [rosbag2_recorder]: Subscribed to topic '/tf'
+[rosbag2-21] [INFO] [1794120651.997433242] [rosbag2_recorder]: Subscribed to topic '/skybeta/state'
+[foxglove_bridge-20] [INFO] [1794120652.059920877] [foxglove_bridge]: Advertising new channel 80 for topic "/tf"
+[foxglove_bridge-20] [INFO] [1794120652.060227024] [foxglove_bridge]: Advertising new channel 81 for topic "/skybeta/setpoint/twist"
+[foxglove_bridge-20] [INFO] [1794120652.060424137] [foxglove_bridge]: Advertising new channel 82 for topic "/skybeta/setpoint/pose"
+[foxglove_bridge-20] [INFO] [1794120652.060571631] [foxglove_bridge]: Advertising new channel 83 for topic "/skybeta/state"
+[px4-3] WARN  [health_and_arming_checks] Preflight Fail: heading estimate not stable
+[foxglove_bridge-20] [INFO] [1794120654.556886317] [foxglove_bridge]: Advertising new channel 84 for topic "/kestrel_nav/depth"
+[foxglove_bridge-20] [INFO] [1794120654.557062179] [foxglove_bridge]: Advertising new channel 85 for topic "/kestrel_nav/depth/camera_info"
+[px4-3] INFO  [commander] [32mReady for takeoff![0m
+[foxglove_bridge-20] [INFO] [1794120672.617422517] [foxglove_bridge]: Advertising new channel 86 for topic "/coursenav/status"
+[foxglove_bridge-20] [INFO] [1794120672.617677543] [foxglove_bridge]: Advertising new channel 87 for topic "/coursenav/px4_correction"
+[foxglove_bridge-20] [INFO] [1794120672.617818709] [foxglove_bridge]: Advertising new channel 88 for topic "/coursenav/pose"
+[foxglove_bridge-20] [INFO] [1794120672.617867839] [foxglove_bridge]: Advertising new channel 89 for topic "/fmu/out/distance_sensor"
+[foxglove_bridge-20] [INFO] [1794120672.617903061] [foxglove_bridge]: Advertising new channel 90 for topic "/coursenav/odometry"
+[foxglove_bridge-20] [INFO] [1794120672.618192870] [foxglove_bridge]: Advertising new channel 91 for topic "/coursenav/occupancy"
+[foxglove_bridge-20] [INFO] [1794120672.618271658] [foxglove_bridge]: Advertising new channel 92 for topic "/coursenav/drift"
+[foxglove_bridge-20] [INFO] [1794120673.943852150] [foxglove_bridge]: Advertising new channel 93 for topic "/refnav/status"
+[foxglove_bridge-20] [INFO] [1794120713.738176583] [foxglove_bridge]: Advertising new channel 94 for topic "/coursenav/path"
+[foxglove_bridge-20] [INFO] [1794120718.212388665] [foxglove_bridge]: Advertising new channel 95 for topic "/refnav/control"
+[rosbag2-21] [INFO] [1794120718.547958600] [rosbag2_recorder]: Subscribed to topic '/skybeta/setpoint/twist'
+[px4-3] INFO  [commander] Armed by external command	
+[px4-3] INFO  [tone_alarm] arming warning
+[grader-19] [INFO] [1794120728.183537371] [grader]: EVENT {"t": 78.721, "event": "armed"}
+[grader-19] [INFO] [1794120731.714440747] [grader]: EVENT {"t": 81.583, "event": "airborne"}
+[px4-3] INFO  [commander] Takeoff detected	
+[grader-19] [INFO] [1794120733.962383093] [grader]: EVENT {"t": 83.404, "event": "start", "xyz": [-2.521, 0.82, 0.3]}
+[grader-19] [INFO] [1794120845.662642363] [grader]: EVENT {"t": 168.183, "event": "landed"}
+[px4-3] INFO  [commander] Landing detected	
+[px4-3] INFO  [commander] Disarmed by landing	
+[px4-3] INFO  [tone_alarm] notify neutral
+[grader-19] [INFO] [1794120848.181059029] [grader]: EVENT {"t": 170.192, "event": "disarmed"}
+[grader-19] [INFO] [1794120848.181510499] [grader]: EVENT {"t": 170.192, "event": "over", "reason": "landed_on_pad_before_checkpoint_4", "run_time_s": 86.787486114}
+[grader-19] [INFO] [1794120848.182101498] [grader]: 
+[grader-19] =============== SCORECARD ===============
+[grader-19]  result      : over (landed_on_pad_before_checkpoint_4)
+[grader-19]  run time    : 86.787486114 s (incl. 0.0 s penalties, 0 touches)
+[grader-19]  checkpoints : [] = 0.0 pts
+[grader-19]  time bonus  : 0.0  window: 0.0  return x1.0
+[grader-19]  RUN POINTS  : 0.0   below-walls finish: False
+[grader-19] =========================================
+[grader-19] [INFO] [1794120848.182690703] [grader]: scorecard written to /home/matthew/dronehacks-sim/runs/20261107_225408.json
+[px4-3] INFO  [logger] closed logfile, bytes written: 43483428

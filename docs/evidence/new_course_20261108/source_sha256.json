@@ -1,0 +1,14 @@
+{
+  "course/course_v3.json": "de25fb6de0846033f5a8405c2d0a694ec46f34626573bc87674a6bc4e2ec6a5a",
+  "course/new_course_origin.obj": "ef86d5ea34edb7d655551ad2faf5bedff6c916425013aeb4e03e927e0b46809b",
+  "maps/course_origin_5cm.npz": "f0c73aeb0b459707c4f0f5a0e23b4e23375991eed36fce4ee5cacc61e6569d1e",
+  "coursenav/course.py": "894dc6cd5cfabcb6f8dd04223bccb24093db8ac63b8a9cc76c39a498f9d793ed",
+  "coursenav/loc_node.py": "cb48f7f51ad298bf52abf91aa010bc167398032961df2d57972bef69d70d3cf6",
+  "refnav/core.py": "42eb15cdeee4c8266075f3b70d9f5bfc39bbe1c46f0d79c4d85ca075929510fc",
+  "refnav/skybeta.py": "94a0dd0fbb3aea5966ce59e7a5c4f6c1a63b459a2b75f2a10a29b3122d4a3981",
+  "refnav/node.py": "4d0be98a5a05163288c0928adcc321ce69ab51aba9da0506a86a089e4f8566a2",
+  "refnav/skybeta_health.py": "8378abf0d7c201637b38086dbcad5c3e23fcbc8aeafef9bdfc10eca29b7f2347",
+  "fly_course.py": "5cd7b153ffdd49165cc95075633741bcb783c7222efeef2d1742eb348472f8c2",
+  "launch/refnav_skybeta.launch.py": "bd6e8bed810b1d4caf1e0fbfb4228e10d9585d7e0780d9875ccb18aca9146cf1",
+  "kestrel_nav/host_depth.py": "516a5e803fef1a40f065a45b23626147bb849d4c5154db8f1af67c8d599550e9"
+}

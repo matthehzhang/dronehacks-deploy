@@ -46,10 +46,18 @@ class SkybetaHealth(Node):
         p = m.pose.pose.position
         ok, self.reason = self.health.update(t, (p.x, p.y, p.z))
         if ok:
-            self.last_good = time.monotonic()
+            self.last_good = self._health_now()
+
+    def _health_now(self):
+        # The 4 Hz sampling gate above follows image/odometry simulation time.
+        # Expire samples in that same domain during SITL, even below real time.
+        # Hardware keeps the original monotonic-clock behavior and thresholds.
+        if self.get_parameter("use_sim_time").value:
+            return self.get_clock().now().nanoseconds * 1e-9
+        return time.monotonic()
 
     def _healthy(self):
-        return bool(self.tracking_ok and self.last_good is not None and 0 <= time.monotonic() - self.last_good < self.stale_s)
+        return bool(self.tracking_ok and self.last_good is not None and 0 <= self._health_now() - self.last_good < self.stale_s)
 
     def _publish(self):
         self.pub.publish(Bool(data=self._healthy()))

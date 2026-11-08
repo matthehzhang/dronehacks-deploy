@@ -248,6 +248,15 @@ class LocNode(Node):
         best = min(cands, key=lambda h: abs(h[0] - t))
         return best if abs(best[0] - t) <= 0.1 else None
 
+    def _scan_rate_now(self):
+        if self.get_parameter('use_sim_time').value:
+            return self.get_clock().now().nanoseconds * 1e-9
+        return time.monotonic()
+
+    def _scan_rate_limited(self):
+        elapsed = self._scan_rate_now() - self._t_proc
+        return 0 <= elapsed < 1.0 / self.adaptive_hz
+
     def _on_depth(self, m):
         if self.K is None or self.att is None or not self.pf.ready:
             return
@@ -256,7 +265,7 @@ class LocNode(Node):
         if self.adaptive_hz > 0 and self.last_est is not None:
             cov = self.last_est[2]
             confident = math.sqrt(max(cov[0, 0], cov[1, 1])) < 0.05 and math.degrees(math.sqrt(cov[2, 2])) < 2.0
-            if confident and time.monotonic() - self._t_proc < 1.0 / self.adaptive_hz:
+            if confident and self._scan_rate_limited():
                 return
         t_cpu = time.process_time()
         if self.cam_cal is None:
@@ -296,7 +305,7 @@ class LocNode(Node):
                 f = self.live.landmark_field()
                 self.pf.set_distance(self.prior_dist if f is None else f)
         self.last_est = (t, mean, cov, pose, h, n_depth)
-        self._t_proc = time.monotonic()
+        self._t_proc = self._scan_rate_now()
         self._cost.append(time.process_time() - t_cpu)
         if len(self._cost) >= 50:                  # measured per-frame CPU cost, for the drone's first runs
             self.get_logger().info(f"scan cost: mean {1000 * np.mean(self._cost):.1f} ms CPU/frame "

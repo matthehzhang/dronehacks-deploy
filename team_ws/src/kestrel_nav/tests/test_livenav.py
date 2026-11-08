@@ -4,6 +4,9 @@ import copy
 
 import numpy as np
 import pytest
+from kestrel_nav.coursenav.course import PROJECT as COURSE_ROOT
+LEGACY_COURSE = COURSE_ROOT / "course/course_v3_legacy.json"
+
 
 from kestrel_nav.coursenav.scan import Scan
 from kestrel_nav.livenav.follower import FollowParams, Follower, path_obstacle, path_progress, point_at
@@ -16,7 +19,7 @@ from kestrel_nav.livenav.replanner import goals_from_plan
 
 @pytest.fixture(scope="module")
 def mission():
-    return LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+    return LiveMission(course_file=LEGACY_COURSE, params=MissionParams(landed_z_m=0.067, use_pf=False))
 
 
 # ---------------------------------------------------------------------------- grid
@@ -97,7 +100,7 @@ def test_goals_and_gate_legs(mission):
 
 
 def test_replanner_routes_around_a_live_pillar(mission):
-    m = LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+    m = LiveMission(course_file=LEGACY_COURSE, params=MissionParams(landed_z_m=0.067, use_pf=False))
     rp = m.replanner
     rp.k = [g.name for g in m.goals].index("via14")                   # tunnel exit -> open south area
     start = (2.3, -0.85)
@@ -148,7 +151,7 @@ def test_course_odom_round_trip(mission):
 
 
 def test_mission_waits_then_climbs(mission):
-    m = LiveMission(MissionParams(landed_z_m=0.067, use_pf=False))
+    m = LiveMission(course_file=LEGACY_COURSE, params=MissionParams(landed_z_m=0.067, use_pf=False))
     c = m.step(Observation(now=0.0, odom_xyz=(0, 0, 0), odom_yaw=0.0, offboard_active=False))
     assert c.state == "WAIT" and c.vz == 0.0
     c = m.step(Observation(now=0.1, odom_xyz=(0, 0, 0), odom_yaw=0.0, offboard_active=True))

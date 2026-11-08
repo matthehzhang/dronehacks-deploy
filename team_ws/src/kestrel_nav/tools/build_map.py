@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build maps/course_v3.npz from the published course OBJ (no simulator, no ROS)."""
+"""Build the configured voxel prior from its course OBJ (no simulator, no ROS)."""
 import argparse
 import hashlib
 import sys
@@ -16,12 +16,18 @@ def main():
     ap.add_argument("--course", default=None)
     ap.add_argument("--res", type=float, default=0.05)
     a = ap.parse_args()
-    doc = load_course(a.course) if a.course else load_course()
+    doc = load_course(a.course, derive=False) if a.course else load_course(derive=False)
     obj, out = resolve(doc, "obj"), resolve(doc, "map")
     t = time.time()
     groups = objmap.load_obj(obj)
     cmap = objmap.build(groups, res=a.res)
     cmap.meta["obj_sha256"] = hashlib.sha256(obj.read_bytes()).hexdigest()
+    provenance = doc.get("_map_provenance")
+    if provenance:
+        if cmap.meta["obj_sha256"] != provenance["obj_sha256"]:
+            raise ValueError("OBJ changed: update the course provenance before rebuilding its prior")
+        cmap.meta.update(source="local scenario OBJ", official_published=False,
+                         scenario="topview_entrance", policy="temporary map-based group154; not mapless")
     out.parent.mkdir(parents=True, exist_ok=True)
     cmap.save(out)
     print(f"{len(groups)} groups -> {cmap.shape} voxels @ {a.res} m, {int(cmap.occupied.sum())} occupied, "

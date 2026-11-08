@@ -1,0 +1,15 @@
+........................................................................ [ 21%]
+........................................................................ [ 42%]
+.....x.................................................................. [ 63%]
+.............................................................x.......... [ 84%]
+...................................................                      [100%]
+=============================== warnings summary ===============================
+../../../../sim/.venv/lib/python3.11/site-packages/dash/testing/plugin.py:104
+  /home/matthew/projects/hackathon/dronehacks/sim/.venv/lib/python3.11/site-packages/dash/testing/plugin.py:104: PytestRemovedIn10Warning: The hookimpl pytest_addhooks uses old-style configuration options (marks or attributes).
+  Please use the pytest.hookimpl(tryfirst=True) decorator instead
+   to configure the hooks.
+   See https://docs.pytest.org/en/latest/deprecations.html#configuring-hook-specs-impls-using-markers
+    @pytest.mark.tryfirst
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+337 passed, 2 xfailed, 1 warning in 150.62s (0:02:30)

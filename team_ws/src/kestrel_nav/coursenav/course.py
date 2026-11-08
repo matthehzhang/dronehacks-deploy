@@ -73,9 +73,9 @@ _EXACT = {}
 
 
 def surface_clearance(doc, cmap: CourseMap, zlo, zhi, spacing=SURFACE_SAMPLE_M):
-    """Metres from every cell CENTRE to the nearest published surface in [zlo, zhi] (floor marking
+    """Metres from every cell CENTRE to the nearest configured surface in [zlo, zhi] (floor marking
     excluded, as in CourseMap.band), measured on the OBJ's triangles instead of the voxel raster.
-    -> array like Grid2D.distance(), or None when the map is not provably the published layout.
+    -> array like Grid2D.distance(), or None when the map is not provably the configured OBJ layout.
 
     Why: the voxel EDT measures cell centre to occupied-cell centre, which errs by up to
     res*sqrt(2)/2 = 3.5 cm either way at 5 cm cells. At the window (0.914 m wide in the OBJ, so
@@ -83,14 +83,15 @@ def surface_clearance(doc, cmap: CourseMap, zlo, zhi, spacing=SURFACE_SAMPLE_M):
     it can read up to 3.5 cm too much. Bound used here: triangles are sampled every `spacing` m
     (barycentric, objmap.sample_triangles), so any surface point lies within spacing*sqrt(2)/2 of a
     sample; that is subtracted, making the field a lower bound on the true clearance.
-    Only an unmodified published map (meta source/obj_sha256 match, no simulated 'world') uses it."""
+    Only an unmodified OBJ prior (published or explicitly labeled local scenario) with
+    matching obj_sha256 and no simulated 'world' uses it. This does not certify map accuracy."""
     import hashlib
     meta = getattr(cmap, "meta", {}) or {}
     try:
         obj = resolve(doc, "obj")
     except KeyError:
         return None
-    if meta.get("source") != "published OBJ" or "world" in meta or not obj.is_file():
+    if meta.get("source") not in ("published OBJ", "local scenario OBJ") or "world" in meta or not obj.is_file():
         return None
     sha = hashlib.sha256(obj.read_bytes()).hexdigest()
     if sha != meta.get("obj_sha256"):

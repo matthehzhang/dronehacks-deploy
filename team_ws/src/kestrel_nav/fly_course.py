@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
 import time
 from pathlib import Path
@@ -294,6 +295,21 @@ def main(argv=None):
                 own_loc.kill()
 
 
+def require_sim_plan_ready(ready, process):
+    """A capped simulation must not silently fall back to planning in flight."""
+    if os.environ.get('KESTREL_USE_SIM_TIME') != 'true' or ready.exists():
+        return
+    import subprocess
+    if process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+    raise SystemExit('Navigator did not finish preplanning within the 300 wall-second watchdog; simulation flight not started')
+
+
 def _fly(a, t0, doc, prepared, run_dir, stamp):
     height = a.landed_z
     source = "command line"
@@ -409,6 +425,7 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
             if int(time.monotonic() - t_wait) % 10 == 0:
                 print(f"waiting for the navigator to pre-plan the legs ({time.monotonic() - t_wait:.0f} s)", flush=True)
             time.sleep(1.0)
+        require_sim_plan_ready(ready, nav_proc)
         print(f"navigator: {'ready' if ready.exists() else 'NOT ready (planning in flight)'} after "
               f"{time.monotonic() - t_wait:.0f} s", flush=True)
     if a.event_start:

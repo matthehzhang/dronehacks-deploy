@@ -1,0 +1,388 @@
+{
+ "waypoints": [
+  {
+   "name": "start",
+   "mode": "takeoff",
+   "xy": [
+    -2.525,
+    0.975
+   ],
+   "clearance_m": 0.459,
+   "facing_m": 1.93
+  },
+  {
+   "name": "via1",
+   "mode": "cruise",
+   "xy": [
+    -2.475,
+    1.475
+   ],
+   "end_ok": true,
+   "clearance_m": 0.566,
+   "facing_m": 1.73,
+   "overrun_m": 1.42
+  },
+  {
+   "name": "via2",
+   "mode": "cruise",
+   "xy": [
+    -2.275,
+    1.675
+   ],
+   "end_ok": true,
+   "clearance_m": 0.634,
+   "facing_m": null,
+   "overrun_m": 1.45
+  },
+  {
+   "name": "via3",
+   "mode": "cruise",
+   "xy": [
+    -0.675,
+    2.275
+   ],
+   "end_ok": true,
+   "clearance_m": 0.62,
+   "facing_m": null,
+   "overrun_m": 1.25
+  },
+  {
+   "name": "tunnel_entry",
+   "mode": "align",
+   "land": false,
+   "xy": [
+    2.3114,
+    2.3692
+   ],
+   "end_ok": true,
+   "clearance_m": 0.666,
+   "facing_m": null,
+   "overrun_m": 0.7,
+   "align": {
+    "group": "tunnel",
+    "dist_m": 1.15,
+    "width_m": 1.3,
+    "half_left_m": 0.664,
+    "half_right_m": 0.636,
+    "edge_bearing_deg": 32.7,
+    "visible": true
+   }
+  },
+  {
+   "name": "tunnel_exit",
+   "mode": "tunnel",
+   "land": false,
+   "xy": [
+    2.3114,
+    -0.8548
+   ],
+   "end_ok": true,
+   "clearance_m": 0.716,
+   "facing_m": null,
+   "overrun_m": 2.17,
+   "passage": {
+    "enclosed_frac": 0.49,
+    "length_m": 3.224,
+    "map_clear": true,
+    "is_passage": true
+   }
+  },
+  {
+   "name": "via6",
+   "mode": "cruise",
+   "xy": [
+    1.225,
+    -1.775
+   ],
+   "end_ok": true,
+   "clearance_m": 0.654,
+   "facing_m": 1.36,
+   "overrun_m": 1.53
+  },
+  {
+   "name": "via7",
+   "mode": "cruise",
+   "xy": [
+    0.525,
+    -1.875
+   ],
+   "end_ok": true,
+   "clearance_m": 0.742,
+   "facing_m": 1.35,
+   "overrun_m": 0.66
+  },
+  {
+   "name": "via8",
+   "mode": "cruise",
+   "xy": [
+    0.325,
+    -2.125
+   ],
+   "end_ok": true,
+   "clearance_m": 0.642,
+   "facing_m": null,
+   "overrun_m": 0.89
+  },
+  {
+   "name": "window_pre",
+   "mode": "gate",
+   "gate": "window",
+   "part": "pre",
+   "xy": [
+    0.2807,
+    -2.5459
+   ],
+   "end_ok": true,
+   "clearance_m": 0.516,
+   "facing_m": null,
+   "overrun_m": 0.45
+  },
+  {
+   "name": "window",
+   "mode": "gate",
+   "gate": "window",
+   "part": "centre",
+   "normal": [
+    -0.9395,
+    0.3425
+   ],
+   "pre_m": 0.8,
+   "xy": [
+    -0.4709,
+    -2.2719
+   ],
+   "end_ok": true,
+   "clearance_m": 0.446,
+   "facing_m": null,
+   "overrun_m": 2.6,
+   "align": {
+    "group": "window",
+    "dist_m": 0.8,
+    "width_m": 0.871,
+    "half_left_m": 0.431,
+    "half_right_m": 0.44,
+    "dz_lo": -0.495,
+    "dz_hi": 0.419,
+    "edge_bearing_deg": 32.8,
+    "visible": true
+   }
+  },
+  {
+   "name": "window_post",
+   "mode": "gate",
+   "gate": "window",
+   "part": "post",
+   "xy": [
+    -0.9406,
+    -2.1006
+   ],
+   "end_ok": true,
+   "clearance_m": 0.605,
+   "facing_m": null,
+   "overrun_m": 2.1
+  },
+  {
+   "name": "pad",
+   "mode": "cruise",
+   "land": true,
+   "xy": [
+    -2.0422,
+    -0.7925
+   ],
+   "clearance_m": 1.003,
+   "overrun_m": 1.14
+  }
+ ],
+ "length_m": 14.59,
+ "min_clearance_m": 0.422,
+ "segment_clearance_m": [
+  0.429,
+  0.566,
+  0.582,
+  0.611,
+  0.639,
+  0.582,
+  0.624,
+  0.623,
+  0.516,
+  0.422,
+  0.425,
+  0.605
+ ],
+ "required_clearance_m": 0.4140828452868319,
+ "chicane": "window",
+ "gate_crossings": {
+  "window": {
+   "chosen_deg": 0.0,
+   "feasible": true,
+   "candidates": [
+    {
+     "deg": 0.0,
+     "normal": [
+      -0.9395,
+      0.3425
+     ],
+     "clearance_m": 0.425,
+     "facing_m": null,
+     "ok": true
+    },
+    {
+     "deg": 5.0,
+     "normal": [
+      -0.9658,
+      0.2593
+     ],
+     "clearance_m": 0.422,
+     "facing_m": null,
+     "ok": true
+    },
+    {
+     "deg": -5.0,
+     "normal": [
+      -0.9061,
+      0.4231
+     ],
+     "clearance_m": 0.416,
+     "facing_m": null,
+     "ok": true
+    },
+    {
+     "deg": 10.0,
+     "normal": [
+      -0.9847,
+      0.1742
+     ],
+     "clearance_m": 0.412,
+     "facing_m": null,
+     "ok": false
+    },
+    {
+     "deg": -10.0,
+     "normal": [
+      -0.8658,
+      0.5004
+     ],
+     "clearance_m": 0.366,
+     "facing_m": null,
+     "ok": false
+    },
+    {
+     "deg": 15.0,
+     "normal": [
+      -0.9961,
+      0.0877
+     ],
+     "clearance_m": 0.402,
+     "facing_m": null,
+     "ok": false
+    },
+    {
+     "deg": -15.0,
+     "normal": [
+      -0.8189,
+      0.574
+     ],
+     "clearance_m": 0.316,
+     "facing_m": null,
+     "ok": false
+    },
+    {
+     "deg": -20.0,
+     "normal": [
+      -0.7657,
+      0.6432
+     ],
+     "clearance_m": 0.266,
+     "facing_m": null,
+     "ok": false
+    },
+    {
+     "deg": 20.0,
+     "normal": [
+      -1.0,
+      0.0005
+     ],
+     "clearance_m": 0.402,
+     "facing_m": null,
+     "ok": false
+    },
+    {
+     "deg": -25.0,
+     "normal": [
+      -0.7067,
+      0.7075
+     ],
+     "clearance_m": 0.216,
+     "facing_m": null,
+     "ok": false
+    },
+    {
+     "deg": 25.0,
+     "normal": [
+      -0.9962,
+      -0.0866
+     ],
+     "clearance_m": 0.361,
+     "facing_m": null,
+     "ok": false
+    },
+    {
+     "deg": -30.0,
+     "normal": [
+      -0.6424,
+      0.7664
+     ],
+     "clearance_m": 0.166,
+     "facing_m": null,
+     "ok": false
+    },
+    {
+     "deg": 30.0,
+     "normal": [
+      -0.9849,
+      -0.1731
+     ],
+     "clearance_m": 0.352,
+     "facing_m": null,
+     "ok": false
+    }
+   ],
+   "searched_deg": 30.0
+  }
+ },
+ "gate_lines": [
+  [
+   [
+    -0.3143748781822516,
+    -1.8425413081816802
+   ],
+   [
+    -0.6274251218177483,
+    -2.70125869181832
+   ]
+  ]
+ ],
+ "moved_leg_ends": [],
+ "leg_end_violations": [],
+ "leg_end_relaxed": [],
+ "time_estimate_s": 80.3,
+ "predicted_false_blocks": [],
+ "scores": {
+  "window": {
+   "score": -0.42,
+   "points": 5.0,
+   "time_s": 80.3,
+   "time_penalty": 4.01,
+   "min_clearance_m": 0.422,
+   "clearance_penalty": 1.4,
+   "legs": 12,
+   "length_m": 14.59,
+   "facing_violations": [],
+   "facing_relaxed": [],
+   "crossing_infeasible": [],
+   "alignment_not_visible": [],
+   "predicted_false_blocks": []
+  }
+ },
+ "choice_reason": "window: score -0.42 (points 5, time 80 s, min clearance 0.42 m); gate_b: NO PLAN (gate_b_pre is reachable only through gate_b: the ungated path crosses those opening lines outside their crossing legs. No gated approach at 0.41 m clearance)"
+}

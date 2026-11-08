@@ -178,6 +178,7 @@ class Params:
     align_frames: int = 3                       # ... agreeing measurements needed ...
     align_max_shift_m: float = 0.25             # ... largest lateral shift of the crossing ...
     align_max_dz_m: float = 0.15                # ... largest height shift ...
+    align_window_max_dz_m: float = 0.30         # window only: bounded one/two-edge height correction
     align_max_turn_deg: float = 10.0            # ... largest heading change of the crossing
     tunnel_mode: bool = False                   # allow tunnel mode on legs the planner marked as a passage
     tunnel_speed_mps: float = 0.3
@@ -1576,7 +1577,8 @@ class Mission:
         """One alignment measurement from the latest frame, expressed in the LEG frame (the body may
         still be a few degrees off the leg heading when it measures)."""
         meta = self._leg_meta().get("align") or {}
-        est = G.find_opening(self.frame.points(0.3, 6.0), meta)
+        est = G.find_opening(self.frame.points(0.3, 6.0), meta,
+                             height_max_m=self.p.align_window_max_dz_m)
         if est is None:
             return None
         bearing = _wrap(self.leg_heading - v.heading) if v.heading is not None else 0.0
@@ -1607,7 +1609,9 @@ class Mission:
         offset, bounded; record the success for tunnel mode."""
         p = self.p
         lat = max(-p.align_max_shift_m, min(p.align_max_shift_m, res["lateral_m"]))
-        dz = 0.0 if res.get("dz_m") is None else max(-p.align_max_dz_m, min(p.align_max_dz_m, res["dz_m"]))
+        window = self._leg_meta().get("align", {}).get("group") == "window"
+        dz_limit = p.align_window_max_dz_m if window else p.align_max_dz_m
+        dz = 0.0 if res.get("dz_m") is None else max(-dz_limit, min(dz_limit, res["dz_m"]))
         turn = max(-math.radians(p.align_max_turn_deg), min(math.radians(p.align_max_turn_deg), res.get("heading_rad", 0.0)))
         un, ue = self.leg_dir
         ln, le = ue, -un                                      # unit vector to the LEFT of the leg (NED, yaw clockwise)
@@ -1637,7 +1641,8 @@ class Mission:
         self.align_ok_t, self.align_ok_leg, self.align_result = now, self.leg, res
         self.last_align = res
         self.counts["alignments"] += 1
-        out.events.append(f"gate aligned: lateral {lat:+.2f} m, height {dz:+.2f} m, heading {math.degrees(turn):+.1f} deg "
+        height_log = "unavailable (unchanged)" if res.get("dz_m") is None else f"{dz:+.2f} m"
+        out.events.append(f"gate aligned: lateral {lat:+.2f} m, height {height_log}, heading {math.degrees(turn):+.1f} deg "
                           f"(width seen {res.get('width_m', float('nan')):.2f} m, {len(self.align_hist)} frames)")
 
     # ------------------------------------------------------------------ hold-and-recheck

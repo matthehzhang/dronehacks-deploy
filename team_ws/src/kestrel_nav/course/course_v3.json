@@ -1,18 +1,17 @@
 {
   "schema": "coursenav-course/1",
-  "frame": "course ENU = published OBJ source frame (metres, x east, y north, z up, origin floor centre)",
-  "obj": "course/dronehacks-course-v3.obj",
-  "map": "maps/course_v3.npz",
+  "frame": "Course ENU: metres; x east, y north, z up; origin at enclosure floor centre",
+  "obj": "course/new_course_origin.obj",
+  "map": "maps/course_origin_5cm.npz",
   "start": {
-    "from": {
-      "feature": "launch_mark",
-      "group": "Launch mark",
-      "heading_from": "Guideline"
-    },
     "sigma_xy_m": 0.05,
     "sigma_yaw_deg": 2.0,
-    "_note": "Derived at load (coursenav/semantics.py): the launch mark's centre, heading along the guideline's first direction. A PRIOR, not truth: the localizer refines it.",
-    "_sigma_note": "Placement accuracy of the drone on its start (mark or declared training fixture). Live 2026-11-07: with 0.3 m / 8 deg the localizer converged 0.37 m and 15 deg off on the pad (the view from the pad hardly constrains position; two early updates pulled the cloud, then the fit gate rejected every later scan). With 0.05 m / 2 deg it held 3 cm / 0.5 deg of truth over 40 s."
+    "xy": [
+      -2.515,
+      0.914
+    ],
+    "yaw_deg": 90.0,
+    "_note": "Declared local-sim launch prior; localizer refines it. Not a surveyed venue pose."
   },
   "vehicle": {
     "radius_m": 0.29408284528683193,
@@ -53,16 +52,6 @@
     }
   ],
   "sequence": [
-    {
-      "name": "maze_exit",
-      "from": {
-        "feature": "guideline_end",
-        "group": "Guideline",
-        "past_m": 0.4,
-        "centre_span_m": 0.3
-      },
-      "_note": "Configured overrun beyond the guideline endpoint; the planner separately enforces the resolved vehicle radius + margin against mapped obstacles."
-    },
     {
       "name": "tunnel",
       "from": {
@@ -236,6 +225,7 @@
     "align_frames": 3,
     "align_max_shift_m": 0.25,
     "align_max_dz_m": 0.15,
+    "align_window_max_dz_m": 0.3,
     "align_max_turn_deg": 0.0,
     "tunnel_mode": true,
     "tunnel_speed_mps": 0.3,
@@ -245,13 +235,13 @@
     "correction_rate_mps": 0.05,
     "_note": "COMPETITION PROFILE: shared by planned routes and offline flight. corridor_half_m remains 0.32 m, which covers the resolved 7-inch horizontal footprint by about 0.026 m; it is not the planner margin. Planner minimum derives from vehicle radius + margin (about 0.4141 m). band_m = plan_band_m; body cruise height is cruise_z_m above floor.",
     "_profile_note": "Team-approved loosening (2026-11-06 flights A-E, see HANDOFF): hold-and-recheck before landing on 'route blocked' (4 s hover, 0.2 m back-off, 2 s recheck); depth silence not counted in turns/holds, land after 5 s (was 3); 3 confirming frames (was 2); stop distance max(0.55, 0.45 + 1.0 * v) (was 0.9 fixed); corridor coverage 0.45 (was 0.6); valid pixels 0.15 while static (0.3 moving); corridor wait 10 s (was 8). NOT loosened: landing on unhealthy estimator / invalid PX4 position, yielding when PX4 leaves Offboard, never translating into a confirmed obstacle, the height limit, every PX4-side setting. tunnel_align_max_age_s 6 s: the mouth is 1.15 m past the entry point (where both rim edges are in view), ~4.3 s at 0.3 m/s with the ramp and the check; the aircraft does not turn in between.",
-    "_align_note": "Gate alignment (refnav.gate): lateral and height shifts of the crossing from the opening measured in the depth image, bounded by align_max_shift_m / align_max_dz_m. align_max_turn_deg 0: the heading estimate from the jambs near corners was within 7 deg on voxel-rendered depth (offline, 2026-11-06); enable after checking it on real sim depth. With one jamb out of view the opening is placed from the other jamb and the expected width.",
+    "_align_note": "Gate alignment (refnav.gate): lateral and height shifts of the crossing from the opening measured in the depth image, bounded by align_max_shift_m / align_max_dz_m. Windows use align_window_max_dz_m (0.30 m): use consistent depth observations of either vertical edge plus the mapped opening height, or both edges when visible. Missing/inconsistent height leaves altitude unchanged; no additional hold/retry is introduced. align_max_turn_deg 0: the heading estimate from the jambs near corners was within 7 deg on voxel-rendered depth (offline, 2026-11-06); enable after checking it on real sim depth. With one jamb out of view the opening is placed from the other jamb and the expected width.",
     "_correction_note": "correction_*: bounded map corrections (coursenav.loc_node -> /coursenav/px4_correction) shift the REMAINING targets at every leg start. Offline (2026-11-06): a 0.40 m total cap and a 0.06 m deadband let the correction lag the drift by 0.1-0.2 m, which was the margin at the M3 corner and the window; VIO can drift 0.3-0.5 m over the 17 m course, so the cap is 0.8 m (the enclosure bounds the localizer anyway), 0.2 m per leg start, 4 cm deadband. correction_rate_mps 0.05: the targets also follow the correction during a leg (at most 5 cm per second of shift), so the aircraft stays on the corrected line between leg starts; offline the leg-start-only rule lagged 0.1 m at the M3 corner and grazed it.",
     "safe_land": true,
     "retreat_speed_mps": 0.1,
     "_safe_land_note": "Fault landings descend only over a floor column clear of published surfaces within rotor reach + margin (coursenav.course.land_columns, full 3-D map floor..band top); otherwise refnav retraces its flown path to the nearest clear column first. run012: a fault land-in-place over the tube came down onto it. Estimator / PX4-position failures still land at once."
   },
-  "_goals_note": "No goal coordinates are stored here (rule 9.5). Each goal names a part of the published OBJ and how to read it; coursenav/semantics.py measures it when the course is loaded. Fields xy/center/normal appear only in the loaded copy.",
+  "_goals_note": "Temporary map-based policy. First semantic goal is tunnel; original downstream tunnel/window/pad features are measured from this reconstructed OBJ.",
   "enclosure": {
     "from": {
       "group": "Net side",
@@ -281,11 +271,28 @@
     "_keep_path_clearance_note": "planner._simplify_idx: shortcuts keep the clearance of the A* sub-path they replace, capped at 0.6 m = the A* prefer_m (beyond it A* itself does not centre), less half a cell. 0 restores greedy shortcuts."
   },
   "sim_profile": {
-    "fixture_offset_m": [0.0, 0.0], "_fixture_skybeta_note": "kestral_nav934am (skybeta): the drone starts ON the launch mark (rule 7.4; the FlyX training spawn was [0.0, 0.2])",
+    "fixture_offset_m": [
+      0.0,
+      0.0
+    ],
+    "_fixture_skybeta_note": "kestral_nav934am (skybeta): the drone starts ON the launch mark (rule 7.4; the FlyX training spawn was [0.0, 0.2])",
     "_note": "SIMULATION / TRAINING ONLY. The prepared-training world spawns the aircraft 20 cm north of the launch mark (environment.json); this declared offset gives the localizer's prior and the offline tools their start. It is not competition configuration: at the venue the start is the mark itself and fly_course.py takes the start pose from the localizer.",
     "refnav": {
       "sim_stuck_land_disarm_s": 0.0
     },
     "_refnav_note": "DISABLED after run023 (cf48cd8): the forced disarm fired with the aircraft 0.75 m in the air. After a Boulder 5 strike on leg 20 knocked it ~0.9 m sideways, the rangefinder read 0.079 m over raised geometry (not the floor), PX4's estimate had jumped (VIO re-anchor, height -7.66 m), so both 'touchdown' and 'divergence' tests passed in the air; it fell and came to rest at 106 deg tilt. A short rangefinder reading is not evidence of touchdown wherever anything is mapped below the flight path. Kept off until a touchdown test independent of the rangefinder's surface exists. Original problem (run019: PX4 never confirming a real touchdown) remains open for the organizers."
+  },
+  "_map_provenance": {
+    "source": "scenarios/topview_entrance/maps/course_geometry.json",
+    "obj_sha256": "ef86d5ea34edb7d655551ad2faf5bedff6c916425013aeb4e03e927e0b46809b",
+    "surveyed": false,
+    "warning": [
+      "Team top view supersedes the previous, incorrect three upright-divider interpretation.",
+      "Panel placement is approximate; no full new_dronehacks_course.obj was available locally.",
+      "Partial entrance LiDAR cannot be registered confidently from floor features: only two feature inliers, with an invalid 2.03 scale fit. That registration was rejected.",
+      "M1 is horizontal; M2 is the angled lower-left panel; M3 is the angled tunnel approach panel. No invented central upright wall.",
+      "Team correction: M1 meets both the west and north boundaries. Centreline y=2.9972 puts its north face at y=3.048; west endpoint x=-3.048. Preserve its length and orientation. No north passage behind M1.",
+      "Old entrance checkpoint lines are unqualified references. Original tunnel, chicane and landing geometry are retained."
+    ]
   }
 }
