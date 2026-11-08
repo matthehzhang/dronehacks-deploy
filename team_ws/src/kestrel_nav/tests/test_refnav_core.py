@@ -527,7 +527,7 @@ def test_a_correction_is_capped_in_total():
     assert 0.15 - 1e-9 <= math.hypot(*m.corr_applied) <= 0.2 + 1e-9     # never past the cap (deadband may leave < 0.06)
 
 
-# ---- opt-in corridor_wait_land_s: an unobservable corridor lands instead of hovering --------------
+# ---- insufficient corridor coverage alone has no landing deadline -------------------------------
 def _no_return_ahead(t, img):
     """Depth sees the floor but nothing at body height ahead (e.g. through a net): the corridor
     1.5 m ahead is never observed."""
@@ -543,11 +543,14 @@ def test_an_unobservable_corridor_hovers_forever_by_default():
     assert m.counts["corridor_unobserved"] > 0 and px4.armed
 
 
-def test_an_unobservable_corridor_lands_with_the_opt_in():
-    m, px4, log = fly(C.Params(route=[(3.0, 0.0)], stop_m=0.9, lead_max_m=0.6, corridor_wait_land_s=5.0),
+@pytest.mark.parametrize("creep", [False, True])
+def test_legacy_corridor_timeout_cannot_land_for_unobserved_space(creep):
+    m, px4, log = fly(C.Params(route=[(3.0, 0.0)], stop_m=0.9, lead_max_m=0.6,
+                              corridor_wait_land_s=10.0, recovery_replan=True, recovery_creep=creep),
                       depth_fn=_no_return_ahead, seconds=60.0)
-    assert m.result.startswith("landed: corridor of leg 1 not observed"), m.result
-    assert m.legs_done == 0 and not px4.armed
+    assert m.phase == "check" and m.result is None
+    assert m.counts["corridor_unobserved"] > 0 and px4.armed
+    assert m.legs_done == 0
 
 
 def test_the_corridor_wait_does_not_fire_on_a_normal_route():

@@ -16,8 +16,8 @@ Safety behaviour (each one is a test in tests/test_refnav_core.py):
   than depth_stale_s returned depth on at least min_corridor_coverage of the rays crossing the
   corridor ahead (no return is unknown space, never free space); a blank, sparse (valid fraction
   < min_valid_frac), future-stamped, stale-on-arrival or out-of-order frame refreshes nothing; no
-  usable depth for depth_lost_land_s lands; with corridor_wait_land_s >= 0, a leg whose corridor no
-  frame has observed for that long (e.g. depth sees nothing through a net) lands instead of hovering;
+  usable depth for depth_lost_land_s lands. Insufficient corridor coverage alone does not impose
+  a landing deadline;
 * an obstacle closer than stop_m ahead stops the aircraft and ends the route (it lands where it
   is: route blocked; planning around obstacles is the student's job); with leg_end_margin_m >= 0 only
   an obstacle inside the remaining leg (+ that margin) counts, so a mapped wall beyond a planned leg
@@ -116,9 +116,7 @@ class Params:
                                                 # the REST OF THE LEG + this margin. A course wall planned beyond a
                                                 # leg's end (maze corridors) is then expected, not a blockage.
                                                 # < 0 (default): any obstacle closer than stop_m blocks (original rule)
-    corridor_wait_land_s: float = -1.0          # >= 0: land when the current leg's corridor has gone this long
-                                                # without an observing frame (in check or go). < 0 (default): hold
-                                                # and wait indefinitely (original rule)
+    corridor_wait_land_s: float = -1.0          # ignored legacy parameter: retained for old route/config loading
     corridor_half_m: float = 0.6
     band_m: float = 0.4
     min_obstacle_px: int = 1200                 # an obstacle covers at least this many image pixels (~35 x 35):
@@ -907,13 +905,7 @@ class Mission:
             elif p.prior_required and self.prior is not None and self.prior[1] == "dropped":
                 self._land(now, out, self._prior_dropped_why())
             elif self._begin_failed_plan_recovery(now, out, v):
-                pass  # no-route recovery owns its existing bounded timer, not the stale corridor timer
-            elif p.corridor_wait_land_s >= 0 and self.phase in ("check", "go") and self.t_check is not None \
-                    and not tunnel_dark:
-                seen = self.t_check if self.corr_t is None else max(self.t_check, self.corr_t)
-                if now - seen > p.corridor_wait_land_s:
-                    self._land(now, out, f"corridor of leg {self.leg + 1} not observed for "
-                                         f"{now - seen:.1f} s (corridor_wait_land_s {p.corridor_wait_land_s:g} s)")
+                pass  # no-route recovery owns its existing bounded timer
 
         ph = self.phase
         if ph == "wait":

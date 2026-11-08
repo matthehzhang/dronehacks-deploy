@@ -200,7 +200,6 @@
     "arrive_m": 0.15,
     "hold_s": 0.25,
     "band_m": 0.25,
-    "corridor_wait_land_s": 10.0,
     "yaw_rate_dps": 35.0,
     "correction_max_m": 0.8,
     "correction_step_m": 0.2,
