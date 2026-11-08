@@ -1,0 +1,14 @@
+    PID COMMAND
+      1 tmux attach -t skybeta
+     65 tmux new-session -d -s skybeta -n agent ; set-option -g remain-on-exit on
+     66 MicroXRCEAgent serial --dev /dev/ttyTHS1 -b 921600 -r /etc/skybeta/agent_refs.xml
+    124 /usr/bin/python3 /opt/ros/humble/bin/ros2 launch oakd_vslam_bringup oakd_vslam.launch.py camera_x:=0.1053 camera_y:=0 camera_z:=0.0304 camera_roll:=0 camera_pitch:=0 camera_yaw:=0
+    199 /opt/ros/humble/lib/tf2_ros/static_transform_publisher --x 0.1053 --y 0 --z 0.0304 --roll 0 --pitch 0 --yaw 0 --frame-id base_link --child-frame-id oak_parent_frame --ros-args -r __node:=base_link_to_oak
+    201 /opt/ros/humble/lib/rclcpp_components/component_container --ros-args --log-level info --ros-args -r __node:=oak_container -r __ns:=/
+    203 /opt/ros/humble/lib/rclcpp_components/component_container_mt --ros-args -r __node:=vslam_container -r __ns:=/
+    306 /usr/bin/python3 /opt/ros/humble/bin/ros2 launch oakd_vslam_bringup px4_bridge.launch.py
+    389 bash
+    405 /usr/bin/python3 /root/skybeta_ws/install/oakd_vslam_bringup/lib/oakd_vslam_bringup/px4_odom_bridge --ros-args -r __node:=px4_odom_bridge --params-file /tmp/launch_params_0ljbgiml
+   3111 /usr/bin/python3 -c from ros2cli.daemon.daemonize import main; main() --name ros2-daemon --ros-domain-id 14 --rmw-implementation rmw_fastrtps_cpp
+   5221 ps -eo pid,args
+c70f9d5bb4fce4466c9f0f6a1a8c82988249c001460e097447a46687b4270564  /home/dronehacks/team_ws/tools/fly.sh

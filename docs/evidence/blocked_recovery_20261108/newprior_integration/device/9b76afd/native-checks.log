@@ -1,0 +1,97 @@
+Starting >>> kestrel_nav
+Finished <<< kestrel_nav [5.11s]
+
+Summary: 1 package finished [5.95s]
+  1 package had stderr output: kestrel_nav
+--- stderr: kestrel_nav
+listing git files failed - pretending there aren't any
+---
+[team_build] OK. New shells pick it up automatically; in this one: source skybeta_env.sh
+kestrel_nav	src/kestrel_nav	(ros.ament_python)
+course and map ready in 6.8 s
+run record: /tmp/blocked-native-nav-i23yhyh2/run_20261108T093037
+[INFO] [1794130248.565245875] [coursenav_nav]: navigator: 5 legs (3 path legs), cruise 0.50 m/s, buffer 0.41 m
+[INFO] [1794130248.720973552] [coursenav_nav]: pre-planned leg 1: 5.66 m, 2 stop corners
+[INFO] [1794130248.747911147] [coursenav_nav]: pre-planned leg 3: 2.83 m, 0 stop corners
+[INFO] [1794130248.754759734] [coursenav_nav]: pre-planned leg 5: 1.71 m, 0 stop corners
+[INFO] [1794130248.755422096] [coursenav_nav]: pre-planned 3 path legs in 0.2 s
+start launch mark (course file): (-2.515, 0.914) yaw 90.0 deg; landed body height 0.100 m -> height_m 0.700 (body at 0.8 m above the floor)
+planned in 0.83 s: chicane window: window: score -1.05 (points 5, time 81 s, min clearance 0.41 m); gate_b: NO PLAN (gate_b_pre is reachable only through gate_b: the ungated path crosses those opening lines outside their crossing legs. No gated approach at 0.41 m clearance)
+  12 legs, 14.65 m, min clearance 0.41 m, estimated 81 s; leg-end violations []; predicted false blocks []
+navigation: path mode, 5 stops (3 navigator legs)
+   start          ( -2.52,  0.91)  clear 0.41
+   via_start_escape ( -2.52,  0.97)  clear 0.46
+   via2           ( -2.48,  1.48)  clear 0.57
+   via3           ( -2.27,  1.68)  clear 0.63
+   via4           ( -0.68,  2.27)  clear 0.62
+   tunnel_entry   (  2.31,  2.37)  clear 0.67
+   tunnel_exit    (  2.31, -0.85)  clear 0.72
+   via7           (  1.23, -1.77)  clear 0.65
+   via8           (  0.53, -1.88)  clear 0.74
+   via9           (  0.33, -2.12)  clear 0.64
+   window_pre     (  0.28, -2.55)  clear 0.52
+   window         ( -0.47, -2.27)  clear 0.45
+   window_post    ( -0.94, -2.10)  clear 0.60
+   pad            ( -2.04, -0.79)  clear 1.00
+{"result": "PASS", "domain": 77, "native_nav_constructor": true, "total_legs": 5, "preplanned_path_legs": 3, "retained_preplan_references": 3, "prior_state": "unknown", "source": "/root/team_ws/src/kestrel_nav"}
+Arguments (pass arguments as '<name>:=<value>'):
+
+    'max_altitude_m':
+        flight interface ceiling above the odometry origin
+        (default: '3.0')
+
+    'min_altitude_m':
+        flight interface floor (pose setpoints only)
+        (default: '0.3')
+
+    'max_speed_mps':
+        flight interface cap on a twist norm
+        (default: '1.5')
+
+    'auto_offboard_on_arm':
+        enter Offboard once when the pilot arms, then switches to Position
+        (default: 'true')
+
+    'chicane':
+        auto | window | gate_b
+        (default: 'auto')
+
+    'depth_topic':
+        depth image for refnav and the localizer (host_depth)
+        (default: '/kestrel_nav/depth')
+
+    'depth_info_topic':
+        
+        (default: '/kestrel_nav/depth/camera_info')
+
+    'depth_max_hz':
+        host_depth rate cap
+        (default: '8.0')
+
+    'depth_max_range_m':
+        host_depth range cap. refnav counts a corridor ray as OBSERVED if it returns any depth (its obstacle points stop at 6 m, the localizer's at 4 m): the hall beyond the see-through nets is 6-9 m away and at the old 6 m cap every such ray read unobserved
+        (default: '12.0')
+
+    'arm_wait_s':
+        refnav: how long the arm phase waits for the pilot to arm and switch to Position
+        (default: '600.0')
+
+    'wait_s':
+        refnav: how long it waits for readiness before giving up
+        (default: '900.0')
+
+    'landed_z':
+        landed body-origin height above the floor: PX4 dist_bottom 0.100 m on skybeta-14 (no distance_sensor topic there)
+        (default: '0.10')
+
+    'localizer_timeout':
+        fly_course: how long to wait for the localizer to converge on the mark
+        (default: '120.0')
+
+    'use_sim_time':
+        true only in a simulator that publishes /clock
+        (default: 'false')
+
+    'declared_heading_deg':
+        navigator: flight frame heading vs the VIO origin. 0 on skybeta (the organizer bridge permutes cuVSLAM's start-relative ENU odometry directly); 90 was the FlyX lab bridge
+        (default: '0.0')

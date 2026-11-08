@@ -222,3 +222,12 @@ with its sensor evidence. Ordinary planner failure now enters the same bounded r
 The source map assets, goals, ROS adapters, existing depth/estimator rules and pilot authority
 remain unchanged. Candidate validation is pending at the device-first handoff; this entry is not
 a claim of passing tests or successful simulation flight.
+
+
+The prior integration is now runtime commit `9b76afd` on `cram304`. It was installed in the main
+hardware workspace and saved launcher copy before validation, per request. All 158 files match.
+The main native build and actual ROS localizer/navigator constructors passed; all three path legs
+and their non-commandable recovery references were prepared. Laptop suite: 545 passed / 2 xfailed;
+focused integration: 49 passed. Patch replay reproduces the runtime and the prior assets remain
+unchanged. The two diverse comparison flights are in progress; these checks do not yet establish
+successful mismatch flight. Evidence: `evidence/blocked_recovery_20261108/newprior_integration/`.

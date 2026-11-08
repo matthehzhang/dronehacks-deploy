@@ -1,0 +1,31 @@
+{
+  "result": "NATIVE_AND_REGRESSION_PASS_SIM_PENDING",
+  "utc": "2026-11-08T09:31:09.319803+00:00",
+  "commit": "9b76afd9647e9c7b6390ee0ffe4ceba7f7f5ecfd",
+  "branch": "cram304",
+  "copy_before_tests": true,
+  "files_verified_each_path": 158,
+  "active_source": "/home/dronehacks/team_ws/src/kestrel_nav",
+  "launcher_source": "/home/dronehacks/policies/group154_blocked_recovery/kestrel_nav",
+  "no_nested_workspace": true,
+  "native_build": "PASS main team_build.sh --packages-select kestrel_nav5.95s",
+  "native_nav_constructor": "PASS new-course dry-run route,5 legs,3 preplanned path legs and3 retained preplan references",
+  "launch_argument_resolution": "PASS",
+  "diagnostic_domain": 77,
+  "stack_restarted": false,
+  "policy_started": false,
+  "flight_or_arming_commanded": false,
+  "marker": "NATIVE_AND_REGRESSION_PASS_SIM_PENDING",
+  "laptop_regression": {
+    "passed": 545,
+    "expected_failures": 2,
+    "seconds": 198.13,
+    "includes_package_tests": true
+  },
+  "focused_regression": {
+    "passed": 49,
+    "seconds": 13.33
+  },
+  "simulation_validation": "pending",
+  "hardware_flight_performed": false
+}

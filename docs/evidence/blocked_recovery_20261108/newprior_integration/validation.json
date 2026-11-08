@@ -1,0 +1,22 @@
+{
+  "policy_commit": "9b76afd9647e9c7b6390ee0ffe4ceba7f7f5ecfd",
+  "branch": "cram304",
+  "device_updated_before_testing": true,
+  "full_regression": {
+    "command": "python3 -m pytest -q tests",
+    "passed": 545,
+    "xfailed": 2,
+    "seconds": 198.13
+  },
+  "focused_prior_integration": {
+    "passed": 49,
+    "seconds": 13.33
+  },
+  "patch_replay": {
+    "result": "PASS",
+    "runtime_files_verified": 10
+  },
+  "prior_assets": "unchanged from c52cb7c",
+  "native": "PASS main workspace build + ROS constructor/preplanning; see device/9b76afd",
+  "dual_sim": "starting exact9b76afd on DIVERSE01/DIVERSE02 with original prior"
+}

@@ -127,3 +127,17 @@ build passing is not sufficient verification: run `colcon list` from the main wo
 the isolated workspace, confirming exactly one expected package in each. The ignore boundary
 must not be placed inside the package or isolated `src`, because direct isolated builds need it.
 This was a staging defect found in the main drone stack log after the cram304 transfer.
+
+
+## Prior clearing/fallback integration (cram304 after c52cb7c)
+
+Matthew authorized integrating the downloaded friend's clearing and fallback ideas. The branch
+patch now includes protected geometry masks; sticky camera-confirmed prior cells; dropped-only
+confident clearing; and a local-only fallback requiring observed-free swept-footprint certification.
+The fallback certificate persists after controller recovery finishes, and placement/unknown restores
+prior constraints and invalidates paths. Ordinary no-route replies now enter the existing bounded
+recovery, including the first route: preplans are retained only as non-commandable references.
+Hardware adapters, default prior assets, mission targets and authority remain unchanged. Tests and
+native checks follow device transfer per the explicit user-requested ordering. Always use the active
+`~/team_ws/src/kestrel_nav` plus the saved launcher copy outside the workspace; do not introduce a
+second nested source workspace. Preserve the existing hardware `fly.sh`.
