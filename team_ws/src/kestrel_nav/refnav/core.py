@@ -114,6 +114,7 @@ class Params:
                                                 # leg's end (maze corridors) is then expected, not a blockage.
                                                 # < 0 (default): any obstacle closer than stop_m blocks (original rule)
     corridor_search: bool = False               # active yaw search instead of landing for unobserved corridor
+    local_horizon: bool = False                 # observed-depth horizons may end before the mission waypoint
     corridor_wait_land_s: float = -1.0          # >= 0: land when the current leg's corridor has gone this long
                                                 # without an observing frame (in check or go). < 0 (default): hold
                                                 # and wait indefinitely (original rule)
@@ -437,13 +438,16 @@ class Mission:
                 self.leg_dir = ((tn - n0) / L, (te - e0) / L)
                 self.leg_heading = math.atan2(te - e0, tn - n0)
 
-    def on_path(self, t, leg, pts_ne, speeds, stops=(), pid=0, tubes=None):
+    def on_path(self, t, leg, pts_ne, speeds, stops=(), pid=0, tubes=None, terminal=True):
         """track_mode "path": the current path for leg `leg` in PX4 NED (refreshed by the navigator as
         the map correction and the live map change). pts_ne: (n, 2), speeds: (n,) the time-optimal profile,
         stops: indices of interior stop-and-turn corners; pid: changes when the path is RE-PLANNED (new
         geometry from the aircraft's position: progress restarts), not when it is only re-expressed in the
         flight frame. The leg's target becomes the path's end."""
         import numpy as _np
+        if (self.p.local_horizon and not terminal
+                and getattr(self,'horizon_reached',None) == dict(leg=int(leg),pid=pid)):
+            return False
         pts = _np.asarray(pts_ne, float)
         sp = _np.asarray(speeds, float)
         if (len(pts) < 2 or pts.ndim != 2 or pts.shape[1] != 2 or len(sp) != len(pts) or leg < 0
@@ -469,7 +473,7 @@ class Mission:
             if tb.shape != (len(pts),) or not _np.all(_np.isfinite(tb)):
                 tb = None
         self.path = dict(t=float(t), leg=int(leg), pid=pid, pts=pts, s=s, v=_np.maximum(sp, 0.0), heading=heading,
-                         kappa=kappa, stops=sorted(int(i) for i in stops), tube=tb)
+                         kappa=kappa, stops=sorted(int(i) for i in stops), tube=tb, terminal=bool(terminal))
         self.targets[leg] = (float(pts[-1, 0]), float(pts[-1, 1]))
         if leg == self.leg and self._path_leg():
             self.leg_len = float(s[-1])
@@ -817,6 +821,15 @@ class Mission:
                 self.recover = None
                 self.clr_hist, self.corr_t, self.t_check = [], None, None
                 self._set("turn", now, out, "new A* route: face path before checking fresh depth")
+
+        if (p.local_horizon and self.phase in ('turn','check','go','blocked','backoff','recheck')
+                and self._path_leg() and not self._path_fresh(now)):
+            self._search_path(now, out, v, 'no executable depth horizon: observe other headings')
+        if p.local_horizon and self.phase == 'search' and self._path_fresh(now):
+            self.path_reorient = False
+            self.clr_hist, self.corr_t = [], None
+            self.leg_heading = self._path_at(p.path_lookahead_m)[1]
+            self._set('turn', now, out, 'executable depth horizon found: face route')
 
         ph = self.phase
         if ph == "wait":
@@ -1292,6 +1305,7 @@ class Mission:
         import numpy as _np
         p = self.p
         if not self._path_fresh(now):
+            self.motion_limit = dict(stamp=now,reason='path_missing_or_stale')
             self.counts["path_waits"] += 1
             self.v_cmd, self.a_cmd = 0.0, 0.0
             self.v_vec, self.a_vec = (0.0, 0.0), (0.0, 0.0)
@@ -1332,6 +1346,7 @@ class Mission:
             cap = self._geometry_cap(clr, v)
             self.last_clearance = clr
             if self._blocks(clr, max(L - self.path_s, 0.0)):
+                self.motion_limit = dict(stamp=now,reason='measured_obstacle',clearance_m=clr)
                 self._obstacle(now, out, v, clr, "on")
                 self.v_cmd, self.a_cmd = 0.0, 0.0
                 self.v_vec, self.a_vec = (0.0, 0.0), (0.0, 0.0)
@@ -1339,6 +1354,7 @@ class Mission:
         else:
             self.counts["depth_holds"] += 1
             cap = 0.0
+        tube, across = None, None
         if p.path_tube_gate and P.get("tube") is not None:
             tube = float(P["tube"][min(max(seg_i, 0), len(P["tube"]) - 1)])
             across = math.hypot(v.pos[0] - pt[0], v.pos[1] - pt[1])
@@ -1361,6 +1377,15 @@ class Mission:
         v_along = self._along_speed(v, (math.cos(tang), math.sin(tang)))
         v_ramp = self._ramp_from(v_along) + a_up * dt
         v_ref = max(0.0, min(cap, v_prof, v_brake, v_ramp))
+        limits = dict(live_geometry=cap,profile=v_prof,braking=v_brake,ramp=v_ramp)
+        binding = min(limits,key=limits.get)
+        if self.tube_hold:
+            binding = 'off_path_tube'
+        elif clr is None:
+            binding = 'depth_or_corridor_unobserved'
+        self.motion_limit = dict(stamp=now,reason=binding,limits_mps=limits,
+            path_s_m=self.path_s,remaining_m=remaining,terminal=P.get('terminal',True),
+            across_m=across,tube_m=tube)
         # along-path feed-forward: the profile's slope (planned), or the braking/ramp limit that binds
         _, _, _, v_here = self._path_at(self.path_s)
         _, _, _, v_next = self._path_at(self.path_s + 0.05)
@@ -1380,6 +1405,7 @@ class Mission:
             a_lat = max(-p.path_lat_accel_max_mps2, min(p.path_lat_accel_max_mps2, a_lat))
         captured = remaining <= p.capture_m
         if captured:
+            self.motion_limit['reason'] = 'endpoint_capture'
             end = P["pts"][nxt[0]] if nxt else P["pts"][-1]
             self.sp[0], self.sp[1] = float(end[0]), float(end[1])
             v_ref, a_along, a_lat = 0.0, 0.0, 0.0
@@ -1401,9 +1427,23 @@ class Mission:
                 self.clr_hist, self.corr_t = [], None
                 self.turn_start_heading = self.sp[3]
                 self._set("turn", now, out, f"path corner on leg {self.leg + 1}: stop and turn")
+            elif not P.get('terminal', True):
+                self.horizon_reached = dict(leg=self.leg,pid=P['pid'])
+                self.path = None
+                self._search_path(now, out, v, 'observation horizon reached; extend depth route')
             else:
                 self.sp[0], self.sp[1] = float(end[0]), float(end[1])
                 self._set("hold", now, out, f"arrived leg {self.leg + 1}")
+
+    def _search_path(self, now, out, v, why):
+        self.sp[:2] = v.pos[:2]
+        self.v_cmd = self.a_cmd = self.yaw_rate_cmd = 0.
+        self.v_vec = self.a_vec = (0., 0.)
+        self.tube_hold = False
+        self.search_target = _wrap(v.heading + math.pi/2)
+        self.search_steps, self.search_settled = 0, None
+        self.motion_limit = dict(stamp=now,reason='search',detail=why)
+        self._set('search', now, out, why)
 
     def _speed(self, v, dt):
         """Measured horizontal speed: PX4's velocity when reported, else from successive positions."""
@@ -1776,6 +1816,8 @@ class Mission:
                                 else round(self.last_clearance, 2)),
                 "stop_m": round(self._stop_m(self.s), 2),
                 "v_cmd": round(self.v_cmd, 3),
+                "motion_limit": getattr(self,'motion_limit',None),
+                "horizon_reached": getattr(self,'horizon_reached',None),
                 "depth_age_s": None if self.depth_t is None else round(now - self.depth_t, 3),
                 "corridor_age_s": None if self.corr_t is None else round(now - self.corr_t, 3),
                 "corridor_coverage": None if self.last_coverage is None else round(self.last_coverage, 2),

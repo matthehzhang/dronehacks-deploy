@@ -48,7 +48,7 @@ from std_msgs.msg import String
 from refnav.depth import decode_depth, quat_to_mat
 
 from .drift import DriftEKF
-from .course import PROJECT, load_course, resolve, scan_field, scan_grid, see_through_grid
+from .course import PROJECT, Grid2D, load_course, resolve, scan_field, scan_grid, see_through_grid
 from .objmap import CourseMap
 from .occgrid import LiveGrid, OccParams
 from .localgrid import LocalGrid, LocalParams
@@ -73,16 +73,25 @@ class LocNode(Node):
         super().__init__("coursenav_loc")
         dp = self.declare_parameter
         doc = load_course(dp("course_file", os.environ.get("KESTREL_COURSE_FILE", str(PROJECT / "course" / "course_v3.json"))).value)
-        cmap = CourseMap.load(resolve(doc, "map"))
+        self.depth_only = doc.get('navigation',{}).get('geometry_source') == 'depth_only'
         self.field_zlo, self.field_zhi = float(dp("scan_zlo", 0.3).value), float(dp("scan_zhi", 1.6).value)
-        self.field = scan_grid(cmap, self.field_zlo, self.field_zhi)
+        if self.depth_only:
+            # Empty compatibility field for shared odometry/reset/status plumbing.
+            # No origin geometry is loaded, matched, or used for corrections.
+            self.field = Grid2D(np.zeros((320,320),bool),np.asarray(doc['start']['xy'])-8.,.05)
+            net = np.zeros(self.field.occ.shape,bool)
+            distance = np.full(self.field.occ.shape,8.)
+        else:
+            cmap = CourseMap.load(resolve(doc, "map"))
+            self.field = scan_grid(cmap, self.field_zlo, self.field_zhi)
+            net = cmap.band(self.field_zlo, self.field_zhi, only_prefixes=("Net",))
+            distance = scan_field(self.field, doc)
         pfp = PFParams(n=int(dp("particles", 600).value),
                        use_cluster=bool(dp("use_cluster", True).value),
                        min_beams=int(dp("min_beams", 8).value),
                        min_fit_frac=float(dp("min_fit_frac", 0.35).value))
         # beams ending on the net say nothing about the position along it (tails, A6)
-        net = cmap.band(self.field_zlo, self.field_zhi, only_prefixes=("Net",))
-        self.pf = CorrectionPF(self.field, scan_field(self.field, doc), pfp, uninformative=net)
+        self.pf = CorrectionPF(self.field, distance, pfp, uninformative=net)
         self.limiter = CorrectionLimiter(float(dp("corr_rate_per_m", 0.05).value), float(dp("corr_rate_per_s", 0.01).value))
         self.corr_sigma_dir = float(dp("corr_project_sigma_m", 0.10).value)
         self.last_corr_odom = None
@@ -101,7 +110,7 @@ class LocNode(Node):
         self.snap_every = float(dp("snapshot_every_s", 0.0).value)   # > 0: save scan snapshots (tools/scan_snapshot.py)
         self.snap_t = None
         self.live = None
-        if bool(dp("live_map", True).value):
+        if bool(dp("live_map", True).value) and not self.depth_only:
             self.live = LiveGrid(self.field, OccParams(use_in_pf=bool(dp("use_landmarks", False).value),
                                                        gate_sigma_xy_m=float(dp("live_gate_sigma_xy_m", 0.06).value),
                                                        gate_sigma_yaw_deg=float(dp("live_gate_sigma_yaw_deg", 2.0).value)),
@@ -305,6 +314,22 @@ class LocNode(Node):
         R_level = level_from_px4_q(self.att)
         h = self.height[1] if self.height is not None else 0.8
         pts = depth_points_level(d, self.K, self.cam_cal[1], self.cam_cal[2], R_level)
+        if self.depth_only:
+            # The prior matcher is diagnostic infrastructure only in this mode.
+            # Neither its fit nor its correction may influence local geometry.
+            pose = od[1]
+            if float(np.mean(np.isfinite(d) & (d > 0))) >= .3:
+                if self._integrate_local(t,pose,pts,h):
+                    self._publish_local()
+            else:
+                self.local_error = 'depth valid fraction below .30; local map not refreshed'
+            nominal_body = compose(self.nominal,pose)
+            self.pub_drift.publish(String(data=json.dumps(dict(stamp=t,delta=[0.,0.,0.],
+                nominal=nominal_body.tolist(),fixture=list(map(float,self.nominal)),
+                sigma_xy=None,accepted=0,rejected=0,resets=self.resets,uncorrected=True,
+                source='vio_only_no_prior_matching'))))
+            self._t_proc = self._scan_rate_now()
+            return
         scan = scan_from_points(pts, h, self.field_zlo, self.field_zhi, rmax=self.rmax)
         n_depth = len(scan)
         self.counts["beams_depth"] = n_depth
@@ -462,7 +487,7 @@ class LocNode(Node):
             self.local_height = height
         # Never turn the visible ground into a ring of apparent walls during
         # takeoff. The origin-map keep-outs and immediate depth guard remain.
-        scan = scan_from_points(points,height,max(.15,height-.4),height+.4,rmin=.3,rmax=3.)
+        scan = scan_from_points(points,height,max(.15,height-.4),height+.4,rmin=.3,rmax=12.)
         self.local.integrate(captured,compose(self.nominal,pose),scan)
         self.local_stamp = captured
         self.local_error = ''

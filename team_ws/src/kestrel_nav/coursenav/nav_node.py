@@ -34,6 +34,7 @@ from .navplan import course_to_ned, smooth_params_for
 from .objmap import CourseMap
 from .planner import PlanError
 from .localgrid import occupied_points_from_grid, course_mask
+from .depth_planner import DepthPlanner
 
 AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "align", "search")
 
@@ -85,14 +86,23 @@ class NavNode(Node):
             rd = json.load(f)
         self.nav_legs = rd["nav_legs"]
         doc = load_course()
-        cmap = CourseMap.load(resolve(doc, "map"))
-        obst, blocked, clearance = plan_grids(cmap, doc)
+        self.depth_only = rd.get('navigation',{}).get('geometry_source') == 'depth_only'
         need = float(doc["vehicle"]["radius_m"] + doc["vehicle"]["margin_m"])
         sp = smooth_params_for(rd.get("navigation", {}), rd.get("params", {}), need)
         # The old PF-gated grid has persistent landmarks from mismatched scans.
         # It remains diagnostic; only the fresh VIO-depth grid drives live planning.
         self.live = None
-        self.nav = Navigator(obst, blocked, clearance, need, sp, live=self.live, gate_lines=rd.get("gate_lines"))
+        if self.depth_only:
+            self.depth_nav = DepthPlanner(need, sp, rd.get('start_xy'),
+                float(dp('pilot_verified_launch_radius_m',0.).value))
+            self.depth_plan_t = -math.inf
+            self.depth_plan_revision = -1
+            self.depth_goal = None
+        else:
+            cmap = CourseMap.load(resolve(doc, "map"))
+            obst, blocked, clearance = plan_grids(cmap, doc)
+            self.nav = Navigator(obst, blocked, clearance, need, sp, live=self.live, gate_lines=rd.get("gate_lines"))
+        self.local_fields = None
         self.local_pts = np.zeros((0,2))
         self.local_stamp = None
         self.local_required = bool(dp('local_map_required',True).value)
@@ -119,7 +129,12 @@ class NavNode(Node):
         self.create_timer(1.0 / float(dp("rate_hz", 10.0).value), self._tick)
         self.get_logger().info(f"navigator: {len(self.nav_legs)} legs ({sum(L['path'] for L in self.nav_legs)} "
                                f"path legs), cruise {sp.cruise_mps:.2f} m/s, buffer {need:.2f} m")
-        self.cache = self._preplan(rd, route_file)
+        if self.depth_only:
+            from pathlib import Path
+            Path(route_file).with_name('navigator_ready').write_text(json.dumps({'mode':'depth_only','legs':[]}))
+            self.cache = {}
+        else:
+            self.cache = self._preplan(rd, route_file)
         self.mission_preview = [dict(leg=k,pts_course=v[2].pts.round(4).tolist()) for k,v in sorted(self.cache.items())]
 
     def _preplan(self, rd, route_file):
@@ -164,7 +179,13 @@ class NavNode(Node):
             self.live.on_grid(m)
 
     def _publish_grid(self):
-        _, blocked, _ = self.nav._fused
+        if self.depth_only:
+            n = self.depth_nav
+            if n.grid is None:
+                return
+            blocked = n.blocked
+        else:
+            _, blocked, _ = self.nav._fused
         m = OccupancyGrid()
         m.header.stamp = self.get_clock().now().to_msg()
         m.header.frame_id = "course"
@@ -172,12 +193,19 @@ class NavNode(Node):
         m.info.width, m.info.height = blocked.occ.shape
         m.info.origin.position.x, m.info.origin.position.y = map(float, blocked.origin)
         m.info.origin.orientation.w = 1.
-        m.data = (blocked.occ.T.astype(np.int8)*100).ravel().tolist()
+        data = blocked.occ.astype(np.int8)*100
+        if self.depth_only:
+            # Unknown is visually distinct from measured/inflated obstacles.
+            data[~self.depth_nav.free] = -1
+            data[self.depth_nav.grid.occ] = 100
+        m.data = data.T.ravel().tolist()
         self.pub_grid.publish(m)
 
     def _tick(self):
         if self.drift is None or self.status is None:
             return
+        if getattr(self,'depth_only',False):
+            return self._tick_depth()
         d = self.drift
         ekf = DriftEKF.from_state(d["delta"], d["nominal"])
         nb = np.array(d["nominal"], float)
@@ -267,9 +295,71 @@ class NavNode(Node):
                 raise ValueError('invalid grid origin')
             self.local_pts = occupied_points_from_grid(origin,m.info.resolution,
                                                        m.info.width,m.info.height,m.data)
+            self.local_fields = (origin, float(m.info.resolution),
+                np.asarray(m.data,np.int16).reshape(m.info.height,m.info.width).T.copy())
             self.local_stamp,self.local_error = captured,''
         except (ValueError,TypeError) as exc:
             self.local_error = str(exc)
+
+    def _tick_depth(self):
+        """Receding observed-space horizon; origin supplies goal coordinates only."""
+        d, n = self.drift, self.depth_nav
+        now = self.get_clock().now().nanoseconds*1e-9
+        leg, phase = int(self.status.get('leg',0)), self.status.get('phase')
+        # Ignore PF/map corrections. Nominal is VIO placed at the launch fixture.
+        position = np.asarray(d['nominal'][:2],float)
+        def to_ned(pts):
+            return course_to_ned(pts,d['fixture'],self.decl)
+        out = dict(stamp=time.time(),leg=leg,pid=self.pid,valid=False,
+            terminal=False,map_provenance='vio_depth_only_waypoint_intent',
+            mission_preview=[],targets_ne={j:to_ned([L['stop']])[0].tolist()
+                for j,L in enumerate(self.nav_legs) if j > leg})
+        fresh = self.local_stamp is not None and -.05 <= now-self.local_stamp <= .5 and not self.local_error
+        out.update(local_map_fresh=bool(fresh),local_map_error=self.local_error)
+        if not fresh or self.local_fields is None:
+            n.path = None
+            out.update(reason='fresh_depth_grid_required',plan_error='fresh_depth_grid_required')
+        elif leg < len(self.nav_legs) and phase in AIRBORNE:
+            n.update(*self.local_fields)
+            goal = np.asarray(self.nav_legs[leg]['stop'],float)
+            consumed = self.status.get('horizon_reached') == dict(leg=leg,pid=self.pid)
+            if consumed and n.path is not None and not n.terminal:
+                n.visits.append(n.path.pts[-1].copy())
+                n.path = None
+            reached = consumed or n.reached_frontier(position)
+            changed = self.nav_leg != leg
+            if changed:
+                n.visits.clear()
+            unsafe = n.path is not None and not n.safe(position)
+            # An unsafe path is withdrawn immediately, independently of plan throttling.
+            if unsafe or changed or reached:
+                n.path = None
+            extend = (n.path is not None and not n.terminal and now-self.depth_plan_t >= 1.
+                      and n.revision != self.depth_plan_revision)
+            # Keep an executable horizon until close to its end. New observations
+            # can extend it; do not churn geometry on every depth packet.
+            near_end = n.path is not None and np.linalg.norm(position-n.path.pts[-1]) < .65
+            want = n.path is None or (extend and near_end)
+            if want and now-self.depth_plan_t >= .5:
+                self.depth_plan_t = now
+                try:
+                    n.plan(position,goal,v_start=float(self.status.get('v_cmd') or 0.))
+                    self.depth_plan_revision = n.revision
+                    self.pid += 1
+                    self.nav_leg = leg
+                    self.last_plan_error = ''
+                except PlanError as exc:
+                    self.last_plan_error = str(exc)
+            out.update(local_obstacle_cells=int(n.grid.occ.sum()),
+                plan_error=self.last_plan_error,reason=self.last_plan_error or n.reason)
+            if n.path is not None:
+                P = n.path
+                out.update(valid=True,pid=self.pid,terminal=bool(n.terminal),
+                    goal_course=goal.tolist(),horizon_course=P.pts[-1].tolist(),
+                    pts_course=P.pts.round(4).tolist(),pts_ne=to_ned(P.pts).round(4).tolist(),
+                    v=P.v.round(4).tolist(),stops=list(P.stops),
+                    tubes=None if P.tube is None else P.tube.round(4).tolist())
+        self.pub.publish(String(data=json.dumps(out)))
 
 
 def main(args=None):

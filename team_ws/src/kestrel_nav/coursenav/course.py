@@ -26,7 +26,7 @@ def load_course(path=None, derive=True):
     doc = json.loads(path.read_text())
     doc['vehicle'] = vehicle_geometry(doc['vehicle'])
     doc["_dir"] = str(PROJECT)
-    if not derive:
+    if not derive or doc.get('navigation',{}).get('geometry_source') == 'depth_only':
         return doc
     key = (str(path.resolve()), path.stat().st_mtime_ns, str(resolve(doc, "map")), str(resolve(doc, "obj")))
     if key not in _RESOLVED:

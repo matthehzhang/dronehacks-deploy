@@ -21,12 +21,13 @@ from launch_ros.actions import Node
 ROOT = Path(__file__).resolve().parent.parent          # package source root (symlink install): fly_course.py lives here
 
 ARGUMENTS = [
-    ('course_file', str(ROOT / 'course' / 'course_v3.json'), 'course configuration; override only when launch mark changes'),
+    ('pilot_verified_launch_radius_m', '0.0', 'OPT-IN: radius of pilot-verified free launch disc at cruise altitude; never overrides depth obstacles'),
+    ('course_file', str(ROOT / 'course' / 'course_depth_waypoints.json'), 'depth-only waypoint configuration (default), or explicit legacy course configuration'),
     ('max_altitude_m', '3.0', 'flight interface ceiling above the odometry origin'),
     ('min_altitude_m', '0.3', 'flight interface floor (pose setpoints only)'),
     ('max_speed_mps', '1.5', 'flight interface cap on a twist norm'),
     ('auto_offboard_on_arm', 'true', 'enter Offboard once when the pilot arms, then switches to Position'),
-    ('chicane', 'auto', 'auto | window | gate_b'),
+    ('chicane', 'auto', 'legacy course selector: auto | window | gate_b; depth mode uses waypoint_file'),
     ('depth_topic', '/kestrel_nav/depth', 'depth image for refnav and the localizer (host_depth)'),
     ('depth_info_topic', '/kestrel_nav/depth/camera_info', ''),
     ('depth_max_hz', '8.0', 'host_depth rate cap'),
@@ -76,6 +77,7 @@ def generate_launch_description():
              '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'path_turn_hold:=true'],
         cwd=str(ROOT), additional_env={**fly_env, 'KESTREL_USE_SIM_TIME': L('use_sim_time'),
                                        'KESTREL_DECLARED_HEADING_DEG': L('declared_heading_deg'),
+                                       'KESTREL_PILOT_VERIFIED_LAUNCH_RADIUS_M': L('pilot_verified_launch_radius_m'),
                                        'KESTREL_NICE_NAV': '5'},
         output='screen', name='fly_course')
     return LaunchDescription(declared + [flight_interface, host_depth, health, localizer, fly])

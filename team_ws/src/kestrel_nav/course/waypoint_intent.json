@@ -1,0 +1,62 @@
+{
+  "frame": "declared course ENU, aligned once to VIO at launch",
+  "source": "named targets exported from new-course origin; no walls, buffers, widths, passage or clearance authority",
+  "waypoints": [
+    {
+      "name": "entrance_approach",
+      "xy": [
+        -2.5,
+        1.35
+      ],
+      "land": false
+    },
+    {
+      "name": "tunnel_entry",
+      "xy": [
+        2.3114,
+        2.3692
+      ],
+      "land": false
+    },
+    {
+      "name": "tunnel_exit",
+      "xy": [
+        2.3114,
+        -0.8548
+      ],
+      "land": false
+    },
+    {
+      "name": "window_pre",
+      "xy": [
+        0.2807,
+        -2.5459
+      ],
+      "land": false
+    },
+    {
+      "name": "window",
+      "xy": [
+        -0.4709,
+        -2.2719
+      ],
+      "land": false
+    },
+    {
+      "name": "window_post",
+      "xy": [
+        -0.9406,
+        -2.1006
+      ],
+      "land": false
+    },
+    {
+      "name": "pad",
+      "xy": [
+        -2.0422,
+        -0.7925
+      ],
+      "land": true
+    }
+  ]
+}

@@ -131,6 +131,8 @@ def start_navigator(run_dir):
         args += ["-p", f"use_sim_time:={os.environ['KESTREL_USE_SIM_TIME']}"]
     if os.environ.get("KESTREL_DECLARED_HEADING_DEG"):            # skybeta: 0 (the interface permutes odometry ENU)
         args += ["-p", f"declared_heading_deg:={float(os.environ['KESTREL_DECLARED_HEADING_DEG'])}"]
+    if os.environ.get('KESTREL_PILOT_VERIFIED_LAUNCH_RADIUS_M'):
+        args += ['-p', f"pilot_verified_launch_radius_m:={float(os.environ['KESTREL_PILOT_VERIFIED_LAUNCH_RADIUS_M'])}"]
     env = dict(os.environ, PYTHONPATH=f"{PROJECT}:{os.environ.get('PYTHONPATH', '')}")
     log = open(run_dir / "navigator.log", "w")
     print(f"navigator: starting (log {run_dir / 'navigator.log'})", flush=True)
@@ -217,6 +219,10 @@ def plan_now(start_xy, start_yaw_deg, chicane="auto", prepared=None):
     from coursenav import planner
     from coursenav.course import load_course, plan_grids, resolve
     from coursenav.objmap import CourseMap
+    doc = prepared[0] if prepared is not None else load_course()
+    if doc.get('navigation',{}).get('geometry_source') == 'depth_only':
+        from coursenav.waypoint_intent import plan_intent
+        return plan_intent(doc,start_xy,start_yaw_deg)
     if prepared is None:
         doc = load_course()
         cmap = CourseMap.load(resolve(doc, "map"))
@@ -274,8 +280,11 @@ def main(argv=None):
     from coursenav.course import load_course, plan_grids, resolve
     from coursenav.objmap import CourseMap
     doc = load_course()
-    cmap = CourseMap.load(resolve(doc, "map"))
-    prepared = (doc, cmap, plan_grids(cmap, doc))
+    if doc.get('navigation',{}).get('geometry_source') == 'depth_only':
+        prepared = (doc,None,None)
+    else:
+        cmap = CourseMap.load(resolve(doc, "map"))
+        prepared = (doc, cmap, plan_grids(cmap, doc))
     print(f"course and map ready in {time.monotonic() - t0:.1f} s", flush=True)
 
     stamp = time.strftime("%Y%m%dT%H%M%S")
@@ -348,9 +357,12 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
     print(f"start {source}: ({sx:.3f}, {sy:.3f}) yaw {syaw:.1f} deg; landed body height {height:.3f} m -> "
           f"height_m {height_m:.3f} (body at {cruise} m above the floor)")
     print(f"planned in {dt_plan:.2f} s: chicane {p.get('chicane')}: {p.get('choice_reason', '(forced)')}")
-    print(f"  {len(route)} legs, {p['length_m']:.2f} m, min clearance {p['min_clearance_m']:.2f} m, estimated "
-          f"{p['time_estimate_s']:.0f} s; leg-end violations {p['leg_end_violations']}; predicted false blocks "
-          f"{p['predicted_false_blocks']}")
+    if p.get('clearance_pending'):
+        print(f"  {len(route)} waypoint targets; executable routes and clearance come from live depth only")
+    else:
+        print(f"  {len(route)} legs, {p['length_m']:.2f} m, min clearance {p['min_clearance_m']:.2f} m, estimated "
+              f"{p['time_estimate_s']:.0f} s; leg-end violations {p['leg_end_violations']}; predicted false blocks "
+              f"{p['predicted_false_blocks']}")
     if p["predicted_false_blocks"] and not a.force:
         raise SystemExit("refnav's rule replayed on the map predicts a false stop: not flying (--force to override)")
 
@@ -384,8 +396,9 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
                  "_note": f"RUN RECORD of fly_course.py at {stamp}: planned from start {source} "
                           f"({sx:.4f}, {sy:.4f}, {syaw:.2f} deg). Rule 6.4: never an input to a later run."}
     from coursenav.course import land_columns
-    route_doc["land_columns"] = land_columns(doc, prepared[1], (sx, sy), syaw)
-    if doc.get("return", {}).get("enabled", True) and not getattr(a, "no_return", False):
+    depth_only = navcfg.get('geometry_source') == 'depth_only'
+    route_doc["land_columns"] = [] if depth_only else land_columns(doc, prepared[1], (sx, sy), syaw)
+    if not depth_only and doc.get("return", {}).get("enabled", True) and not getattr(a, "no_return", False):
         from coursenav.return_plan import route_spec
         route_doc["automatic_return"] = route_spec(doc, (sx, sy, syaw), height)
         print(f"automatic return after pad landing/disarm: candidate height {doc['return']['cruise_z_m']:.2f} m; "
@@ -399,7 +412,8 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
     (run_dir / "plan.json").write_text(json.dumps({k: v for k, v in p.items() if k != "plans"}, indent=1, default=str))
     if a.dry_run:
         for w in p["waypoints"]:
-            print(f"   {w['name']:14s} ({w['xy'][0]:6.2f},{w['xy'][1]:6.2f})  clear {w['clearance_m']:.2f}")
+            clearance_text = 'live depth pending' if p.get('clearance_pending') else f"clear {w['clearance_m']:.2f}"
+            print(f"   {w['name']:14s} ({w['xy'][0]:6.2f},{w['xy'][1]:6.2f})  {clearance_text}")
     if not a.skip_preflight:
         from coursenav.preflight import report, run_checks
         rows = run_checks(6.0, allow_armed=a.event_start, need_localizer=not a.start)

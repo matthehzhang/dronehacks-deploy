@@ -407,7 +407,8 @@ class RefNav(Node):
         if int(d.get("leg", -1)) == mi.leg and d.get("pts_ne"):
             received = self._now()
             accepted = mi.on_path(received, mi.leg, d["pts_ne"], d.get("v") or [],
-                                  d.get("stops") or [], pid=d.get("pid", 0), tubes=d.get("tubes"))
+                                  d.get("stops") or [], pid=d.get("pid", 0), tubes=d.get("tubes"),
+                                  terminal=d.get('terminal',True))
             self.trace.record("path_applied", received, accepted=accepted,
                               leg=mi.leg, pid=d.get("pid", 0))
 

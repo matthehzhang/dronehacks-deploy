@@ -1,0 +1,147 @@
+{
+  "schema": "coursenav-course/1",
+  "frame": "Waypoint intent in declared course ENU; geometry and pose from VIO/depth only",
+  "start": {
+    "sigma_xy_m": 0.05,
+    "sigma_yaw_deg": 2.0,
+    "xy": [
+      -2.515,
+      0.914
+    ],
+    "yaw_deg": 90.0
+  },
+  "vehicle": {
+    "radius_m": 0.29408284528683193,
+    "margin_m": 0.12,
+    "propeller_diameter_m": 0.1778,
+    "rotor_centres_xy_m": [
+      [
+        0.08,
+        0.16
+      ],
+      [
+        -0.15,
+        -0.14
+      ],
+      [
+        0.08,
+        -0.16
+      ],
+      [
+        -0.15,
+        0.14
+      ]
+    ]
+  },
+  "cruise_z_m": 0.8,
+  "navigation": {
+    "mode": "path",
+    "cruise_mps": 0.5,
+    "accel_mps2": 0.5,
+    "brake_mps2": 0.4,
+    "lat_accel_mps2": 0.3,
+    "slow_clear_m": 0.3,
+    "slow_min_mps": 0.15,
+    "r_min_m": 0.15,
+    "r_max_m": 1.5,
+    "stop_turn_deg": 60.0,
+    "yaw_rate_dps": 30.0,
+    "reach_m": 0.2941,
+    "tube_response_s": 0.44,
+    "overshoot_a": -0.081,
+    "overshoot_b": 0.576,
+    "overshoot_margin_m": 0.1,
+    "stop_approach_m": 1.0,
+    "refnav": {
+      "path_tube_gate": true,
+      "path_heading_lead_deg": 25.0,
+      "path_lookahead_m": 0.2,
+      "yaw_rate_dps": 30.0,
+      "geometry_speed": true,
+      "response_delay_s": 0.75,
+      "side_near_m": 0.4,
+      "side_extra_m": 0.3,
+      "side_min_mps": 0.15,
+      "side_reach_m": 1.0,
+      "speed_mps": 0.5,
+      "accel_mps2": 0.5,
+      "brake_mps2": 0.4,
+      "arrive_speed_mps": 0.08,
+      "arrive_settle_s": 0.3,
+      "hold_s": 0.25,
+      "yaw_accel_dps2": 0.0,
+      "first_turn_gate_s": 4.5,
+      "path_lat_accel_max_mps2": 0.3,
+      "local_horizon": true,
+      "corridor_search": true
+    },
+    "arc_min_tube_m": 0.16,
+    "center_stops": true,
+    "center_face_min_m": 0.8,
+    "geometry_source": "depth_only"
+  },
+  "refnav_params": {
+    "corridor_half_m": 0.32,
+    "leg_end_margin_m": 0.25,
+    "speed_mps": 0.3,
+    "lead_max_m": 0.25,
+    "arrive_m": 0.15,
+    "hold_s": 0.25,
+    "band_m": 0.25,
+    "corridor_wait_land_s": 10.0,
+    "yaw_rate_dps": 35.0,
+    "correction_max_m": 0.8,
+    "correction_step_m": 0.2,
+    "correction_deadband_m": 0.04,
+    "correction_max_sigma_m": 0.1,
+    "accel_mps2": 0.5,
+    "blend_turn_deg": 30.0,
+    "blocked_hold_s": 4.0,
+    "blocked_backoff_m": 0.2,
+    "blocked_recheck_s": 2.0,
+    "blocked_clear_margin_m": 0.15,
+    "depth_lost_pause_static": true,
+    "depth_lost_land_s": 5.0,
+    "stop_per_mps": 1.0,
+    "stop_base_m": 0.45,
+    "stop_min_m": 0.55,
+    "min_valid_frac_static": 0.15,
+    "min_valid_frac": 0.3,
+    "min_corridor_coverage": 0.45,
+    "confirm_frames": 3,
+    "align_timeout_s": 4.0,
+    "align_frames": 3,
+    "align_max_shift_m": 0.25,
+    "align_max_dz_m": 0.15,
+    "align_window_max_dz_m": 0.3,
+    "align_max_turn_deg": 0.0,
+    "tunnel_mode": true,
+    "tunnel_speed_mps": 0.3,
+    "tunnel_max_leg_m": 3.3,
+    "tunnel_face_tol_deg": 5.0,
+    "tunnel_align_max_age_s": 6.0,
+    "correction_rate_mps": 0.05,
+    "safe_land": true,
+    "retreat_speed_mps": 0.1,
+    "corridor_search": true
+  },
+  "sim_profile": {
+    "fixture_offset_m": [
+      0.0,
+      0.0
+    ],
+    "refnav": {
+      "sim_stuck_land_disarm_s": 0.0
+    }
+  },
+  "return": {
+    "enabled": false,
+    "cruise_z_m": 2.1,
+    "radius_m": 0.61,
+    "from": {
+      "feature": "launch_mark",
+      "group": "Launch mark"
+    }
+  },
+  "waypoint_file": "course/waypoint_intent.json"
+}

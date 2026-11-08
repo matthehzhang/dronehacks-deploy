@@ -97,7 +97,7 @@ class LocalGrid:
         self.decay(t)
         if scan is None or len(scan) == 0:
             return False
-        keep = scan.range <= self.p.max_range_m
+        keep = np.isfinite(scan.range) & (scan.range > 0) & np.isfinite(scan.bearing)
         r, b = scan.range[keep], scan.bearing[keep]
         if len(r) == 0:
             return False
@@ -105,11 +105,12 @@ class LocalGrid:
         x0, y0, th = float(pose[0]), float(pose[1]), float(pose[2])
         ca, sa = np.cos(th + b), np.sin(th + b)
         ts = np.arange(0.0, self.p.max_range_m, res * 0.5)
-        ok = ts[None] < (r[:, None] - res)
+        ok = ts[None] < (np.minimum(r,self.p.max_range_m)[:, None] - res)
         X, Y = x0 + ca[:, None] * ts[None], y0 + sa[:, None] * ts[None]
         fij = np.floor((np.stack([X[ok], Y[ok]], -1) - self.origin) / res).astype(int)
         fij = fij[np.all((fij >= 0) & (fij < shape), axis=1)]
-        eij = np.floor((np.stack([x0 + ca * r, y0 + sa * r], -1) - self.origin) / res).astype(int)
+        hit = r <= self.p.max_range_m
+        eij = np.floor((np.stack([x0 + ca[hit] * r[hit], y0 + sa[hit] * r[hit]], -1) - self.origin) / res).astype(int)
         eij = eij[np.all((eij >= 0) & (eij < shape), axis=1)]
         free = np.unique(np.ravel_multi_index(fij.T, self.L.shape)) if len(fij) else np.zeros(0, int)
         occ = np.unique(np.ravel_multi_index(eij.T, self.L.shape)) if len(eij) else np.zeros(0, int)
