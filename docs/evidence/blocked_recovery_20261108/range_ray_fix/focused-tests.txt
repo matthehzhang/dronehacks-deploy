@@ -1,0 +1,5 @@
+Candidate: 50978085fedb6b3f56e1b23cb904167c15383eec
+Tests started after parent confirmed active drone package rsync success. Final device verification was still pending with device agent.
+Command: OPENBLAS_NUM_THREADS=1 sim/.venv/bin/python -m pytest -q tests/test_local_ray_horizon.py tests/test_local_free_age.py
+Result: 36 passed, 1 unrelated Dash pytest deprecation warning; 0.69 seconds.
+Offline probe ran successfully; see probe-results.json.

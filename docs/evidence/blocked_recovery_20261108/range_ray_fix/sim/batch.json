@@ -1,0 +1,47 @@
+{
+  "seed": 1049038789930006439,
+  "maps": [
+    "DIVERSE01",
+    "DIVERSE02"
+  ],
+  "policy": "Identical policy snapshots \u00b7 963e022f97ef",
+  "created": 1794132340.100927,
+  "instances": [
+    {
+      "id": 1,
+      "DRONEHACKS_UNIT": "dronehacks-sim-i1.service",
+      "ROS_DOMAIN_ID": "51",
+      "GZ_PARTITION": "dronehacks-isolated-1",
+      "ROS_HOME": "/home/matthew/.local/state/dronehacks-sim/instances/1/ros",
+      "DRONEHACKS_LOG_DIR": "/home/matthew/.local/state/dronehacks-sim/instances/1/logs",
+      "DRONEHACKS_RUNS_DIR": "/home/matthew/.local/state/dronehacks-sim/instances/1/scores",
+      "DRONEHACKS_PX4_INSTANCE": "1",
+      "DRONEHACKS_PX4_WORKDIR": "/home/matthew/.local/state/dronehacks-sim/instances/1/px4",
+      "DRONEHACKS_TEAM_WS": "/home/matthew/.local/state/dronehacks-sim/instances/1/team_ws",
+      "DRONEHACKS_COMPETITOR_CONFIG": "/home/matthew/.local/state/dronehacks-sim/instances/1/competitor.env",
+      "DRONEHACKS_OBSERVER_PORT": "8101",
+      "snapshot": {
+        "source_sha256": "963e022f97ef7f86f96a3ac5d737f8f8dd5cbe37111adce7b037fd0f66b0d0c9"
+      }
+    },
+    {
+      "id": 2,
+      "DRONEHACKS_UNIT": "dronehacks-sim-i2.service",
+      "ROS_DOMAIN_ID": "52",
+      "GZ_PARTITION": "dronehacks-isolated-2",
+      "ROS_HOME": "/home/matthew/.local/state/dronehacks-sim/instances/2/ros",
+      "DRONEHACKS_LOG_DIR": "/home/matthew/.local/state/dronehacks-sim/instances/2/logs",
+      "DRONEHACKS_RUNS_DIR": "/home/matthew/.local/state/dronehacks-sim/instances/2/scores",
+      "DRONEHACKS_PX4_INSTANCE": "2",
+      "DRONEHACKS_PX4_WORKDIR": "/home/matthew/.local/state/dronehacks-sim/instances/2/px4",
+      "DRONEHACKS_TEAM_WS": "/home/matthew/.local/state/dronehacks-sim/instances/2/team_ws",
+      "DRONEHACKS_COMPETITOR_CONFIG": "/home/matthew/.local/state/dronehacks-sim/instances/2/competitor.env",
+      "DRONEHACKS_OBSERVER_PORT": "8102",
+      "snapshot": {
+        "source_sha256": "963e022f97ef7f86f96a3ac5d737f8f8dd5cbe37111adce7b037fd0f66b0d0c9"
+      }
+    }
+  ],
+  "sensor_profile": "hardware",
+  "impairments": "normal"
+}

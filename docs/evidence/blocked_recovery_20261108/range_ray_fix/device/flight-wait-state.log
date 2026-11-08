@@ -1,0 +1,4 @@
+data: '{"stamp": 1794132211.819, "px4_link": true, "armed": false, "landed": true, "nav_state": 14, "nav_state_name": "OFFBOARD", "offboard_active": true, "odom_enu": [0.3035854399204254, -0.09747365862131119, 0.0037585559766739607], "origin_enu": [0.0011419923976063728, 0.0006352163618430495, -0.00018959750013891608], "local_enu": [0.30282217264175415, -0.10031751543283463, 2.3779897689819336], "envelope_ok": true, "setpoint_mode": "hold", "clamped": [], "frozen": false, "envelope": {"min_altitude_m": 0.3, "max_altitude_m": 3.0, "max_speed_mps": 1.5}}'
+---
+WARNING: topic [/refnav/status] does not appear to be published yet
+Could not determine the type for the passed topic

@@ -1,0 +1,3125 @@
+[
+  {
+    "instance": 1,
+    "tested_commit": "50978085fedb6b3f56e1b23cb904167c15383eec",
+    "episode_id": "93035d0e53c94299add889a44f026596",
+    "evidence_source": "complete native flight trace plus navigator log and scorecard; external observer began after flight",
+    "native_trace_events": {
+      "schema": 1,
+      "local_position": 1994,
+      "tick": 699,
+      "status": 82,
+      "path": 347,
+      "path_applied": 2,
+      "trace_summary": 1
+    },
+    "native_trace_summary": {
+      "event": "trace_summary",
+      "written": 3125,
+      "dropped": 0
+    },
+    "scorecard": {
+      "phase": "over",
+      "reason": "crash_ground_contact",
+      "t_start": 113.320815202,
+      "t_end": 132.220812178,
+      "run_time_s": 18.899996975999983,
+      "penalty_s": 0.0,
+      "touches": 0,
+      "near_misses": 0,
+      "min_clearance_m": 0.6377,
+      "touch_log": [],
+      "score": {
+        "run_points": 0.0,
+        "checkpoint_points": 0.0,
+        "time_bonus": 0.0,
+        "window_bonus": 0.0,
+        "return_multiplier": 1.0,
+        "finished": false,
+        "below_walls_finish": false,
+        "run_time_s": 18.899996975999983,
+        "checkpoints": [],
+        "notes": []
+      },
+      "events": [
+        {
+          "t": 108.558,
+          "event": "armed"
+        },
+        {
+          "t": 111.421,
+          "event": "airborne"
+        },
+        {
+          "t": 113.321,
+          "event": "start",
+          "xyz": [
+            -0.326,
+            2.107,
+            0.301
+          ]
+        },
+        {
+          "t": 132.221,
+          "event": "ground_contact",
+          "other": "pose_rule",
+          "at": [
+            -0.32,
+            1.97,
+            0.162
+          ]
+        },
+        {
+          "t": 132.221,
+          "event": "over",
+          "reason": "crash_ground_contact",
+          "run_time_s": 18.899996975999983
+        }
+      ],
+      "geometry_source": "/home/matthew/dronehacks-sim/layouts/built/DIVERSE01/course_geometry.json",
+      "config": {
+        "start_xy_m": 0.3,
+        "start_z_m": 0.3,
+        "touch_penalty_s": 5.0,
+        "touch_debounce_s": 1.0,
+        "clearance_margin_m": 0.02,
+        "clearance_action": "touch",
+        "ground_contact_from_pose": true,
+        "rest_z_m": 0.146,
+        "time_limit_s": 180.0,
+        "time_limit_includes_penalties": false,
+        "fastest_finish_s": 60.0,
+        "fastest_to_cp_s": [
+          10.0,
+          25.0,
+          40.0,
+          50.0,
+          60.0
+        ],
+        "return_radius_m": 0.5,
+        "course_margin_m": 0.3
+      },
+      "model_name": "sky_beta_0",
+      "environment": {
+        "episode_id": "93035d0e53c94299add889a44f026596",
+        "layout": "DIVERSE01",
+        "pool": [
+          "DIVERSE01"
+        ],
+        "selection_seed": 1049038789930006439,
+        "episode_index": 0,
+        "observer": "browser3d",
+        "catalog_sha256": "762208e71a9da60f73276fa705b630ca42a7892668550f622b4f77e897c7d202",
+        "assets": {
+          "name": "DIVERSE01",
+          "tier": "wild",
+          "generator_seed": 918246141,
+          "files": {
+            "world.sdf": "4b83ea013895b870fa9d28540804847dd6367efcb31050aba188b2ab837ffa55",
+            "course_geometry.json": "790c5332f1d3ce5c28b4ecaeabcc35c37c073723b33c581783decc5600743fd1",
+            "course_surface_pts.npz": "b834ef0ed67012b2440e345f7c3c8843c689cc4f72499d38a7ee78c15ae9f67b"
+          },
+          "layout_sha256": "aa33d31303239abf0fff28e92bad9a18e3ca8497cfd1b7adc65c27dfc33f7d40"
+        }
+      },
+      "wall_time": "2026-11-08T02:10:49"
+    },
+    "final_viewer_state": {
+      "pose": [
+        -0.3207385934313314,
+        1.969990198383382,
+        0.14599928272108673,
+        -1.5679212917357286
+      ],
+      "grader": {
+        "phase": "over",
+        "reason": "crash_ground_contact",
+        "t_sim": 217.39579855,
+        "elapsed_s": 18.899996975999983,
+        "penalty_s": 0.0,
+        "run_time_s": 18.899996975999983,
+        "touches": 0,
+        "checkpoints_cleared": [],
+        "next_checkpoint": {
+          "index": 1,
+          "name": "start_leg"
+        },
+        "via_window": false,
+        "over_walls_pending": false,
+        "ever_over_walls": false,
+        "return_completed": false,
+        "armed": false,
+        "landed": true,
+        "xyz": [
+          -0.321,
+          1.97,
+          0.146
+        ],
+        "max_z": 0.815,
+        "provisional_points": 0.0,
+        "n_pose": 17016,
+        "environment": {
+          "layout": "DIVERSE01",
+          "selection_seed": 1049038789930006439,
+          "episode_index": 0,
+          "episode_id": "93035d0e53c94299add889a44f026596"
+        }
+      },
+      "rtf": 0.4244500720841046,
+      "sim_time": 217.52079853,
+      "pose_wall": 6643.900123759,
+      "quaternion": [
+        7.989944741674979e-07,
+        8.64724717180473e-07,
+        -0.7060895725402336,
+        0.7081225286266242
+      ],
+      "pose_age_s": 0.019585695000387204
+    },
+    "refnav": {
+      "phase": "done",
+      "why": "landed: navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+      "result": "landed: navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+      "started_t": 104.46248328600001,
+      "leg": 0,
+      "legs": 5,
+      "legs_done": 0,
+      "home": [
+        -0.005465117283165455,
+        0.004606908652931452,
+        -0.03372384235262871,
+        1.5703784227371216
+      ],
+      "targets": [
+        [
+          -4.8264,
+          1.4552
+        ],
+        [
+          -4.8264000000000005,
+          -1.7688
+        ],
+        [
+          -2.7957,
+          -3.4599
+        ],
+        [
+          -1.5744000000000005,
+          -3.0146
+        ],
+        [
+          -0.47280000000000044,
+          -1.7065000000000001
+        ]
+      ],
+      "setpoint": [
+        0.0067454734817147255,
+        0.056039851158857346,
+        -0.7337238423526288,
+        1.5703784227371216
+      ],
+      "clearance_m": null,
+      "stop_m": 0.95,
+      "v_cmd": 0.0,
+      "depth_age_s": 0.287,
+      "corridor_age_s": null,
+      "corridor_coverage": 1.0,
+      "depth_valid_frac": 0.912,
+      "depth_reject": null,
+      "health_bad_s": 0.0,
+      "recover": null,
+      "recovery_request": null,
+      "path_s": null,
+      "path_pid": null,
+      "plan_reply": {
+        "state": "failed",
+        "id": 5,
+        "t": 129.904145882,
+        "reason": "no observed-free rejoin beyond recovery lookahead"
+      },
+      "prior_state": null,
+      "leg_blocks": 1,
+      "tunnel": false,
+      "align": null,
+      "depth_frames": 242,
+      "obstacle_stops": 0,
+      "depth_holds": 0,
+      "unconfirmed_obstacles": 0,
+      "depth_unusable": 0,
+      "depth_future": 0,
+      "depth_stale": 0,
+      "depth_out_of_order": 0,
+      "corridor_unobserved": 0,
+      "corrections": 0,
+      "recoveries": 0,
+      "replan_resumes": 0,
+      "blended_turns": 0,
+      "path_waits": 0,
+      "alignments": 0,
+      "tunnel_ticks": 0,
+      "tube_holds": 0,
+      "tube_ticks": 0,
+      "retreats": 0,
+      "plan_stops": 1,
+      "rejects": {
+        "no_tf": 1
+      }
+    },
+    "phase_transitions": [
+      {
+        "wall": 1794132585.535862,
+        "sim": 104.46248328600001,
+        "phase": "wait",
+        "why": "waiting for PX4 position and heading",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": null,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": null,
+        "depth_reject": null,
+        "health_bad_s": null,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 0,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132586.752034,
+        "sim": 105.00831653200001,
+        "phase": "wait",
+        "why": "estimator healthy for only 0.4/3 s",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.229,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.912,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 3,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132587.9551842,
+        "sim": 105.524983116,
+        "phase": "wait",
+        "why": "estimator healthy for only 0.9/3 s",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.154,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.912,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 7,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132589.134034,
+        "sim": 106.004149706,
+        "phase": "wait",
+        "why": "estimator healthy for only 1.4/3 s",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.204,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.91,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 10,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132590.4316094,
+        "sim": 106.524982956,
+        "phase": "wait",
+        "why": "estimator healthy for only 1.9/3 s",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.129,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.913,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 14,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132591.475325,
+        "sim": 107.00414954600001,
+        "phase": "wait",
+        "why": "estimator healthy for only 2.4/3 s",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.346,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.911,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 16,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132592.591253,
+        "sim": 107.504149466,
+        "phase": "wait",
+        "why": "estimator healthy for only 2.9/3 s",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.25,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.913,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 20,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132593.0949626,
+        "sim": 107.720816098,
+        "phase": "arm",
+        "why": "waiting for 3 s of continuously usable depth",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "targets": [
+          [
+            -4.831256561865576,
+            1.4618237536678402
+          ],
+          [
+            -4.832603884508626,
+            -1.7621759648063557
+          ],
+          [
+            -2.802610779364741,
+            -3.454124454881714
+          ],
+          [
+            -1.5811247933394657,
+            -3.0093348799770605
+          ],
+          [
+            -0.47897822925120653,
+            -1.7016953572994822
+          ]
+        ],
+        "setpoint": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.171,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.912,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 22,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132596.4126775,
+        "sim": 109.18331586400001,
+        "phase": "climb",
+        "why": "waiting for 3 s of continuously usable depth",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "targets": [
+          [
+            -4.831256561865576,
+            1.4618237536678402
+          ],
+          [
+            -4.8264,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.183,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.91,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 32,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132610.8364244,
+        "sim": 115.47081485800001,
+        "phase": "turn",
+        "why": "leg 1/5",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "targets": [
+          [
+            -4.831256561865576,
+            1.4618237536678402
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.7337238423526288,
+          1.5703784227371216
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.133,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.914,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 76,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132610.9721866,
+        "sim": 115.52081485000001,
+        "phase": "check",
+        "why": "leg 1/5",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "targets": [
+          [
+            -4.831256561865576,
+            1.4618237536678402
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.7337238423526288,
+          1.5703784227371216
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.183,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.914,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 76,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132612.3115108,
+        "sim": 116.10414809000001,
+        "phase": "blocked",
+        "why": "navigator has no route for leg 1: awaiting bounded planner retry; holding up to 4 s",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          -0.0036148049402981997,
+          0.023996572941541672,
+          -0.7337238423526288,
+          1.5703784227371216
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.237,
+        "corridor_age_s": 0.371,
+        "corridor_coverage": 1.0,
+        "depth_valid_frac": 0.914,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": {
+          "kind": "blocked",
+          "stage": "blocked"
+        },
+        "recovery_request": {
+          "id": 1,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "pending",
+          "id": 1,
+          "t": 116.10414809000001
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 80,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132621.393452,
+        "sim": 120.13748077800001,
+        "phase": "recovery_scan",
+        "why": "bounded stationary depth scan for an observed-free detour",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          0.005277049262076616,
+          0.03914919123053551,
+          -0.7337238423526288,
+          1.5703784227371216
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.346,
+        "corridor_age_s": 4.404,
+        "corridor_coverage": 1.0,
+        "depth_valid_frac": 0.914,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": {
+          "kind": "blocked",
+          "stage": "recovery_scan"
+        },
+        "recovery_request": {
+          "id": 1,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "failed",
+          "id": 1,
+          "t": 120.13748077800001,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 107,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132639.1524546,
+        "sim": 127.862479542,
+        "phase": "backoff",
+        "why": "still blocked: backing off up to 0.00 m",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          -0.0173,
+          0.0319,
+          -0.7337238423526288,
+          1.5703784227371216
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.183,
+        "corridor_age_s": 12.129,
+        "corridor_coverage": 1.0,
+        "depth_valid_frac": 0.914,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": {
+          "kind": "blocked",
+          "stage": "backoff"
+        },
+        "recovery_request": {
+          "id": 4,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "pending",
+          "id": 4,
+          "t": 127.862479542
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 162,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132639.2556632,
+        "sim": 127.920812866,
+        "phase": "recheck",
+        "why": "rechecking for 2 s",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          -0.0173,
+          0.0319,
+          -0.7337238423526288,
+          1.5703784227371216
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.242,
+        "corridor_age_s": null,
+        "corridor_coverage": 1.0,
+        "depth_valid_frac": 0.914,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": {
+          "kind": "blocked",
+          "stage": "recheck"
+        },
+        "recovery_request": {
+          "id": 5,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "pending",
+          "id": 5,
+          "t": 127.920812866
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 162,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132644.0349817,
+        "sim": 129.962479206,
+        "phase": "land",
+        "why": "navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+        "result": null,
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          0.0067454734817147255,
+          0.056039851158857346,
+          -0.7337238423526288,
+          1.5703784227371216
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.171,
+        "corridor_age_s": null,
+        "corridor_coverage": 1.0,
+        "depth_valid_frac": 0.914,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "failed",
+          "id": 5,
+          "t": 129.904145882,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 177,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {
+          "no_tf": 1
+        }
+      },
+      {
+        "wall": 1794132662.275651,
+        "sim": 137.933311264,
+        "phase": "done",
+        "why": "landed: navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+        "result": "landed: navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+        "started_t": 104.46248328600001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.005465117283165455,
+          0.004606908652931452,
+          -0.03372384235262871,
+          1.5703784227371216
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599000000000006
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          0.0067454734817147255,
+          0.056039851158857346,
+          -0.7337238423526288,
+          1.5703784227371216
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.321,
+        "corridor_age_s": null,
+        "corridor_coverage": 1.0,
+        "depth_valid_frac": 0.912,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "failed",
+          "id": 5,
+          "t": 129.904145882,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 231,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {
+          "no_tf": 1
+        }
+      }
+    ],
+    "manual_land_intervention": false,
+    "navigator_evidence": {
+      "max_prior_cleared_cells": 0,
+      "max_prior_confirmed_cells": 8,
+      "published_plan_modes": [
+        "fused"
+      ],
+      "recovery_request_ids": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "recovery_ready_replies": 0,
+      "failure_reasons": [
+        "awaiting bounded planner retry",
+        "no observed-free rejoin beyond recovery lookahead"
+      ]
+    },
+    "startup": {
+      "batch_to_first_native_refnav_status_s": 245.43493485450745,
+      "map_ready_wall_duration_s": 66.9,
+      "navigator_ready_wall_duration_s": 61.0,
+      "fly_start_to_refnav_wall_s": 204.8
+    }
+  },
+  {
+    "instance": 2,
+    "tested_commit": "50978085fedb6b3f56e1b23cb904167c15383eec",
+    "episode_id": "8ae7f01774ed46a0a9d96d9faefe0e44",
+    "evidence_source": "complete native flight trace plus navigator log and scorecard; external observer began after flight",
+    "native_trace_events": {
+      "schema": 1,
+      "local_position": 1785,
+      "tick": 702,
+      "status": 82,
+      "path": 353,
+      "path_applied": 4,
+      "trace_summary": 1
+    },
+    "native_trace_summary": {
+      "event": "trace_summary",
+      "written": 2927,
+      "dropped": 0
+    },
+    "scorecard": {
+      "phase": "over",
+      "reason": "crash_ground_contact",
+      "t_start": 117.591647852,
+      "t_end": 136.391644844,
+      "run_time_s": 18.79999699200002,
+      "penalty_s": 0.0,
+      "touches": 0,
+      "near_misses": 0,
+      "min_clearance_m": 0.5348,
+      "touch_log": [],
+      "score": {
+        "run_points": 0.0,
+        "checkpoint_points": 0.0,
+        "time_bonus": 0.0,
+        "window_bonus": 0.0,
+        "return_multiplier": 1.0,
+        "finished": false,
+        "below_walls_finish": false,
+        "run_time_s": 18.79999699200002,
+        "checkpoints": [],
+        "notes": []
+      },
+      "events": [
+        {
+          "t": 112.904,
+          "event": "armed"
+        },
+        {
+          "t": 115.683,
+          "event": "airborne"
+        },
+        {
+          "t": 117.592,
+          "event": "start",
+          "xyz": [
+            -1.521,
+            1.928,
+            0.301
+          ]
+        },
+        {
+          "t": 136.392,
+          "event": "ground_contact",
+          "other": "pose_rule",
+          "at": [
+            -1.363,
+            1.932,
+            0.166
+          ]
+        },
+        {
+          "t": 136.392,
+          "event": "over",
+          "reason": "crash_ground_contact",
+          "run_time_s": 18.79999699200002
+        }
+      ],
+      "geometry_source": "/home/matthew/dronehacks-sim/layouts/built/DIVERSE02/course_geometry.json",
+      "config": {
+        "start_xy_m": 0.3,
+        "start_z_m": 0.3,
+        "touch_penalty_s": 5.0,
+        "touch_debounce_s": 1.0,
+        "clearance_margin_m": 0.02,
+        "clearance_action": "touch",
+        "ground_contact_from_pose": true,
+        "rest_z_m": 0.146,
+        "time_limit_s": 180.0,
+        "time_limit_includes_penalties": false,
+        "fastest_finish_s": 60.0,
+        "fastest_to_cp_s": [
+          10.0,
+          25.0,
+          40.0,
+          50.0,
+          60.0
+        ],
+        "return_radius_m": 0.5,
+        "course_margin_m": 0.3
+      },
+      "model_name": "sky_beta_0",
+      "environment": {
+        "episode_id": "8ae7f01774ed46a0a9d96d9faefe0e44",
+        "layout": "DIVERSE02",
+        "pool": [
+          "DIVERSE02"
+        ],
+        "selection_seed": 1049038789930006439,
+        "episode_index": 1,
+        "observer": "browser3d",
+        "catalog_sha256": "762208e71a9da60f73276fa705b630ca42a7892668550f622b4f77e897c7d202",
+        "assets": {
+          "name": "DIVERSE02",
+          "tier": "wild",
+          "generator_seed": 918247045,
+          "files": {
+            "world.sdf": "ccdb4b0384b218f41cb70e79fc71709c75749951206535592489e5413990dbce",
+            "course_geometry.json": "d7da62140ab335597cf14daf8b3c939043d34ab3561e15f01573963599b3e138",
+            "course_surface_pts.npz": "e046e300c97fa10cdf49093e836e25360774a5757d5923391fbe537e021ecadd"
+          },
+          "layout_sha256": "fb2ae6c0213ffc781a853b85eccfcec3f435a0fca9c2f543546d9101e6a468f9"
+        }
+      },
+      "wall_time": "2026-11-08T02:10:57"
+    },
+    "final_viewer_state": {
+      "pose": [
+        -1.3633562002726305,
+        1.9330289349271677,
+        0.14599950698644615,
+        0.0014703403747749922
+      ],
+      "grader": {
+        "phase": "over",
+        "reason": "crash_ground_contact",
+        "t_sim": 218.191631756,
+        "elapsed_s": 18.79999699200002,
+        "penalty_s": 0.0,
+        "run_time_s": 18.79999699200002,
+        "touches": 0,
+        "checkpoints_cleared": [],
+        "next_checkpoint": {
+          "index": 1,
+          "name": "start_leg"
+        },
+        "via_window": false,
+        "over_walls_pending": false,
+        "ever_over_walls": false,
+        "return_completed": false,
+        "armed": false,
+        "landed": true,
+        "xyz": [
+          -1.363,
+          1.933,
+          0.146
+        ],
+        "max_z": 0.802,
+        "provisional_points": 0.0,
+        "n_pose": 17108,
+        "environment": {
+          "layout": "DIVERSE02",
+          "selection_seed": 1049038789930006439,
+          "episode_index": 1,
+          "episode_id": "8ae7f01774ed46a0a9d96d9faefe0e44"
+        }
+      },
+      "rtf": 0.414110924271089,
+      "sim_time": 218.283298408,
+      "pose_wall": 6643.986480524,
+      "quaternion": [
+        7.789911932852742e-08,
+        8.949902683564991e-07,
+        0.000735170121093355,
+        0.9999997297620065
+      ],
+      "pose_age_s": 0.031141949999437202
+    },
+    "refnav": {
+      "phase": "done",
+      "why": "landed: navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+      "result": "landed: navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+      "started_t": 108.58331596000001,
+      "leg": 0,
+      "legs": 5,
+      "legs_done": 0,
+      "home": [
+        -0.0014947910094633698,
+        -0.003255795454606414,
+        -0.03119625896215439,
+        1.5728893280029297
+      ],
+      "targets": [
+        [
+          -4.8264,
+          1.4552
+        ],
+        [
+          -4.8264000000000005,
+          -1.7688
+        ],
+        [
+          -2.7957,
+          -3.4599
+        ],
+        [
+          -1.5744000000000005,
+          -3.0146
+        ],
+        [
+          -0.47280000000000044,
+          -1.7065000000000001
+        ]
+      ],
+      "setpoint": [
+        0.021999966353178024,
+        0.0686635822057724,
+        -0.7311962589621545,
+        1.5728893280029297
+      ],
+      "clearance_m": null,
+      "stop_m": 0.95,
+      "v_cmd": 0.0,
+      "depth_age_s": 0.271,
+      "corridor_age_s": null,
+      "corridor_coverage": 0.98,
+      "depth_valid_frac": 0.892,
+      "depth_reject": null,
+      "health_bad_s": 0.0,
+      "recover": null,
+      "recovery_request": null,
+      "path_s": null,
+      "path_pid": null,
+      "plan_reply": {
+        "state": "failed",
+        "id": 5,
+        "t": 134.120811874,
+        "reason": "no observed-free rejoin beyond recovery lookahead"
+      },
+      "prior_state": null,
+      "leg_blocks": 1,
+      "tunnel": false,
+      "align": null,
+      "depth_frames": 245,
+      "obstacle_stops": 0,
+      "depth_holds": 0,
+      "unconfirmed_obstacles": 0,
+      "depth_unusable": 0,
+      "depth_future": 0,
+      "depth_stale": 0,
+      "depth_out_of_order": 0,
+      "corridor_unobserved": 0,
+      "corrections": 0,
+      "recoveries": 0,
+      "replan_resumes": 0,
+      "blended_turns": 0,
+      "path_waits": 0,
+      "alignments": 0,
+      "tunnel_ticks": 0,
+      "tube_holds": 0,
+      "tube_ticks": 0,
+      "retreats": 0,
+      "plan_stops": 1,
+      "rejects": {}
+    },
+    "phase_transitions": [
+      {
+        "wall": 1794132594.190277,
+        "sim": 108.58331596000001,
+        "phase": "wait",
+        "why": "waiting for PX4 position and heading",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": null,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": null,
+        "depth_reject": null,
+        "health_bad_s": null,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 0,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132596.5094643,
+        "sim": 109.504149146,
+        "phase": "wait",
+        "why": "estimator healthy for only 0.9/3 s",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.237,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.898,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 6,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132597.492702,
+        "sim": 110.00414906600001,
+        "phase": "wait",
+        "why": "estimator healthy for only 1.4/3 s",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.112,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.895,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 10,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132598.6500561,
+        "sim": 110.504148986,
+        "phase": "wait",
+        "why": "estimator healthy for only 1.9/3 s",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.217,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.897,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 13,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132599.7917385,
+        "sim": 111.02081557000001,
+        "phase": "wait",
+        "why": "estimator healthy for only 2.4/3 s",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.304,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.896,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 16,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132601.0510187,
+        "sim": 111.56248215000001,
+        "phase": "wait",
+        "why": "estimator healthy for only 2.9/3 s",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 0,
+        "legs_done": 0,
+        "home": null,
+        "targets": [],
+        "setpoint": null,
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.317,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.897,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 20,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132601.4332464,
+        "sim": 111.76248211800001,
+        "phase": "arm",
+        "why": "waiting for 3 s of continuously usable depth",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "targets": [
+          [
+            -4.830929952753164,
+            1.4418393635275268
+          ],
+          [
+            -4.82418212178512,
+            -1.7821535748607114
+          ],
+          [
+            -2.7899470979218894,
+            -3.468999616350024
+          ],
+          [
+            -1.5695817857247787,
+            -3.0211444111932146
+          ],
+          [
+            -0.4707220514694485,
+            -1.7107416279115604
+          ]
+        ],
+        "setpoint": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.187,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.897,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 22,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132605.337164,
+        "sim": 113.462481846,
+        "phase": "climb",
+        "why": "waiting for 3 s of continuously usable depth",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "targets": [
+          [
+            -4.830929952753164,
+            1.4418393635275268
+          ],
+          [
+            -4.8264,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "clearance_m": null,
+        "stop_m": 0.55,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.271,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.896,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 33,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132619.6546903,
+        "sim": 119.762480838,
+        "phase": "turn",
+        "why": "leg 1/5",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "targets": [
+          [
+            -4.830929952753164,
+            1.4418393635275268
+          ],
+          [
+            -4.8264,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.7311962589621545,
+          1.5728893280029297
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.233,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.884,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 77,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132619.7294397,
+        "sim": 119.804147498,
+        "phase": "check",
+        "why": "leg 1/5",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "targets": [
+          [
+            -4.830929952753164,
+            1.4418393635275268
+          ],
+          [
+            -4.8264,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.7311962589621545,
+          1.5728893280029297
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.275,
+        "corridor_age_s": null,
+        "corridor_coverage": null,
+        "depth_valid_frac": 0.884,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": null,
+        "prior_state": null,
+        "leg_blocks": 0,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 77,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 0,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132620.8694913,
+        "sim": 120.30414741800001,
+        "phase": "blocked",
+        "why": "navigator has no route for leg 1: awaiting bounded planner retry; holding up to 4 s",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          -0.0025307589676231146,
+          0.020798005163669586,
+          -0.7311962589621545,
+          1.5728893280029297
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.312,
+        "corridor_age_s": 0.312,
+        "corridor_coverage": 0.98,
+        "depth_valid_frac": 0.889,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": {
+          "kind": "blocked",
+          "stage": "blocked"
+        },
+        "recovery_request": {
+          "id": 1,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "pending",
+          "id": 1,
+          "t": 120.30414741800001
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 80,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132629.9516742,
+        "sim": 124.320813442,
+        "phase": "recovery_scan",
+        "why": "bounded stationary depth scan for an observed-free detour",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          0.005541751626878977,
+          0.043902523815631866,
+          -0.7311962589621545,
+          1.5728893280029297
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.171,
+        "corridor_age_s": 4.329,
+        "corridor_coverage": 0.98,
+        "depth_valid_frac": 0.889,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": {
+          "kind": "blocked",
+          "stage": "recovery_scan"
+        },
+        "recovery_request": {
+          "id": 1,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "failed",
+          "id": 1,
+          "t": 124.26248011800001,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 109,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132647.8298674,
+        "sim": 132.070812202,
+        "phase": "backoff",
+        "why": "still blocked: backing off up to 0.00 m",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          0.01978541910648346,
+          0.06932339072227478,
+          -0.7311962589621545,
+          1.5728893280029297
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.233,
+        "corridor_age_s": 12.079,
+        "corridor_coverage": 0.98,
+        "depth_valid_frac": 0.89,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": {
+          "kind": "blocked",
+          "stage": "backoff"
+        },
+        "recovery_request": {
+          "id": 4,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "pending",
+          "id": 4,
+          "t": 132.070812202
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 162,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132647.8528833,
+        "sim": 132.10414553,
+        "phase": "recheck",
+        "why": "rechecking for 2 s",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          0.01978541910648346,
+          0.06932339072227478,
+          -0.7311962589621545,
+          1.5728893280029297
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.267,
+        "corridor_age_s": null,
+        "corridor_coverage": 0.98,
+        "depth_valid_frac": 0.89,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": {
+          "kind": "blocked",
+          "stage": "recheck"
+        },
+        "recovery_request": {
+          "id": 5,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "pending",
+          "id": 5,
+          "t": 132.10414553
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 162,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132652.4342585,
+        "sim": 134.120811874,
+        "phase": "land",
+        "why": "navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+        "result": null,
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264000000000005,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          0.021999966353178024,
+          0.0686635822057724,
+          -0.7311962589621545,
+          1.5728893280029297
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.204,
+        "corridor_age_s": null,
+        "corridor_coverage": 0.98,
+        "depth_valid_frac": 0.887,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "failed",
+          "id": 5,
+          "t": 134.120811874,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 177,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {}
+      },
+      {
+        "wall": 1794132670.6521847,
+        "sim": 142.10414393000002,
+        "phase": "done",
+        "why": "landed: navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+        "result": "landed: navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+        "started_t": 108.58331596000001,
+        "leg": 0,
+        "legs": 5,
+        "legs_done": 0,
+        "home": [
+          -0.0014947910094633698,
+          -0.003255795454606414,
+          -0.03119625896215439,
+          1.5728893280029297
+        ],
+        "targets": [
+          [
+            -4.8264,
+            1.4552
+          ],
+          [
+            -4.8264,
+            -1.7688
+          ],
+          [
+            -2.7957,
+            -3.4599000000000006
+          ],
+          [
+            -1.5744000000000005,
+            -3.0146
+          ],
+          [
+            -0.47280000000000044,
+            -1.7065000000000001
+          ]
+        ],
+        "setpoint": [
+          0.021999966353178024,
+          0.0686635822057724,
+          -0.7311962589621545,
+          1.5728893280029297
+        ],
+        "clearance_m": null,
+        "stop_m": 0.95,
+        "v_cmd": 0.0,
+        "depth_age_s": 0.233,
+        "corridor_age_s": null,
+        "corridor_coverage": 0.98,
+        "depth_valid_frac": 0.895,
+        "depth_reject": null,
+        "health_bad_s": 0.0,
+        "recover": null,
+        "recovery_request": null,
+        "path_s": null,
+        "path_pid": null,
+        "plan_reply": {
+          "state": "failed",
+          "id": 5,
+          "t": 134.120811874,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "prior_state": null,
+        "leg_blocks": 1,
+        "tunnel": false,
+        "align": null,
+        "depth_frames": 232,
+        "obstacle_stops": 0,
+        "depth_holds": 0,
+        "unconfirmed_obstacles": 0,
+        "depth_unusable": 0,
+        "depth_future": 0,
+        "depth_stale": 0,
+        "depth_out_of_order": 0,
+        "corridor_unobserved": 0,
+        "corrections": 0,
+        "recoveries": 0,
+        "replan_resumes": 0,
+        "blended_turns": 0,
+        "path_waits": 0,
+        "alignments": 0,
+        "tunnel_ticks": 0,
+        "tube_holds": 0,
+        "tube_ticks": 0,
+        "retreats": 0,
+        "plan_stops": 1,
+        "rejects": {}
+      }
+    ],
+    "manual_land_intervention": false,
+    "navigator_evidence": {
+      "max_prior_cleared_cells": 0,
+      "max_prior_confirmed_cells": 0,
+      "published_plan_modes": [
+        "fused"
+      ],
+      "recovery_request_ids": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "recovery_ready_replies": 0,
+      "failure_reasons": [
+        "awaiting bounded planner retry",
+        "no observed-free rejoin beyond recovery lookahead"
+      ]
+    },
+    "startup": {
+      "batch_to_first_native_refnav_status_s": 254.08934998512268,
+      "map_ready_wall_duration_s": 72.6,
+      "navigator_ready_wall_duration_s": 63.0,
+      "fly_start_to_refnav_wall_s": 212.1
+    }
+  }
+]

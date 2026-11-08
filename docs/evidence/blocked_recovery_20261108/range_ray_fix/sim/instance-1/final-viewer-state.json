@@ -1,0 +1,52 @@
+{
+  "pose": [
+    -0.3207385934313314,
+    1.969990198383382,
+    0.14599928272108673,
+    -1.5679212917357286
+  ],
+  "grader": {
+    "phase": "over",
+    "reason": "crash_ground_contact",
+    "t_sim": 217.39579855,
+    "elapsed_s": 18.899996975999983,
+    "penalty_s": 0.0,
+    "run_time_s": 18.899996975999983,
+    "touches": 0,
+    "checkpoints_cleared": [],
+    "next_checkpoint": {
+      "index": 1,
+      "name": "start_leg"
+    },
+    "via_window": false,
+    "over_walls_pending": false,
+    "ever_over_walls": false,
+    "return_completed": false,
+    "armed": false,
+    "landed": true,
+    "xyz": [
+      -0.321,
+      1.97,
+      0.146
+    ],
+    "max_z": 0.815,
+    "provisional_points": 0.0,
+    "n_pose": 17016,
+    "environment": {
+      "layout": "DIVERSE01",
+      "selection_seed": 1049038789930006439,
+      "episode_index": 0,
+      "episode_id": "93035d0e53c94299add889a44f026596"
+    }
+  },
+  "rtf": 0.4244500720841046,
+  "sim_time": 217.52079853,
+  "pose_wall": 6643.900123759,
+  "quaternion": [
+    7.989944741674979e-07,
+    8.64724717180473e-07,
+    -0.7060895725402336,
+    0.7081225286266242
+  ],
+  "pose_age_s": 0.019585695000387204
+}

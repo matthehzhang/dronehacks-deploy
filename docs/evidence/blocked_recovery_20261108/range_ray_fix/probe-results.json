@@ -1,0 +1,303 @@
+{
+  "near_quantile_invariance": {
+    "legacy_near_ranges": [
+      0.6
+    ],
+    "near_plus_1000_far_ranges": [
+      0.6
+    ]
+  },
+  "package": "/home/matthew/projects/hackathon/dronehacks/deploy-blocked-recovery/team_ws/src/kestrel_nav",
+  "local_horizon_m": 3.0,
+  "integrations": 3,
+  "cases": [
+    {
+      "case": "near_1m",
+      "distance_m": 1.0,
+      "sigma_m": 0.07,
+      "accepted": [
+        true,
+        true,
+        true
+      ],
+      "free_cells": 19,
+      "occupied_cells": 1,
+      "max_free_x_m": 0.9250000000000007,
+      "samples": {
+        "0.5": {
+          "log_odds": -1.2000000476837158,
+          "seen": 3
+        },
+        "1.0": {
+          "log_odds": 2.5500001907348633,
+          "seen": 3
+        },
+        "2.8": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.0": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.1": {
+          "log_odds": 0.0,
+          "seen": 0
+        }
+      },
+      "free_cells_after_expiry": 0
+    },
+    {
+      "case": "exact_horizon_3m",
+      "distance_m": 3.0,
+      "sigma_m": 0.23,
+      "accepted": [
+        true,
+        true,
+        true
+      ],
+      "free_cells": 59,
+      "occupied_cells": 1,
+      "max_free_x_m": 2.9250000000000007,
+      "samples": {
+        "0.5": {
+          "log_odds": -1.2000000476837158,
+          "seen": 3
+        },
+        "1.0": {
+          "log_odds": -1.2000000476837158,
+          "seen": 3
+        },
+        "2.8": {
+          "log_odds": -1.2000000476837158,
+          "seen": 3
+        },
+        "3.0": {
+          "log_odds": 2.5500001907348633,
+          "seen": 3
+        },
+        "3.1": {
+          "log_odds": 0.0,
+          "seen": 0
+        }
+      },
+      "free_cells_after_expiry": 0
+    },
+    {
+      "case": "far_5m",
+      "distance_m": 5.0,
+      "sigma_m": 0.55,
+      "accepted": [
+        true,
+        true,
+        true
+      ],
+      "free_cells": 59,
+      "occupied_cells": 0,
+      "max_free_x_m": 2.9250000000000007,
+      "samples": {
+        "0.5": {
+          "log_odds": -1.2000000476837158,
+          "seen": 3
+        },
+        "1.0": {
+          "log_odds": -1.2000000476837158,
+          "seen": 3
+        },
+        "2.8": {
+          "log_odds": -1.2000000476837158,
+          "seen": 3
+        },
+        "3.0": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.1": {
+          "log_odds": 0.0,
+          "seen": 0
+        }
+      },
+      "free_cells_after_expiry": 0
+    },
+    {
+      "case": "far_8m",
+      "distance_m": 8.0,
+      "sigma_m": 1.33,
+      "accepted": [
+        true,
+        true,
+        true
+      ],
+      "free_cells": 59,
+      "occupied_cells": 0,
+      "max_free_x_m": 2.9250000000000007,
+      "samples": {
+        "0.5": {
+          "log_odds": -1.2000000476837158,
+          "seen": 3
+        },
+        "1.0": {
+          "log_odds": -1.2000000476837158,
+          "seen": 3
+        },
+        "2.8": {
+          "log_odds": -1.2000000476837158,
+          "seen": 3
+        },
+        "3.0": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.1": {
+          "log_odds": 0.0,
+          "seen": 0
+        }
+      },
+      "free_cells_after_expiry": 0
+    },
+    {
+      "case": "far_uncertain",
+      "distance_m": 5.0,
+      "sigma_m": 10.0,
+      "accepted": [
+        false,
+        false,
+        false
+      ],
+      "free_cells": 0,
+      "occupied_cells": 0,
+      "max_free_x_m": null,
+      "samples": {
+        "0.5": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "1.0": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "2.8": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.0": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.1": {
+          "log_odds": 0.0,
+          "seen": 0
+        }
+      },
+      "free_cells_after_expiry": 0
+    },
+    {
+      "case": "zero",
+      "distance_m": 0.0,
+      "sigma_m": 0.05,
+      "accepted": [
+        false,
+        false,
+        false
+      ],
+      "free_cells": 0,
+      "occupied_cells": 0,
+      "max_free_x_m": null,
+      "samples": {
+        "0.5": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "1.0": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "2.8": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.0": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.1": {
+          "log_odds": 0.0,
+          "seen": 0
+        }
+      },
+      "free_cells_after_expiry": 0
+    },
+    {
+      "case": "nan",
+      "distance_m": "nan",
+      "sigma_m": 0.05,
+      "accepted": [
+        false,
+        false,
+        false
+      ],
+      "free_cells": 0,
+      "occupied_cells": 0,
+      "max_free_x_m": null,
+      "samples": {
+        "0.5": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "1.0": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "2.8": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.0": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.1": {
+          "log_odds": 0.0,
+          "seen": 0
+        }
+      },
+      "free_cells_after_expiry": 0
+    },
+    {
+      "case": "infinity",
+      "distance_m": "inf",
+      "sigma_m": 0.05,
+      "accepted": [
+        false,
+        false,
+        false
+      ],
+      "free_cells": 0,
+      "occupied_cells": 0,
+      "max_free_x_m": null,
+      "samples": {
+        "0.5": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "1.0": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "2.8": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.0": {
+          "log_odds": 0.0,
+          "seen": 0
+        },
+        "3.1": {
+          "log_odds": 0.0,
+          "seen": 0
+        }
+      },
+      "free_cells_after_expiry": 0
+    }
+  ]
+}

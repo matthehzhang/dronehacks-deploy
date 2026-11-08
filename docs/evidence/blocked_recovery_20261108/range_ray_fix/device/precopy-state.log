@@ -1,0 +1,2 @@
+data: '{"stamp": 1794132182.619, "px4_link": true, "armed": true, "landed": false, "nav_state": 14, "nav_state_name": "OFFBOARD", "offboard_active": true, "odom_enu": [0.13762067258358002, -0.07426189631223679, 0.5969563126564026], "origin_enu": [0.0011419923976063728, 0.0006352163618430495, -0.00018959750013891608], "local_enu": [0.14745034277439117, -0.07300640642642975, 3.0257441997528076], "envelope_ok": true, "setpoint_mode": "velocity", "clamped": [], "frozen": false, "envelope": {"min_altitude_m": 0.3, "max_altitude_m": 3.0, "max_speed_mps": 1.5}}'
+---

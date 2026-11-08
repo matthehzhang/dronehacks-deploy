@@ -1,0 +1,51 @@
+{
+  "baseline_commit": "57b0bca",
+  "fixed_commit": "5097808",
+  "fixture": "2400 finite level points spanning -0.5 to +0.5 rad, 5 integrations; no ROS or flight",
+  "before": [
+    {
+      "distance_m": 2.5,
+      "beams": 38,
+      "known_cells": 1268,
+      "free_cells": 1230,
+      "occupied_cells": 36
+    },
+    {
+      "distance_m": 5.0,
+      "beams": 0,
+      "known_cells": 0,
+      "free_cells": 0,
+      "occupied_cells": 0
+    },
+    {
+      "distance_m": 8.0,
+      "beams": 0,
+      "known_cells": 0,
+      "free_cells": 0,
+      "occupied_cells": 0
+    }
+  ],
+  "after": [
+    {
+      "distance_m": 2.5,
+      "beams": 38,
+      "known_cells": 1268,
+      "free_cells": 1230,
+      "occupied_cells": 36
+    },
+    {
+      "distance_m": 5.0,
+      "beams": 38,
+      "known_cells": 1532,
+      "free_cells": 1532,
+      "occupied_cells": 0
+    },
+    {
+      "distance_m": 8.0,
+      "beams": 38,
+      "known_cells": 1608,
+      "free_cells": 1608,
+      "occupied_cells": 0
+    }
+  ]
+}

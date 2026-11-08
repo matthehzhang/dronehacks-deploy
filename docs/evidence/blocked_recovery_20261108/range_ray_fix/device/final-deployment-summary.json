@@ -1,0 +1,38 @@
+{
+  "result": "NATIVE_AND_REGRESSION_PASS",
+  "utc": "2026-11-08T10:15:53.323866+00:00",
+  "commit": "50978085fedb6b3f56e1b23cb904167c15383eec",
+  "branch": "cram304",
+  "active_source": "/home/dronehacks/team_ws/src/kestrel_nav",
+  "saved_source": "/home/dronehacks/policies/group154_blocked_recovery/kestrel_nav",
+  "verified_files_each_path": 159,
+  "source_restored_on_reconnect": [
+    "tests/test_local_ray_horizon.py (empty file restored; runtime files already matched)"
+  ],
+  "runtime_source_overwritten_on_reconnect": false,
+  "native_build": "PASS main workspace team_build.sh6.10s",
+  "colcon_discovery": "one kestrel_nav package",
+  "native_localizer_fits": [
+    0.35,
+    0.42
+  ],
+  "native_navigator": {
+    "result": "PASS",
+    "total_legs": 5,
+    "preplanned_path_legs": 3,
+    "retained_preplan_references": 3
+  },
+  "launch_argument_resolution": "PASS",
+  "laptop_tests_reported_by_parent": {
+    "passed": 576,
+    "expected_failures": 2
+  },
+  "diagnostic_ros_domain": 77,
+  "flight_readiness": "NOT ESTABLISHED; parent observed PX4 link unavailable on reconnect",
+  "fly_sh_preserved": true,
+  "fly_sh_sha256": "343dbdd5c0dabd4ebca909c682b5bfab380e212714d11d80f9d8f9903d9fb2d5",
+  "stack_restarted_by_agent": false,
+  "flight_or_arming_commanded_by_agent": false,
+  "no_nested_workspace": true,
+  "supersedes": "partial-staging-summary.json (retained as historical evidence)"
+}

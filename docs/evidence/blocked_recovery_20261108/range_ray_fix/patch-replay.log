@@ -1,0 +1,12 @@
+Patch replay reproduces 11 adapted files from ed2271bd49c34bf5fd77cbd5d5124e28be778905.
+patching file course/course_v3.json
+patching file coursenav/course.py
+patching file coursenav/loc_node.py
+patching file coursenav/localgrid.py
+patching file coursenav/nav_node.py
+patching file coursenav/navigator.py
+patching file coursenav/priorstate.py
+patching file coursenav/scan.py
+patching file fly_course.py
+patching file refnav/core.py
+patching file refnav/node.py
