@@ -151,6 +151,9 @@ class Params:
     path_tube_gate: bool = False                # path mode: outside the path's tube (navigator, per point) forward
                                                 # motion holds and the setpoint is the path point beside the
                                                 # aircraft; it advances again inside half the tube
+    path_tube_recovery_mps: float = 0.0         # > 0: outside the tube, creep at at most this speed while
+                                                # correcting toward the path, instead of holding forward motion.
+                                                # Other speed limits and planned stops still take priority.
     path_stale_s: float = 1.0                   # path mode: a path older than this stops forward motion
     path_turn_hold: bool = False                # path mode: a path leg's turn with no path yet keeps the current
                                                 # heading instead of the straight bearing to the leg's STOP; check and
@@ -1311,14 +1314,16 @@ class Mission:
             elif not self.tube_hold and across > tube:
                 self.tube_hold = True
                 self.counts["tube_holds"] += 1
+                action = (f"slowing to at most {p.path_tube_recovery_mps:.2f} m/s while correcting"
+                          if p.path_tube_recovery_mps > 0 else "holding")
                 out.events.append(f"tube: {across:.3f} m off the path on leg {self.leg + 1} > {tube:.3f} m: "
-                                  f"holding until back inside {tube / 2:.3f} m")
+                                  f"{action} until back inside {tube / 2:.3f} m")
             elif self.tube_hold and across <= tube / 2:
                 self.tube_hold = False
                 out.events.append(f"tube: back inside {tube / 2:.3f} m on leg {self.leg + 1}: advancing")
             if self.tube_hold:
                 self.counts["tube_ticks"] += 1
-                cap = 0.0
+                cap = min(cap, max(0.0, p.path_tube_recovery_mps))
         a_b = p.brake_mps2 if p.brake_mps2 > 0 else (p.accel_mps2 if p.accel_mps2 > 0 else 0.5)
         a_up = p.accel_mps2 if p.accel_mps2 > 0 else a_b
         v_brake = math.sqrt(2.0 * a_b * max(remaining - p.capture_m, 0.0))

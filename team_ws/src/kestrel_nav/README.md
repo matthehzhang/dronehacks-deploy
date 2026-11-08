@@ -3,6 +3,13 @@
 
 ## Active group154 map (2026-11-08)
 
+Path tracking uses `navigation.refnav.path_tube_recovery_mps=0.10`: outside
+the narrow tracking tube, forward speed is capped at 0.10 m/s while position
+feedback steers back toward the path. The planned speed ceiling returns inside
+half the tube. Planned stops/turns and other motion limits still apply. Set
+this parameter to 0 to restore the previous forward hold. This permits forward
+travel outside the planner's tracking tube and has not been flight validated.
+
 The refnav course profile now follows waypoints without requiring depth returns
 along the path: `min_corridor_coverage`, `min_valid_frac`, and
 `min_valid_frac_static` are 0, and `corridor_wait_land_s` is -1. Fresh blank or

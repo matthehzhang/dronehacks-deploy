@@ -106,3 +106,75 @@ def test_landing_and_takeover_banners(params, cause):
         m._land(.1, out, "route complete")
         expected = "AUTO LAND: route complete"
     assert any(e.startswith("!!!!!!!!!! " + expected) and e.endswith(" !!!!!!!!!!") for e in out.events)
+
+
+def tracking_step(m, v, t, distance=np.nan, stops=(), path=None):
+    feed(m, t, distance)
+    pts = path or [(0, 0), (2.5, 0), (5, 0)]
+    assert m.on_path(t, 0, pts, [.3] * len(pts), stops=stops, tubes=[.09] * len(pts))
+    return m.step(t, v)
+
+
+def test_off_path_creeps_and_corrects_without_changing_heading(params):
+    from refnav.skybeta import twist_from_setpoint
+    m, v = checking(params, "path")
+    m.phase = "go"
+    v.pos = (1.0, .12, -.7)  # outside a 9 cm tube
+    events = []
+    for t in [.1, .2, .3, .4, .5]:
+        out = tracking_step(m, v, t)
+        events.extend(out.events)
+    assert m.tube_hold and m.phase == "go"
+    assert m.v_cmd == pytest.approx(.1)
+    assert m.sp[:2] == pytest.approx([1, 0])
+    east, north, _, yaw = twist_from_setpoint(m.sp, out.velocity, out.yawspeed, v.pos, v.heading)
+    assert east < 0 and north > 0  # return to the line while advancing
+    assert yaw == pytest.approx(0)
+    assert any("slowing to at most 0.10 m/s while correcting" in e for e in events)
+    v.pos = (1.0, .06, -.7)
+    tracking_step(m, v, .6)
+    assert m.tube_hold and m.v_cmd <= .1  # hysteresis avoids rapid speed switching
+    v.pos = (1.0, .04, -.7)
+    out = tracking_step(m, v, .7)
+    assert not m.tube_hold and m.v_cmd > .1
+    assert any("back inside" in e for e in out.events)
+
+
+def test_zero_recovery_speed_restores_forward_hold(params):
+    params.path_tube_recovery_mps = 0.0
+    m, v = checking(params, "path")
+    m.phase, v.pos = "go", (1, .12, -.7)
+    for t in [.1, .2, .3]:
+        tracking_step(m, v, t)
+    assert m.tube_hold and m.v_cmd == 0
+    assert m.sp[:2] == pytest.approx([1, 0])
+
+
+def test_off_path_recovery_does_not_override_obstacle(params):
+    m, v = checking(params, "path")
+    m.phase, v.pos = "go", (1, .12, -.7)
+    for t in [.1, .2, .3]:
+        tracking_step(m, v, t, distance=.34)
+    assert m.phase == "blocked" and m.v_cmd == 0
+
+
+def test_off_path_recovery_does_not_override_stale_path(params):
+    m, v = checking(params, "path")
+    m.phase, v.pos = "go", (1, .12, -.7)
+    for t in [.1, .2, .3]:
+        tracking_step(m, v, t)
+    feed(m, 2.0)
+    m.path["t"] = .3
+    m.step(2.0, v)
+    assert m.v_cmd == 0 and m.counts["path_waits"] > 0
+
+
+def test_off_path_recovery_still_stops_for_planned_corner(params):
+    m, v = checking(params, "path")
+    m.phase, v.pos = "go", (1.0, .12, -.7)
+    for t in [.1, .2, .3, .4, .5, .6]:
+        out = tracking_step(m, v, t, stops=(1,), path=[(0, 0), (1, 0), (1, 3)])
+        if m.phase == "turn":
+            break
+    assert m.phase == "turn" and m.v_cmd == 0
+    assert any("path corner" in e for e in out.events)

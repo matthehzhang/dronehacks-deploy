@@ -112,7 +112,7 @@
   },
   "navigation": {
     "mode": "path",
-    "_flow_note": "FLOW-CORNERS (2026-11-07): path mode as a hybrid. Bends sharper than stop_turn_deg 60 are stop-and-turn (as steady: no yaw while moving through big heading changes); gentler bends are arcs flown without stopping, the heading never leading the tangent by more than refnav path_heading_lead_deg 25 (run010 contact: 50 deg of preview) and turning at most yaw_rate_dps 30 while moving. Speed per point = min(cruise 0.5, tube / tube_response_s 0.44 s with tube = (clearance - reach) / 2: steady run015's cross-track model, as planner.leg_speed_mps; lateral accel 0.3; clearance slow-down); the approach to every stop is capped by the stop-overshoot fit -0.081 + 0.576 v + 0.10 m (runs 015+016, planner.end_room_speed_mps) against the mapped room beyond it. refnav path_tube_gate: off the path by more than the local tube -> forward motion holds, setpoint beside the aircraft. cruise 0.5 is above the 0.40 m/s flown in runs 015/016: it is reached only where the tube allows (clearance >= 0.73 m), i.e. open floor, and is unflown.",
+    "_flow_note": "FLOW-CORNERS (2026-11-07): path mode as a hybrid. Bends sharper than stop_turn_deg 60 are stop-and-turn (as steady: no yaw while moving through big heading changes); gentler bends are arcs flown without stopping, the heading never leading the tangent by more than refnav path_heading_lead_deg 25 (run010 contact: 50 deg of preview) and turning at most yaw_rate_dps 30 while moving. Speed per point = min(cruise 0.5, tube / tube_response_s 0.44 s with tube = (clearance - reach) / 2: steady run015's cross-track model, as planner.leg_speed_mps; lateral accel 0.3; clearance slow-down); the approach to every stop is capped by the stop-overshoot fit -0.081 + 0.576 v + 0.10 m (runs 015+016, planner.end_room_speed_mps) against the mapped room beyond it. refnav path_tube_gate: outside the local tube -> forward speed capped by path_tube_recovery_mps while the setpoint beside the aircraft corrects cross-track error. cruise 0.5 is above the 0.40 m/s flown in runs 015/016: it is reached only where the tube allows (clearance >= 0.73 m), i.e. open floor, and is unflown.",
     "_note": "Path mode: refnav stops at declared stops and follows navigator paths between them. Historical offline figures in older notes used the 0.28 m synthetic aircraft. The confirmed 7-inch profile resolves to radius 0.294082845 m; full-course planning currently refuses at the retained 0.12 m margin. The diagnostic mission has a separate slow transit and bounded measurement schedule; see docs/RUN010_CONTACT_AND_NEXT_DIAGNOSTIC.md.",
     "cruise_mps": 0.5,
     "accel_mps2": 0.5,
@@ -132,6 +132,8 @@
     "stop_approach_m": 1.0,
     "refnav": {
       "path_tube_gate": true,
+      "path_tube_recovery_mps": 0.1,
+      "_tube_recovery_note": "Outside the path tube, cap forward speed at 0.10 m/s while position feedback recenters; resume the planned speed inside half the tube. Replaces the previous zero-forward-speed hold. Planned stops, depth and path freshness, obstacle and estimator checks still apply. Not flight validated.",
       "path_heading_lead_deg": 25.0,
       "path_lookahead_m": 0.2,
       "yaw_rate_dps": 30.0,
