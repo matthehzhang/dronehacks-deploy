@@ -5,7 +5,6 @@ import math
 from dataclasses import dataclass, field
 
 from . import depth as D
-from .vertical import VerticalCentring
 
 NAV_OFFBOARD = 14
 NAV_AUTO_LAND = 18
@@ -46,13 +45,6 @@ class Params:
     search_sweep_deg: float = 60.0             # search yaws at most this far either side of the bearing to the
                                                 # active waypoint (never a full-circle scan)
     search_step_deg: float = 30.0              # dwell headings inside that sector
-    centre_vertical: bool = True               # altitude target = midpoint of depth-measured openings ahead
-                                                # (cruise height_m when nothing constrains the vertical band)
-    lateral_m: float = 0.37                    # corridor half-width examined for openings (airframe + margin)
-    vertical_clearance_m: float = 0.24         # kept between the airframe's centre and an opening's edge
-    alt_min_m: float = 0.35
-    alt_max_m: float = 1.5                     # stays below the 1.727 m walls
-    alt_rate_mps: float = 0.25
     replan_reorient_deg: float = 45.0          # while moving, a receding replan is tracked in motion unless its
                                                 # initial heading differs by more than this (then stop and turn)
     depth_stride: int = 8                       # every n-th pixel of the depth image is used
@@ -173,7 +165,6 @@ class Mission:
     def __init__(self, params: Params):
         self.p = params
         self.health = Health(params.health_quiet_s, params.health_stale_s)
-        self.vc = None                # VerticalCentring once airborne at cruise height
         self.phase = "wait"
         self.why = ""
         self.sp = None
@@ -340,9 +331,6 @@ class Mission:
             self.depth_ready_since = stamp
         self.frame, self.depth_t, self.depth_pts = f, stamp, f.points(0.3, 6.0)
         self.depth_reject = None                             # a refusal is only reported until a frame is used
-        lv = self.last_v
-        if self.vc is not None and lv is not None and lv.pos is not None and lv.heading is not None and self.home:
-            self.vc.observe(stamp, self.depth_pts, self.home[2] - lv.pos[2], lv.pos[:2], lv.heading)
         self.counts["depth_frames"] += 1
         return True
 
@@ -506,9 +494,6 @@ class Mission:
             target = self.home[2] - p.height_m
             self.sp[2] = max(target, self.sp[2] - p.climb_rate_mps * dt)
             if self.sp[2] <= target + 1e-09 and abs(v.pos[2] - target) < p.climb_tol_m:
-                if p.centre_vertical and self.vc is None:
-                    self.vc = VerticalCentring(p.height_m, p.lateral_m, p.vertical_clearance_m,
-                                               p.alt_min_m, p.alt_max_m, p.alt_rate_mps)
                 if p.excite_yaw_deg > 0 and self.excite is None:
                     self.excite = [_wrap(self.sp[3] + math.radians(p.excite_yaw_deg)), self.sp[3]]
                     self._set('excite', now, out, f'estimator excitation: yaw {p.excite_yaw_deg:.0f} deg in place and back')
@@ -564,10 +549,6 @@ class Mission:
                         self.path_reorient = False
                         self._set('turn', now, out, 'sweep found a route: face it, then check fresh depth')
                     elif self.search_steps >= len(self.search_offsets):
-                        if self.vc is not None:
-                            # No route at this height in a whole sweep: probe another altitude.
-                            alt = self.vc.probe_next()
-                            out.events.append(f'search: no route after a full sweep; probing height {alt:.2f} m')
                         self._begin_sweep(v, self.search_cycles + 1)   # re-centre on the current bearing
                     else:
                         self.search_target = _wrap(self.search_center + self.search_offsets[self.search_steps])
@@ -591,11 +572,6 @@ class Mission:
                 self._end(now, out, 'complete' if why == 'route complete' else f'landed: {why}')
             elif now - self.t_phase > p.land_timeout_s:
                 self._end(now, out, f'landed: {self.land_reason}; landing not confirmed within {p.land_timeout_s:.0f} s')
-        if (self.vc is not None and self.home is not None and v.pos is not None
-                and self.phase in AIRBORNE and self.phase != 'climb'):
-            # Altitude: centred in openings measured by depth, else cruise; rate limited.
-            alt = self.vc.step(now, dt, self.home[2] - v.pos[2], v.pos[:2])
-            self.sp[2] = self.home[2] - alt
         if self.phase != 'go':
             self.v_cmd, self.a_cmd = (0.0, 0.0)
             self.v_vec = self.a_vec = None
@@ -908,9 +884,6 @@ class Mission:
                 "v_cmd": round(self.v_cmd, 3),
                 "motion_limit": getattr(self,'motion_limit',None),
                 "horizon_reached": getattr(self,'horizon_reached',None),
-                "vertical": None if self.vc is None else dict(target_m=round(self.vc.target, 3),
-                    cruise_m=round(self.vc.cruise, 3), probes=self.vc.probes,
-                    command_m=None if self.vc.out is None else round(self.vc.out, 3), opening=self.vc.info),
                 "search": (None if self.phase != 'search' or getattr(self, 'search_offsets', None) is None else
                            dict(centre_deg=round(math.degrees(self.search_center), 1),
                                 target_deg=round(math.degrees(self.search_target), 1),

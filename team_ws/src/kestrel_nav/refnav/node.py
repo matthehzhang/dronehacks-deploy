@@ -124,17 +124,6 @@ class RefNav(Node):
         self.create_subscription(Bool, self.health_topic, self._on_health, 10)
         self.create_subscription(CameraInfo, self.info_topic, self._on_info, qos_profile_sensor_data)
         self.create_subscription(Image, self.depth_topic, self._on_depth, qos_profile_sensor_data)
-        # Altitude-hold height: VIO z anchored to PX4's height, corrected slowly (height_tau_s).
-        # PX4's height reference here is the downward rangefinder (EKF2_HGT_REF 2), which reads a
-        # window sill or any object below as the floor rising; VIO does not.
-        from nav_msgs.msg import Odometry
-        self.height_tau_s = float(self.declare_parameter('height_tau_s', 10.0).value)
-        self._vio = None                 # (receive time, z up)
-        self._z_off = None               # PX4 NED z - VIO NED z, slowly corrected
-        self._z_corr = 0.0               # last (robust z - PX4 z), carried over VIO gaps
-        self._z_t = None
-        self.create_subscription(Odometry, self.declare_parameter('vio_topic', '/visual_slam/tracking/odometry').value,
-                                 self._on_vio, qos_profile_sensor_data)
         path_topic = self.declare_parameter('path_topic', '/coursenav/path').value
         if self.mission.p.track_mode == 'path' and path_topic:
             self.create_subscription(String, path_topic, self._on_path, 10)
@@ -189,7 +178,7 @@ class RefNav(Node):
         self._lpos_timestamp = getattr(m, 'timestamp', None)
         if self.trace.enabled:
             self.trace.record('local_position', self._lpos_received_ros_s, data=fields(m, LPOS_FIELDS))
-        self.v.pos = (m.x, m.y, self._robust_z(float(m.z)))
+        self.v.pos = (m.x, m.y, m.z)
         self.v.heading = m.heading
         rng = float(getattr(m, 'dist_bottom', math.nan))
         self.v.rng = rng if math.isfinite(rng) else None
@@ -203,26 +192,6 @@ class RefNav(Node):
         if self.px4_output == 'skybeta':
             self._check_reset(m)
         self.v.pos_ok = bool(m.xy_valid and m.z_valid and heading_ok and all((math.isfinite(c) for c in (m.x, m.y, m.z, m.heading))))
-
-    def _on_vio(self, m):
-        z = float(m.pose.pose.position.z)
-        if math.isfinite(z):
-            self._vio = (self._now(), z)
-
-    def _robust_z(self, z_px4):
-        now = self._now()
-        if self._vio is None or not math.isfinite(z_px4) or now - self._vio[0] > 0.3:
-            return z_px4 + self._z_corr                  # VIO gap: keep the last correction
-        z_vio = -self._vio[1]                            # ENU up -> NED down
-        if self._z_off is None:
-            self._z_off = z_px4 - z_vio
-        else:
-            dt = max(0.0, now - (self._z_t or now))
-            self._z_off += min(1.0, dt / max(self.height_tau_s, 1e-3)) * ((z_px4 - z_vio) - self._z_off)
-        self._z_t = now
-        z = z_vio + self._z_off
-        self._z_corr = z - z_px4
-        return z
 
     def _on_att(self, m):
         if not self._return_observe('attitude', m.timestamp * 1e-06):

@@ -78,9 +78,7 @@
     "yaw_rate_dps": 35.0,
     "accel_mps2": 0.5,
     "min_valid_frac_static": 0.15,
-    "min_valid_frac": 0.3,
-    "lateral_m": 0.37,
-    "vertical_clearance_m": 0.24
+    "min_valid_frac": 0.3
   },
   "waypoint_file": "course/waypoint_intent.json",
   "room_boundary_file": "course/room_boundary.json"

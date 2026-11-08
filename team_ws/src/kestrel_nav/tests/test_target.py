@@ -1,4 +1,4 @@
-"""Landing-target detection (colour + depth) and final-waypoint tracking; vertical probe."""
+"""Landing-target detection (colour + depth) and final-waypoint tracking."""
 import math
 
 import numpy as np
@@ -90,20 +90,26 @@ def test_navigator_moves_final_waypoint_and_replans_on_final_leg():
     assert np.allclose(legs[-1]['stop'], (-1.75, -.45)) and fake.depth_nav.path is None
 
 
-def test_full_sweep_without_route_probes_a_new_height():
-    from refnav.core import Mission, Params, Vehicle
-    from refnav.vertical import VerticalCentring
-    m = Mission(Params(track_mode='path', local_horizon=True))
-    m.phase = 'go'; m.leg = 0; m.targets = [(4., 0.)]; m.waypoints_ne = [(4., 0.)]
-    m.sp = [0., 0., -.7, 0.]; m.home = [0., 0., 0., 0.]
-    m.t_started = m.t_phase = 0.; m.t_last = 1.
-    m.health.bad_for = lambda now: 0.; m.offboard_seen = False
-    m.vc = VerticalCentring(.7, .37, .24)
-    t = 2.
-    for _ in range(1500):
-        t += .05
-        m.depth_t = t
-        m.step(t, Vehicle(pos=(0., 0., m.sp[2]), heading=m.sp[3], pos_ok=True, vel=(0., 0., 0.)))
-        if m.vc.probes:
+
+
+def test_a_bigger_blue_poster_does_not_hide_the_pad():
+    from coursenav.target import blobs
+    rgb, depth = render((2.4, .2))
+    rgb[30:120, 60:300] = (60, 168, 240)            # large blue patch high in the image (a wall poster)
+    depth[30:120, 60:300] = 6.                      # far away, above the floor
+    pts = depth_body_points(depth, K, R_BODY_CAM, T_BODY_CAM, stride=2)
+    found = None
+    for blob in blobs(hsv_mask(rgb)):
+        xy, info = locate_target(blob, K, R_BODY_CAM, T_BODY_CAM, pts, np.eye(3), .7)
+        if xy is not None:
+            found = xy
             break
-    assert m.phase == 'search' and m.vc.probes == 1 and abs(m.vc.cruise - .95) < 1e-6
+    assert found is not None and np.linalg.norm(found - (2.4, .2)) < .06
+
+
+def test_blob_cut_by_the_image_edge_is_not_a_candidate():
+    from coursenav.target import blobs
+    m = np.zeros((100, 100), bool)
+    m[90:100, 40:60] = True                          # truncated at the bottom edge
+    m[20:40, 20:40] = True
+    assert len(blobs(m, min_px=10)) == 1

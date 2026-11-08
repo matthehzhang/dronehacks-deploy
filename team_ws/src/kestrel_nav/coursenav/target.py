@@ -33,6 +33,26 @@ def hsv_mask(rgb, h_lo=95., h_hi=125., s_min=90., v_min=60.):
     return (h >= h_lo) & (h <= h_hi) & (s >= s_min) & (mx >= v_min)
 
 
+def blobs(mask, min_px=40, border_px=2):
+    """Candidate blobs, largest first, each >= min_px and not touching the image border (a view
+    truncated by the frame edge biases the centre)."""
+    lab, n = ndimage.label(mask, structure=np.ones((3, 3), bool))
+    if n == 0:
+        return []
+    sizes = ndimage.sum(mask, lab, index=np.arange(1, n + 1))
+    out = []
+    H, W = mask.shape
+    for k in np.argsort(-sizes):
+        if sizes[k] < min_px:
+            break
+        sl = ndimage.find_objects((lab == k + 1).astype(int))[0]
+        if (sl[0].start < border_px or sl[1].start < border_px or sl[0].stop > H - border_px
+                or sl[1].stop > W - border_px):
+            continue
+        out.append(lab == k + 1)
+    return out
+
+
 def largest_blob(mask, min_px=40):
     """-> (blob mask, pixel count) of the largest 8-connected component, or (None, 0)."""
     lab, n = ndimage.label(mask, structure=np.ones((3, 3), bool))

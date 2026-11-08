@@ -241,3 +241,20 @@ window sill PX4's height estimate dropped, refnav's altitude loop commanded
   edges of an opening are seen.
 - Launch: rgb_topic/rgb_info_topic arguments (sim /oak/rgb/image); no colour
   stream -> the detector idles and the declared pad is used.
+
+
+## Height work reverted (2026-11-08)
+
+Height is being handled separately. Removed from this branch: depth-measured
+opening centring (refnav.vertical), the height probe, the VIO-anchored altitude
+hold and loc_node's VIO-anchored height / +/-0.25 m band / map-reset changes. The
+altitude hold is again the fixed cruise height on PX4's z, and loc_node again
+uses the rangefinder height with a +/-0.4 m band and a map reset on a 0.2 m
+height change. The sections above that describe those height mechanisms no longer
+apply. NOTE: the rangefinder-referenced height (EKF2_HGT_REF 2) still climbs over
+a window sill (run stack_20261108T124724Z); that is for the height work.
+
+Kept: room boundary, FASTER-style committed horizons, hazard-only route
+withdrawal, 0.12 m lateral margin, legacy-stop removal, and the colour+depth
+landing-target relocation, now evaluating every blue blob (largest first) and
+skipping blobs cut by the image edge, with detector statistics logged every 10 s.

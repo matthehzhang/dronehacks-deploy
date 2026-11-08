@@ -20,7 +20,7 @@ from std_msgs.msg import String
 
 from refnav.depth import decode_depth, quat_to_mat
 from .scan import level_from_px4_q
-from .target import depth_body_points, hsv_mask, largest_blob, level_to_course, locate_target
+from .target import blobs, depth_body_points, hsv_mask, level_to_course, locate_target
 
 PX4_QOS = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                      history=HistoryPolicy.KEEP_LAST, depth=1)
@@ -50,7 +50,8 @@ class TargetNode(Node):
         self.att = None
         self.pose = None               # (stamp, (x, y, yaw), height)
         self.last_t = -math.inf
-        self.counts = dict(frames=0, blobs=0, published=0, rejected=0)
+        self.counts = dict(frames=0, frames_with_blobs=0, published=0, rejected={})
+        self.create_timer(10., lambda: self.get_logger().info(f'target detector: {self.counts}'))
         from tf2_ros import Buffer, TransformListener
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -111,10 +112,10 @@ class TargetNode(Node):
         except Exception as e:                                   # no TF yet / encoding: try next frame
             self.get_logger().warning(f'target frame skipped: {e}', throttle_duration_sec=10.)
             return
-        blob, npx = largest_blob(hsv_mask(rgb, *self.hsv), self.min_px)
-        if blob is None:
+        cands = blobs(hsv_mask(rgb, *self.hsv), self.min_px)
+        if not cands:
             return
-        self.counts['blobs'] += 1
+        self.counts['frames_with_blobs'] += 1
         stamp = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9
         pts = np.zeros((0, 3))
         if self.depth is not None and self.K_d is not None and abs(self.depth[0] - stamp) <= .2:
@@ -126,10 +127,15 @@ class TargetNode(Node):
         pose_t, pose, height = self.pose
         if abs(pose_t - stamp) > .5:
             return
-        xy, info = locate_target(blob, self.K_rgb, R_rgb, t_rgb, pts, level_from_px4_q(self.att), height)
-        info['blob_px'] = npx
-        if xy is None:
-            self.counts['rejected'] += 1
+        R_level = level_from_px4_q(self.att)
+        for blob in cands:                      # largest first; other blue things (posters) are rejected
+            xy, info = locate_target(blob, self.K_rgb, R_rgb, t_rgb, pts, R_level, height)
+            if xy is not None:
+                info['blob_px'] = int(blob.sum())
+                break
+            why = info.get('reject', 'unknown')
+            self.counts['rejected'][why] = self.counts['rejected'].get(why, 0) + 1
+        else:
             return
         course = level_to_course(xy, pose)
         self.counts['published'] += 1
