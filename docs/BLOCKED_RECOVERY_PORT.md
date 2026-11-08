@@ -260,3 +260,49 @@ endpoint. Missing/invalid depth remains unknown. Prior assets, PF scan extractio
 clearance, evidence expiry and flight authority are unchanged. Device transfer must
 precede validation; staging does not replace the already-running Python processes.
 Validation for this change is recorded under `evidence/blocked_recovery_20261108/range_ray_fix/`.
+
+
+## Recovery creep and recovery evidence (2026-11-08, `recovery_creep:=true`, default OFF)
+
+**Why.** Real-flight report: after the leg-1 turn the drone moved a little, paused, swept and never
+entered visible free space. Through the real `LocalGrid` + `ObservedFree` (scratch evaluation: open
+space, then approach → 70° turn → 4 s hold → ±25° sweep), recovery could certify only a strip ~1 m wide,
+0.9–1.7 m ahead, and **never the drone's own position**. So every request failed ("recovery start footprint
+is not certified free" / "no observed-free rejoin beyond recovery lookahead") however open the room was.
+Causes, by measured effect: unknown counts as obstacle for the 0.414 m footprint (kept: it is the rule that
+keeps paths out of unseen space); 48 free rays (gaps between rays beyond ~1.8 m); 3 m carving; 8 s free
+memory (the cells beside the drone were seen ~16 s before the first post-sweep request).
+
+**What the flag turns on** (one launch argument, `recovery_creep`, threaded to all three processes):
+
+- localizer `recovery_evidence`: 160 dense **free-only** rays (`scan.with_dense_free_rays`: never mark an
+  endpoint; a bin with any near point but too few for a return gives no ray and vetoes far carving;
+  obstacle marking stays on the 48-bin scan), distant returns carve to 4 m (obstacles still only to 3 m),
+  free evidence lasts 20 s (was 8), and the airframe's own 0.29 m disc is published free for 20 s
+  (`LocalParams.body_radius_m` / `swept_age_s`; a confident obstacle, or any later return on the cell,
+  overrides it). Explicit `local_*` parameters still override each value.
+- navigator `recovery_creep`: when no certified detour exists and refnav's request says `creep`, answer with
+  a **hop** (`Navigator.plan_creep_hop`): ≤ 0.5 m straight-line, every swept cell observed free, end outside
+  the fused obstacle buffer, ≥ 0.10 m closer to the leg goal by fused-map path distance (`cost_to_go`,
+  8-connected Dijkstra). Prior walls are never cleared by it. A hop in flight is re-certified every tick on
+  what is left of it (map changes elsewhere do not withdraw it); a hop is never stored as a reference route.
+- refnav `recovery_creep`: a hop (`recovery_hop` path) never replaces the leg's target/length/reference.
+  Phase `creep`: turn in place to the hop, then a carrot at ≤ `creep_speed_mps` 0.15 m/s with the live-depth
+  corridor check on (stop distance at creep speed); unobserved corridor → no advance; obstacle, withdrawal,
+  staleness or timeout ends the hop without progress. After a hop: hover `creep_dwell_s`, one new request
+  (`creep_hops` = n), then the usual sweep → back-off → recheck → land. Bounds: `creep_max_hops` 6 (then only
+  full detours are requested), `creep_max_stalls` 2 in a row → land, `recovery_timeout_s` restarts only on a
+  hop that made progress, never past `creep_max_s` 45 s from the block. A consumed hop's request id can never
+  move the aircraft again. Every new parameter is range-checked.
+
+**Validation (laptop).** `tests/test_recovery_creep.py`: 25 cases (sensing, hop planning, navigator protocol,
+refnav controller, and a closed-loop DynamicPX4 flight around an unmapped wall: 2 hops then a certified
+detour, course complete, ≥ 0.294 m from the wall throughout, ≤ creep speed within hops). Synthetic
+panel scenario: deployed settings → "recovery start footprint is not certified free"; flag on → three chained
+~0.5 m hops around the panel (goal distance 4.62 → 3.18 m).
+
+**Not yet validated.** Gazebo DIVERSE01/02 with `recovery_creep:=true`; the drone. Known risks to review
+before flight: hops are planned in VIO coordinates (drift), the sides of the airframe are outside the live
+depth check during a hop, 20 s free memory assumes nothing walks into seen space unobserved. First real test
+caged or tethered, pilot on the kill switch. `docs/port-to-skybeta/assets/skybeta.patch` needs
+`scripts/refresh_patch.sh` on the machine that has the workspace checkout.

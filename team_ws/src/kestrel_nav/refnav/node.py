@@ -431,7 +431,8 @@ class RefNav(Node):
             if leg == mi.leg and d.get("pts_ne"):
                 accepted = mi.on_path(received, mi.leg, d["pts_ne"], d.get("v") or [],
                                       d.get("stops") or [], pid=d.get("pid", 0), tubes=d.get("tubes"),
-                                      request_id=d.get("request_id"), recovery_certified=d.get("recovery_certified", False))
+                                      request_id=d.get("request_id"), recovery_certified=d.get("recovery_certified", False),
+                                      hop=d.get("recovery_hop") is True)
                 self.trace.record("path_applied", received, accepted=accepted,
                                   leg=mi.leg, pid=d.get("pid", 0))
                 if not accepted:

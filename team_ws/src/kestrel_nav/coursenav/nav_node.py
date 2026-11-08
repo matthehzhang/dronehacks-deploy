@@ -42,7 +42,8 @@ from .localgrid import course_mask, occupied_points_from_grid
 from .planner import PlanError
 from .observed_free import ObservedFree
 
-AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "align", "scan", "replan", "recovery_scan")
+AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "align", "scan", "replan", "recovery_scan",
+            "creep")
 
 
 class LiveLandmarks:
@@ -115,6 +116,8 @@ class NavNode(Node):
         self.recovery_last_attempt = None
         self.recovery_min_interval_s = float(dp("recovery_min_interval_s", 0.5).value)
         self.recovery_grid_max_age_s = float(dp("recovery_grid_max_age_s", 2.0).value)
+        # answer a creep-enabled recovery request that has no certified detour with a short certified hop
+        self.recovery_creep = bool(dp("recovery_creep", False).value)
         # the flight frame's heading relative to the VIO origin: 90 deg in the simulator (vision bridge
         # heading_enu_rad), 0 on the skybeta drone (the flight interface permutes odometry ENU directly)
         self.decl = math.radians(float(dp("declared_heading_deg", 90.0).value))
@@ -191,6 +194,9 @@ class NavNode(Node):
             if rid > self.recovery_last_id:
                 self.recovery_last_id = rid
                 self.recovery = dict(request_id=rid, leg=leg, plan_state="pending", reason="awaiting observed-free replan")
+                self.recovery_allow_hop = request.get("creep") is True
+                hops = request.get("creep_hops")
+                self.recovery_hops = hops if type(hops) is int and hops >= 0 else 0
                 entry = getattr(self, "reference_history", {}).get(request.get("reference_pid"))
                 if entry is not None and entry[0] == leg:
                     self.recovery_reference = entry[1]
@@ -292,6 +298,15 @@ class NavNode(Node):
         grid = self.observed_free
         to_nominal = lambda pts: ekf.to_nominal(pts, nb)
         if r["plan_state"] == "ready":
+            if r.get("recovery_hop"):
+                # a hop is being flown: the live map changes as the camera moves, so re-certify what is LEFT of
+                # the hop against the newest observed grid instead of withdrawing it on any map change
+                if (grid is None or not grid.fresh(now, self.recovery_grid_max_age_s) or self.nav.path is None
+                        or self.recovery_prefix is None
+                        or not self._remaining_certified(self.recovery_prefix, grid, to_nominal)):
+                    self.nav.path = None
+                    r.update(plan_state="failed", reason="creep hop lost fresh observed-free certification")
+                return
             if (grid is None or not grid.fresh(now, self.recovery_grid_max_age_s)
                     or self.nav.map_changed()
                     or self.nav.path is None
@@ -312,11 +327,24 @@ class NavNode(Node):
                 raise PlanError("recovery request is not for a path leg")
             if grid is None or not grid.fresh(now, self.recovery_grid_max_age_s):
                 raise PlanError("fresh observed-free local grid unavailable")
-            path, prefix, join = self.nav.plan_recovery(
-                believed[:2], self.recovery_reference, grid, to_nominal, t=time.monotonic(),
-                lookahead_m=max(1., float(self.status.get("stop_m") or 0.)),
-                progress_s=getattr(self, "recovery_progress", None),
-                require_detour=getattr(self, "recovery_require_detour", True))
+            progress = getattr(self, "recovery_progress", None)
+            if getattr(self, "recovery_hops", 0) > 0 and self.recovery_reference is not None and progress is not None:
+                # after hops the aircraft is further along: rejoin ahead of where it is, not of the block
+                ref = self.recovery_reference
+                d = np.linalg.norm(ref.pts - np.asarray(believed[:2], float), axis=1)
+                if d.min() <= 1.0:
+                    progress = max(progress, float(ref.s[int(np.argmin(d))]))
+            try:
+                path, prefix, join = self.nav.plan_recovery(
+                    believed[:2], self.recovery_reference, grid, to_nominal, t=time.monotonic(),
+                    lookahead_m=max(1., float(self.status.get("stop_m") or 0.)),
+                    progress_s=progress,
+                    require_detour=getattr(self, "recovery_require_detour", True))
+            except PlanError as detour_error:
+                if not (getattr(self, "recovery_creep", False) and getattr(self, "recovery_allow_hop", False)):
+                    raise
+                self._recovery_hop(r, leg, believed, grid, to_nominal, now, detour_error)
+                return
             if not grid.fresh(self.get_clock().now().nanoseconds * 1e-9, self.recovery_grid_max_age_s):
                 raise PlanError("observed-free local grid expired during planning")
             self.recovery_prefix = prefix
@@ -331,6 +359,37 @@ class NavNode(Node):
             self.stats["plan_errors"] += 1
             r.update(plan_state="failed", reason=str(exc))
             self.get_logger().warning(f"recovery request {r['request_id']}: {exc}")
+
+    def _recovery_hop(self, r, leg, believed, grid, to_nominal, now, detour_error):
+        """No certified detour: answer with a short certified hop toward the leg goal (recovery_creep)."""
+        ref = self.recovery_reference
+        goal = ref.pts[-1] if ref is not None and len(ref.pts) else np.asarray(self.nav_legs[leg]["stop"], float)
+        try:
+            path, before, after = self.nav.plan_creep_hop(believed[:2], goal, grid, to_nominal, t=time.monotonic())
+            if not grid.fresh(self.get_clock().now().nanoseconds * 1e-9, self.recovery_grid_max_age_s):
+                raise PlanError("observed-free local grid expired during hop planning")
+        except PlanError as exc:
+            self.nav.path = None
+            raise PlanError(f"{detour_error}; no creep hop either: {exc}") from exc
+        self.recovery_prefix = path.pts.copy()
+        self.nav_leg = leg
+        self.pid += 1
+        self.stats["replans"] += 1
+        r.update(plan_state="ready", reason=f"observed-free creep hop ({detour_error})", recovery_hop=True,
+                 certified_prefix_m=float(path.length), hop_progress_m=round(before - after, 3),
+                 goal_distance_m=round(after, 3))
+        self.get_logger().info(f"recovery request {r['request_id']}: creep hop {path.length:.2f} m, "
+                               f"{before - after:.2f} m closer to the leg goal ({after:.2f} m left)")
+
+    def _remaining_certified(self, prefix, grid, to_nominal):
+        """The part of a certified prefix still ahead of refnav's reported progress is still observed free."""
+        s = np.r_[0., np.cumsum(np.linalg.norm(np.diff(prefix, axis=0), axis=1))]
+        progress = self.status.get("path_s") if self.status.get("path_pid") == self.pid else 0.
+        progress = float(progress) if isinstance(progress, (float, int)) and math.isfinite(progress) else 0.
+        if progress >= s[-1]:
+            return True
+        start = np.array([np.interp(max(0., progress), s, prefix[:, j]) for j in range(2)])
+        return bool(grid.certifies_path(np.vstack([start, prefix[s > progress]]), to_nominal, self.nav.need))
 
     def _tick(self):
         if self.status is None:
@@ -374,7 +433,8 @@ class NavNode(Node):
             out.update(self.recovery)
             out["recovery_certified"] = self.recovery["plan_state"] == "ready"
             if self.recovery["plan_state"] == "ready" and self.nav.path is not None:
-                self._remember_reference(leg)
+                if not self.recovery.get("recovery_hop"):
+                    self._remember_reference(leg)   # a hop is never a reference route for a later request
                 out["plan_mode"] = self.nav.plan_mode
                 P = self.nav.path
                 out.update(pid=self.pid, pts_ne=to_ned(P.pts).round(4).tolist(), v=P.v.round(3).tolist(),

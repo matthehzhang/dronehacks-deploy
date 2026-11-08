@@ -15,8 +15,14 @@ relative to the aircraft, which odometry gives to centimetres over the seconds t
            when the aircraft has moved more than recentre_m from the window centre.
   update   per scan: log-odds +l_occ at each return cell, l_free along each beam up to one cell short of it
            (no return = unknown, never free); valid distant returns carve only within max_range_m, with a 3-sigma margin;
-           distant endpoints are never marked occupied.
-  decay    every cell relaxes toward unknown with time constant decay_s, so a cell nothing sees any more
+           distant endpoints are never marked occupied. Free-only beams (scan.free_only, the dense free rays)
+           carve the same way and never mark their endpoint. free_range_m > max_range_m lets distant returns
+           carve further than obstacles are marked.
+  body     body_radius_m > 0: cells wholly inside the airframe's disc at an integrated pose are recorded; for
+           swept_age_s they are published free (the aircraft was physically there), unless a confident
+           obstacle return lands on them afterwards. This is what makes the aircraft's own position, which
+           a forward camera never sees, certifiable for a recovery hop.
+  decay   every cell relaxes toward unknown with time constant decay_s, so a cell nothing sees any more
            fades (a person who walked off, a stereo artefact); one at l_max stays occupied for
            decay_s * ln(l_max / occ_thresh) after the last return (17 s with the defaults): long enough to
            remember an obstacle the camera turned away from during a detour.
@@ -46,6 +52,12 @@ class LocalParams:
     occ_thresh: float = 2.0          # >= 3 net returns more than pass-throughs
     decay_s: float = 30.0            # log-odds time constant toward unknown
     min_cells: int = 3               # smallest clump that counts as an obstacle
+    free_range_m: float = 0.0        # > 0: distant valid returns carve free space out to this (else max_range_m);
+                                     # obstacle marking still stops at max_range_m
+    body_radius_m: float = 0.0       # > 0: the airframe's own disc (prop tips) at each integrated pose is free:
+                                     # the aircraft physically occupies it, so nothing else can be there
+    swept_age_s: float = 0.0         # ... and stays published as free this long after the aircraft left it
+                                     # (unless a confident obstacle return lands there since)
 
 
 class LocalGrid:
@@ -57,6 +69,8 @@ class LocalGrid:
         # Per-cell pass-through evidence, separate from publication/decay time.
         # -inf means never free; a sensor observation at simulation time zero is valid.
         self.last_free = np.full((self.n, self.n), -np.inf, np.float64)
+        # Per-cell time the airframe's own disc last covered the cell (body_radius_m > 0).
+        self.last_body = np.full((self.n, self.n), -np.inf, np.float64)
         self.origin = None                 # world (nominal) xy of cell (0, 0)'s corner; cell-aligned
         self.t_last = None
         self.scans_in = 0
@@ -76,6 +90,7 @@ class LocalGrid:
         self.L = _shift(self.L, shift)
         self.seen = _shift(self.seen, shift)
         self.last_free = _shift(self.last_free, shift, fill=-np.inf)
+        self.last_body = _shift(self.last_body, shift, fill=-np.inf)
         self.origin = self.origin + shift * res
         self.recentres += 1
 
@@ -100,11 +115,16 @@ class LocalGrid:
         if self.origin is None or math.hypot(*(np.asarray(pose[:2]) - self.centre())) > self.p.recentre_m:
             self._centre_on(pose[:2])
         self.decay(t)
+        self._mark_body(t, pose)
         if scan is None or len(scan) == 0:
             return False
         valid = np.isfinite(scan.range) & (scan.range > 0) & np.isfinite(scan.bearing)
         keep = valid & (scan.range <= self.p.max_range_m)
         r, b = scan.range[keep], scan.bearing[keep]
+        marks = np.ones(len(scan.range), bool) if scan.free_only is None else ~np.asarray(scan.free_only, bool)
+        if marks.shape != scan.range.shape:
+            raise ValueError("scan.free_only must have one flag per beam")
+        marks = marks[keep]
         res, shape = self.p.res_m, np.array(self.L.shape)
         x0, y0, th = float(pose[0]), float(pose[1]), float(pose[2])
         ca, sa = np.cos(th + b), np.sin(th + b)
@@ -113,15 +133,18 @@ class LocalGrid:
         X, Y = x0 + ca[:, None] * ts[None], y0 + sa[:, None] * ts[None]
         fij = np.floor((np.stack([X[ok], Y[ok]], -1) - self.origin) / res).astype(int)
         fij = fij[np.all((fij >= 0) & (fij < shape), axis=1)]
-        eij = np.floor((np.stack([x0 + ca * r, y0 + sa * r], -1) - self.origin) / res).astype(int)
+        # free-only beams (dense free rays) carve like any beam but never mark their endpoint
+        eij = np.floor((np.stack([x0 + ca[marks] * r[marks], y0 + sa[marks] * r[marks]], -1)
+                        - self.origin) / res).astype(int).reshape(-1, 2)
         eij = eij[np.all((eij >= 0) & (eij < shape), axis=1)]
         # Distant measurements certify only the near segment, from the actual
         # camera origin. No origin/return/uncertainty means no free evidence.
         optical = scan.free_origin_xy
+        free_range = self.p.free_range_m if self.p.free_range_m > 0 else self.p.max_range_m
         if optical is not None:
             optical = np.asarray(optical, float)
             if (optical.shape == (2,) and np.isfinite(optical).all()
-                    and np.linalg.norm(optical) < self.p.max_range_m):
+                    and np.linalg.norm(optical) < free_range):
                 far = (valid & (scan.range > self.p.max_range_m)
                        & np.isfinite(scan.sigma) & (scan.sigma >= 0))
                 endpoints = np.stack([scan.range[far] * np.cos(scan.bearing[far]),
@@ -130,11 +153,11 @@ class LocalGrid:
                 lengths = np.linalg.norm(vectors, axis=1)
                 directions = vectors / lengths[:, None]
                 dot = directions @ optical
-                horizon = -dot + np.sqrt(dot ** 2 + self.p.max_range_m ** 2
+                horizon = -dot + np.sqrt(dot ** 2 + free_range ** 2
                                           - optical @ optical)
                 reach = np.minimum(lengths - 3.0 * scan.sigma[far], horizon) - res
                 # Camera can sit behind the body origin; allow the full chord.
-                steps = np.arange(0., 2 * self.p.max_range_m, res * .5)
+                steps = np.arange(0., 2 * free_range, res * .5)
                 use = steps[None] < reach[:, None]
                 points = optical + directions[:, None, :] * steps[None, :, None]
                 c, s = math.cos(th), math.sin(th)
@@ -152,10 +175,31 @@ class LocalGrid:
         last_free = self.last_free.reshape(-1)
         last_free[free] = t if math.isfinite(t) else -np.inf
         last_free[occ] = -np.inf  # a hit revokes previous free evidence, even before log-odds turn positive
+        self.last_body.reshape(-1)[occ] = -np.inf  # ... and the airframe-swept evidence
         np.clip(flat, self.p.l_min, self.p.l_max, out=flat)
         touched = np.concatenate([free, occ])
         seen[touched] = np.minimum(seen[touched].astype(np.int32) + 1, 65535)
         return bool(len(touched))
+
+    def _mark_body(self, t, pose):
+        """Record the cells the airframe's own disc covers at this pose (body_radius_m > 0)."""
+        rad = self.p.body_radius_m
+        if rad <= 0 or self.origin is None or not math.isfinite(t):
+            return
+        xy = np.asarray(pose[:2], float)
+        if not np.isfinite(xy).all():
+            return
+        res = self.p.res_m
+        k = int(math.ceil(rad / res)) + 1
+        c = self.ij(xy)[0]
+        ii, jj = np.mgrid[c[0] - k:c[0] + k + 1, c[1] - k:c[1] + k + 1]
+        ok = (ii >= 0) & (ii < self.n) & (jj >= 0) & (jj < self.n)
+        ii, jj = ii[ok], jj[ok]
+        # the WHOLE cell must lie inside the disc: farthest corner within rad
+        lo = self.origin + np.stack([ii, jj], -1) * res
+        far = np.maximum(np.abs(lo - xy), np.abs(lo + res - xy))
+        inside = np.hypot(far[:, 0], far[:, 1]) <= rad
+        self.last_body[ii[inside], jj[inside]] = t
 
     # ------------------------------------------------------------------ products
     def occupied(self):
@@ -178,7 +222,7 @@ class LocalGrid:
     def probability(self):
         return 1.0 - 1.0 / (1.0 + np.exp(self.L))
 
-    def grid_fields(self, now=None, max_free_age_s=8.0):
+    def grid_fields(self, now=None, max_free_age_s=8.0, swept_age_s=None):
         """-> (origin xy, res, width, height, data) for a nav_msgs/OccupancyGrid: row-major with x fastest,
         -1 unknown (never touched), 0..100 probability; occupied-but-speck cells are reported as 50 so a
         reader applying >= 88 (occ_thresh) and the clump rule sees exactly occupied().
@@ -192,6 +236,13 @@ class LocalGrid:
             age = float(now) - self.last_free
             recent = (np.isfinite(age) & (age >= 0) & (age <= max_free_age_s))
             prob[(self.L < 0) & ~recent] = -1
+            swept_age = self.p.swept_age_s if swept_age_s is None else swept_age_s
+            if self.p.body_radius_m > 0 and swept_age > 0:
+                # cells the airframe itself occupied recently are free, unless a CONFIDENT obstacle return
+                # landed there (pose error or something moved in): that evidence always wins
+                body_age = float(now) - self.last_body
+                swept = np.isfinite(body_age) & (body_age >= 0) & (body_age <= swept_age) & ~occ
+                prob[swept] = 0
         return self.origin, self.p.res_m, self.n, self.n, prob.T.ravel()
 
     def stats(self):

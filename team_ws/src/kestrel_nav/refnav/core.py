@@ -66,7 +66,8 @@ from .speed import braking_cap, side_cap
 
 NAV_OFFBOARD = 14
 NAV_AUTO_LAND = 18
-AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "recovery_scan", "retreat")
+AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "recovery_scan",
+            "creep", "retreat")
 TRANSLATING = ("go", "backoff", "climb")           # phases in which the aircraft is commanded to move
 SILENCE_PAUSED = ("turn", "hold", "excite")                # no translation: depth silence is not counted here
 
@@ -176,6 +177,19 @@ class Params:
     recovery_scan_rate_dps: float = 20.0
     recovery_scan_dwell_s: float = 0.5
     recovery_timeout_s: float = 20.0           # whole recovery budget, never reset by planner replies
+                                               # (with recovery_creep: only a hop that made progress extends it,
+                                               # and never past creep_max_s after the block)
+    recovery_creep: bool = False               # recovery_replan: accept short certified HOPS (navigator
+                                               # recovery_hop paths) and fly them slowly, look again, repeat
+    creep_speed_mps: float = 0.15              # hop speed: the carrot advances no faster than this
+    creep_max_hops: int = 6                    # hops per recovery; then only full certified detours are accepted
+    creep_max_stalls: int = 2                  # hops in a row that ended early (obstacle, unknown, withdrawn): land
+    creep_max_s: float = 45.0                  # absolute recovery budget from the block, never extended
+    creep_dwell_s: float = 1.0                 # hover after a hop before asking for the next (new depth evidence)
+    creep_reply_s: float = 2.0                 # wait this long for that reply before sweeping
+    creep_hop_timeout_s: float = 10.0          # a hop not finished in this long ends without progress
+    creep_unobserved_s: float = 1.5            # no observed corridor for this long during a hop ends it
+    creep_arrive_m: float = 0.10               # a hop is done within this of its end
     prior_required: bool = False                # the course map must describe the view (coursenav.priorstate):
                                                 # no arming until a "placed" report, land when it reports "dropped"
     blocked_max_per_leg: int = 0                # > 0: the (N+1)-th confirmed block on one leg lands instead of another
@@ -313,6 +327,11 @@ class Mission:
         if params.recovery_replan:
             bounds = {"recovery_timeout_s": (0.1, 30.0), "recovery_scan_deg": (0.0, 45.0),
                       "recovery_scan_rate_dps": (0.1, 20.0), "recovery_scan_dwell_s": (0.2, 2.0)}
+            if params.recovery_creep:
+                bounds.update({"creep_speed_mps": (0.05, 0.3), "creep_max_hops": (1, 12), "creep_arrive_m": (0.03, 0.3),
+                               "creep_max_stalls": (1, 5), "creep_max_s": (5.0, 90.0),
+                               "creep_dwell_s": (0.2, 5.0), "creep_reply_s": (0.2, 5.0),
+                               "creep_hop_timeout_s": (1.0, 30.0), "creep_unobserved_s": (0.2, 5.0)})
             for name, (low, high) in bounds.items():
                 value = getattr(params, name)
                 if not math.isfinite(value) or not low <= value <= high:
@@ -362,6 +381,7 @@ class Mission:
         self.counts = {"depth_frames": 0, "obstacle_stops": 0, "depth_holds": 0, "unconfirmed_obstacles": 0,
                        "depth_unusable": 0, "depth_future": 0, "depth_stale": 0, "depth_out_of_order": 0,
                        "corridor_unobserved": 0, "corrections": 0, "recoveries": 0, "replan_resumes": 0, "blended_turns": 0, "path_waits": 0,
+                       "creep_hops": 0, "creep_stalls": 0,
                        "alignments": 0, "tunnel_ticks": 0, "tube_holds": 0, "tube_ticks": 0, "retreats": 0,
                        "plan_stops": 0}
         self.tube_hold = False        # tube_gate: forward motion held until back inside half the tube
@@ -462,7 +482,8 @@ class Mission:
                 self.leg_dir = ((tn - n0) / L, (te - e0) / L)
                 self.leg_heading = math.atan2(te - e0, tn - n0)
 
-    def on_path(self, t, leg, pts_ne, speeds, stops=(), pid=0, tubes=None, request_id=None, recovery_certified=False):
+    def on_path(self, t, leg, pts_ne, speeds, stops=(), pid=0, tubes=None, request_id=None, recovery_certified=False,
+                hop=False):
         """track_mode "path": the current path for leg `leg` in PX4 NED (refreshed by the navigator as
         the map correction and the live map change). pts_ne: (n, 2), speeds: (n,) the time-optimal profile,
         stops: indices of interior stop-and-turn corners; pid: changes when the path is RE-PLANNED (new
@@ -475,7 +496,11 @@ class Mission:
             if (self.replan_request is None or request_id != self.replan_request["id"]
                     or leg != self.leg or recovery_certified is not True):
                 return False
-        elif request_id is not None:
+            if request_id == self.recover.get("consumed_request"):
+                return False  # this request's hop has been flown (or abandoned): only a NEW request may move us
+            if hop is True and not self.p.recovery_creep:
+                return False
+        elif request_id is not None or hop:
             return False  # delayed recovery replies cannot replace the resumed normal path
         try:
             pts = _np.asarray(pts_ne, float)
@@ -508,12 +533,17 @@ class Mission:
                 tb = None
         self.path = dict(t=float(t), leg=int(leg), pid=pid, pts=pts, s=s, v=_np.maximum(sp, 0.0), heading=heading,
                          kappa=kappa, stops=sorted(int(i) for i in stops), tube=tb)
-        self.targets[leg] = (float(pts[-1, 0]), float(pts[-1, 1]))
         self.path["request_id"] = request_id
         self.path["recovery_certified"] = bool(recovery_certified)
-        self.plan_reference = (self.path, self.path_s)
+        self.path["hop"] = hop is True
         if self.recover is not None and self.p.recovery_replan:
             self.plan_reply = {"state": "ready", "id": request_id, "t": float(t)}
+        if hop is True:
+            # a hop is a short certified step inside the recovery, NOT the leg: the leg's target, length and
+            # the reference route a later request names all stay the original route's
+            return True
+        self.targets[leg] = (float(pts[-1, 0]), float(pts[-1, 1]))
+        self.plan_reference = (self.path, self.path_s)
         if leg == self.leg and self._path_leg():
             self.leg_len = float(s[-1])
         return True
@@ -1014,7 +1044,7 @@ class Mission:
                 self.legs_done += 1
                 self.leg += 1
                 self._next_leg(now, out, v)
-        elif ph in ("blocked", "backoff", "recheck", "recovery_scan"):
+        elif ph in ("blocked", "backoff", "recheck", "recovery_scan", "creep"):
             self._recover(now, dt, out, v)
         elif ph == "retreat":
             self._retreat(now, dt, out, v)
@@ -1181,7 +1211,7 @@ class Mission:
                 hits = max(3, round(p.min_obstacle_px / p.depth_stride ** 2))
                 # the same along-path check in go, check AND the recovery: judging recovery on the straight
                 # leg heading while go judged the curved path flapped blocked <-> go 18 times (bag 20261107-201744)
-                ahead = (self._path_ahead_level(v) if self.phase in ("go", "check", "blocked", "backoff", "recheck")
+                ahead = (self._path_ahead_level(v) if self.phase in ("go", "check", "blocked", "backoff", "recheck", "creep")
                          and self._path_leg()
                          and self.path is not None and self.path["leg"] == self.leg else None)
                 if ahead is not None:
@@ -1782,7 +1812,8 @@ class Mission:
                         "pid": old_path.get("pid") if (old_path is not None and self._path_leg()) else None,
                         "pos": (v.pos[0], v.pos[1]), "yaw": self.sp[3],
                         "old_path": old_path, "old_path_s": old_s, "scan_done": False,
-                        "requests": 0}
+                        "requests": 0, "hops": 0, "stalls": 0, "deadline": now + self.p.recovery_timeout_s,
+                        "consumed_request": None, "hop": None, "await_reply": None}
         self.sp[0], self.sp[1] = v.pos[:2]   # brake at the measured pose, not the old forward carrot
         if kind == "blocked" and self._path_leg() and self.p.recovery_replan:
             self._request_recovery_plan(now)
@@ -1797,6 +1828,10 @@ class Mission:
                                "reference_pid": self.recover["pid"],
                                "reference_progress_s": float(self.recover["old_path_s"]),
                                "require_detour": self.recover.get("cause") != "no_route"}
+        if self.p.recovery_creep:
+            # the navigator may answer with a short certified hop only while hops remain
+            self.replan_request["creep"] = self.recover.get("hops", 0) < self.p.creep_max_hops
+            self.replan_request["creep_hops"] = int(self.recover.get("hops", 0))
         self.plan_reply = {"state": "pending", "id": self.replan_serial, "t": now}
         self.path = None   # old geometry retained only as a backoff reference, never a fresh command
 
@@ -1867,6 +1902,119 @@ class Mission:
             r["scan_done"] = True
             self._begin_backoff(now, out, v)
 
+    # ------------------------------------------------------------------ creep hops (recovery_creep)
+    def _creep_stop_m(self):
+        """Stop distance at the hop speed (the leg's cruise profile does not apply to a creep)."""
+        p = self.p
+        if p.stop_per_mps <= 0:
+            return p.stop_m
+        return max(p.stop_min_m, p.stop_base_m + p.stop_per_mps * p.creep_speed_mps)
+
+    def _begin_hop(self, now, out, v):
+        """A certified hop arrived: face its first segment in place, then fly it at creep speed."""
+        r, P = self.recover, self.path
+        L = float(P["s"][-1])
+        r["hop"] = {"t": now, "stage": "turn", "pid": P.get("pid"), "id": P.get("request_id"),
+                    "start": (float(v.pos[0]), float(v.pos[1])), "carrot": 0.0, "unobserved": None}
+        r["await_reply"] = None
+        self.sp[0], self.sp[1] = v.pos[:2]
+        self.path_s = 0.0
+        self.clr_hist, self.corr_t = [], None
+        self.leg_heading = self._path_at(min(0.10, L))[1]
+        self._set("creep", now, out, f"creep hop {r['hops'] + 1}/{self.p.creep_max_hops}: {L:.2f} m of "
+                                     f"certified observed-free space")
+
+    def _creep(self, now, dt, out, v):
+        r, p = self.recover, self.p
+        h, P = r["hop"], self.path
+        if h is None:
+            return self._end_hop(now, out, v, "no hop in progress", False)
+        if P is None or not P.get("hop") or P.get("pid") != h["pid"] or not self._path_fresh(now):
+            return self._end_hop(now, out, v, "hop withdrawn (certificate lost or path stale)", False)
+        if now - h["t"] > p.creep_hop_timeout_s:
+            return self._end_hop(now, out, v, f"hop not finished in {p.creep_hop_timeout_s:g} s", False)
+        L = float(P["s"][-1])
+        step = math.radians(min(p.yaw_rate_dps, 30.0)) * dt
+        if h["stage"] == "turn":
+            # translation stays at the hop's start until the camera looks along the hop
+            self.sp[0], self.sp[1] = h["start"]
+            target = self._path_at(min(0.10, L))[1]
+            self.leg_heading = target
+            self.sp[3] = _wrap(self.sp[3] + max(-step, min(step, _wrap(target - self.sp[3]))))
+            slow = v.vel is not None and len(v.vel) >= 2 and math.hypot(*v.vel[:2]) < 0.08
+            if v.heading is not None and abs(_wrap(target - v.heading)) < math.radians(5) and slow:
+                h["stage"], h["t_move"] = "move", now
+                self.clr_hist, self.corr_t = [], None
+            return
+        s_now, _ = self._path_project(v.pos)
+        self.path_s = max(self.path_s, s_now)
+        remaining = max(L - self.path_s, 0.0)
+        end = P["pts"][-1]
+        if math.hypot(v.pos[0] - end[0], v.pos[1] - end[1]) < p.creep_arrive_m:
+            return self._end_hop(now, out, v, f"hop done ({L:.2f} m)", True)
+        clr = self._clearance(v) if self.depth_fresh(now) else None
+        if clr is not None and not self.corridor_fresh(now):
+            clr = None
+        if clr is None:
+            # unknown ahead: never advance; a hop that stays blind ends without progress
+            h["unobserved"] = now if h["unobserved"] is None else h["unobserved"]
+            self.counts["depth_holds"] += 1
+            if now - h["unobserved"] > p.creep_unobserved_s:
+                return self._end_hop(now, out, v, f"corridor not observed for {p.creep_unobserved_s:g} s on the hop",
+                                     False)
+            return
+        h["unobserved"] = None
+        self.last_clearance = clr
+        if clr < self._creep_stop_m() and (p.leg_end_margin_m < 0 or clr < remaining + p.leg_end_margin_m):
+            self.counts["obstacle_stops"] += 1
+            self.leg_blocks += 1
+            why = f"obstacle {clr:.2f} m ahead on the hop"
+            if p.blocked_max_per_leg > 0 and self.leg_blocks > p.blocked_max_per_leg:
+                self.sp[0], self.sp[1] = v.pos[:2]
+                self.recover, self.replan_request = None, None
+                self._land(now, out, f"{r['why']}; {why}; blocked {self.leg_blocks} times on this leg "
+                                     f"(blocked_max_per_leg {p.blocked_max_per_leg})")
+                return
+            return self._end_hop(now, out, v, why, False)
+        # carrot: at most creep_speed ahead of the aircraft (PX4's xy loop gain is ~1 /s), never past the end
+        h["carrot"] = min(L, max(h["carrot"], self.path_s) + p.creep_speed_mps * dt,
+                          self.path_s + p.creep_speed_mps)
+        pt, tang, _, _ = self._path_at(h["carrot"])
+        self.sp[0], self.sp[1] = pt
+        self.leg_heading = tang
+        self.leg_dir = (math.cos(tang), math.sin(tang))
+        self.sp[3] = _wrap(self.sp[3] + max(-step, min(step, _wrap(tang - self.sp[3]))))
+
+    def _end_hop(self, now, out, v, why, progressed):
+        """Hover where the hop ended, then look again (dwell, ask, sweep). Bounded by hops, stalls and time."""
+        r, p = self.recover, self.p
+        h = r.get("hop") or {}
+        r["hops"] += 1
+        r["consumed_request"] = h.get("id")
+        r["hop"] = None
+        self.path = None
+        self.sp[0], self.sp[1] = v.pos[:2]
+        self.v_cmd, self.a_cmd = 0.0, 0.0
+        if progressed:
+            r["stalls"] = 0
+            r["requests"] = 0
+            r["deadline"] = min(r["t0"] + p.creep_max_s, now + p.recovery_timeout_s)
+            self.counts["creep_hops"] += 1
+        else:
+            r["stalls"] += 1
+            self.counts["creep_stalls"] += 1
+            if r["stalls"] >= p.creep_max_stalls:
+                self.recover, self.replan_request = None, None
+                self._land(now, out, f"{r['why']}; creep made no progress ({why}; "
+                                     f"{r['stalls']} hops in a row)")
+                return
+        out.events.append(f"creep hop {r['hops']}: {why}")
+        r.update(scan_done=False, settled=None, yaw=self.sp[3], pos=(float(v.pos[0]), float(v.pos[1])),
+                 await_reply={"t": now, "asked": None, "id": None})
+        r.pop("t0_hold", None)
+        self.clr_hist, self.corr_t = [], None
+        self._set("blocked", now, out, f"creep hop {r['hops']}: {why}; looking again")
+
     def _recover_clear(self, now, v):
         """Has the reason for the recovery gone away? Blocked: the corridor reads clear. Align: the
         gate is found (its alignment is applied on resume)."""
@@ -1930,20 +2078,26 @@ class Mission:
         if r is None:
             self._set("check", now, out)
             return
-        if self.p.recovery_replan and now-r["t0"] >= self.p.recovery_timeout_s:
+        if self.p.recovery_replan and (now - r["t0"] >= self.p.recovery_timeout_s if not p.recovery_creep else
+                                       now >= min(r.get("deadline", r["t0"] + p.recovery_timeout_s),
+                                                  r["t0"] + p.creep_max_s)):
             self.recover = None
             self.replan_request = None
-            self._land(now, out, f"{r['why']}; bounded recovery timed out")
+            self._land(now, out, f"{r['why']}; bounded recovery timed out"
+                                 + (f" after {r.get('hops', 0)} creep hops" if p.recovery_creep else ""))
             return
         if self._recover_clear(now, v):
             self._resume(now, out, v)
             return
-        if (r["kind"] == "blocked" and self._path_leg() and self._path_fresh(now)
+        if (r["kind"] == "blocked" and self.phase != "creep" and self._path_leg() and self._path_fresh(now)
                 and ((r.get("pid") is not None and self.path.get("pid") != r["pid"])
                      or (p.recovery_replan and r.get("pid") is None))
                 and (not p.recovery_replan or (self.replan_request is not None
                      and self.path.get("request_id") == self.replan_request["id"]
                      and self.path.get("recovery_certified")))):
+            if p.recovery_creep and self.path.get("hop"):
+                self._begin_hop(now, out, v)
+                return
             # the navigator re-planned while we were blocked: turn to face the new path, check it, go. Waiting
             # for the OLD corridor to clear never turns the camera away from the obstacle
             self.recover = None
@@ -1955,10 +2109,25 @@ class Mission:
             self.turn_start_heading = self.sp[3]
             self._set("turn", now, out, f"re-planned while blocked on leg {self.leg + 1}: turning to the new path")
             return
-        if self.phase == "recovery_scan":
+        if self.phase == "creep":
+            self._creep(now, dt, out, v)
+        elif self.phase == "recovery_scan":
             self._scan_recovery(now, dt, out, v)
+        elif self.phase == "blocked" and r.get("await_reply") is not None:
+            # after a hop: hover creep_dwell_s for fresh depth, ask once, wait for the answer, then sweep
+            a = r["await_reply"]
+            if a["asked"] is None:
+                if now - a["t"] >= p.creep_dwell_s and self.depth_fresh(now):
+                    self._request_recovery_plan(now)
+                    a["asked"], a["id"] = now, (self.replan_request or {}).get("id")
+            else:
+                reply = self.plan_reply or {}
+                failed = reply.get("id") == a["id"] and reply.get("state") == "failed"
+                if failed or now - a["asked"] >= p.creep_reply_s:
+                    r["await_reply"] = None
+                    r["t0_hold"] = now - p.blocked_hold_s   # straight on to the sweep (or back-off once swept)
         elif self.phase == "blocked":
-            if now-r["t0"] > p.blocked_hold_s:
+            if now - r.get("t0_hold", r["t0"]) > p.blocked_hold_s:
                 if (p.recovery_replan and self._path_leg() and p.recovery_scan_deg > 0
                         and not r["scan_done"]):
                     angle = math.radians(min(45.0, p.recovery_scan_deg))
@@ -1995,7 +2164,9 @@ class Mission:
                 "depth_valid_frac": None if self.last_valid_frac is None else round(self.last_valid_frac, 3),
                 "depth_reject": None if self.depth_reject is None else self.depth_reject[1],
                 "health_bad_s": (None if math.isinf(self.health.bad_for(now)) else round(self.health.bad_for(now), 2)),
-                "recover": None if self.recover is None else {"kind": self.recover["kind"], "stage": self.phase},
+                "recover": None if self.recover is None else {"kind": self.recover["kind"], "stage": self.phase,
+                                                              "hops": self.recover.get("hops", 0),
+                                                              "stalls": self.recover.get("stalls", 0)},
                 "recovery_request": self.replan_request if self.recover is not None else None,
                 "path_s": None if self.path is None else float(self.path_s),
                 "path_pid": None if self.path is None else self.path.get("pid"),

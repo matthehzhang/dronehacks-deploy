@@ -34,6 +34,9 @@ ARGUMENTS = [
     ('depth_max_range_m', '12.0', "host_depth range cap. refnav counts a corridor ray as OBSERVED if it returns any depth "
                                   "(its obstacle points stop at 6 m, the localizer's at 4 m): the hall beyond the "
                                   "see-through nets is 6-9 m away and at the old 6 m cap every such ray read unobserved"),
+    ('recovery_creep', 'false', 'blocked recovery: fly short certified observed-free hops (0.5 m, 0.15 m/s) when no '
+                                'certified detour exists, and give the localizer the evidence hops need (dense free rays, '
+                                '4 m free carving, 20 s free memory, swept airframe disc). false = the previous behaviour'),
     ('arm_wait_s', '600.0', 'refnav: how long the arm phase waits for the pilot to arm and switch to Position'),
     ('wait_s', '900.0', 'refnav: how long it waits for readiness before giving up'),
     ('landed_z', '0.10', 'landed body-origin height above the floor: PX4 dist_bottom 0.100 m on skybeta-14 (no distance_sensor topic there)'),
@@ -65,7 +68,7 @@ def generate_launch_description():
         cmd=['nice', '-n', '5', 'python3', '-m', 'coursenav.loc_node', '--ros-args', '--params-file', str(ROOT / 'onboard/config/common.yaml'),
              '-p', ['depth_topic:=', L('depth_topic')], '-p', ['depth_info_topic:=', L('depth_info_topic')],
              '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'height_source:=local_position', '-p', 'publish_zero_drift:=true', '-p', 'adaptive_hz:=4.0',
-             '-p', ['landed_z_m:=', L('landed_z')]],
+             '-p', ['landed_z_m:=', L('landed_z')], '-p', ['recovery_evidence:=', L('recovery_creep')]],
         cwd=str(ROOT), additional_env=env, output='screen', name='localizer')
     fly_env = dict(env)
     fly = ExecuteProcess(
@@ -75,9 +78,9 @@ def generate_launch_description():
              '-p', ['depth_info_topic:=', L('depth_info_topic')],
              '-p', ['arm_wait_s:=', L('arm_wait_s')], '-p', ['wait_s:=', L('wait_s')],
              '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'path_turn_hold:=true', '-p', 'recovery_replan:=true',
-             '-p', 'recovery_scan_deg:=25.0'],
+             '-p', 'recovery_scan_deg:=25.0', '-p', ['recovery_creep:=', L('recovery_creep')]],
         cwd=str(ROOT), additional_env={**fly_env, 'KESTREL_USE_SIM_TIME': L('use_sim_time'),
                                        'KESTREL_DECLARED_HEADING_DEG': L('declared_heading_deg'),
-                                       'KESTREL_NICE_NAV': '5'},
+                                       'KESTREL_NICE_NAV': '5', 'KESTREL_RECOVERY_CREEP': L('recovery_creep')},
         output='screen', name='fly_course')
     return LaunchDescription(declared + [flight_interface, host_depth, health, localizer, fly])

@@ -47,6 +47,9 @@ class NavParams:
     fallback_local_only: bool = True
     confirm_m: float = 0.15
     escape_creep_mps: float = 0.1    # ... at this speed (the profile is 0 inside the buffer)
+    hop_max_m: float = 0.5           # recovery creep: a hop ends at most this far (straight line) from its start
+    hop_min_progress_m: float = 0.10 # ... and must shorten the fused-map distance to the leg goal by this
+    hop_max_tries: int = 8           # candidate ends planned per request (bounded work)
 
 
 class Navigator:
@@ -332,6 +335,98 @@ class Navigator:
                 self.path = None
                 self.goals = old_goals
         raise PlanError(last_reason)
+
+    def cost_to_go(self, goal_xy, blocked=None):
+        """Fused-map path distance (m, 8-connected) from every free planning cell to goal_xy; inf where unreachable.
+        The goal is the leg's end: progress means getting closer to it ALONG the map, not in a straight line."""
+        from scipy import sparse
+        from scipy.sparse.csgraph import dijkstra
+        if blocked is None:
+            _, blocked, _ = self.fuse()
+        free = ~blocked.occ
+        shape = free.shape
+        out = np.full(shape, np.inf)
+        g = blocked.ij(np.asarray(goal_xy, float))
+        if not blocked.inside(g):
+            return out
+        if not free[tuple(g)]:
+            ij = np.argwhere(free)
+            if not len(ij):
+                return out
+            d = np.hypot(*(ij - g).T)
+            if d.min() * blocked.res > 0.5:
+                return out          # the goal is buried in obstacles: no meaningful field
+            g = ij[int(np.argmin(d))]
+        idx = -np.ones(shape, int)
+        cells = np.argwhere(free)
+        idx[free] = np.arange(len(cells))
+        rows, cols, w = [], [], []
+        for di, dj in ((0, 1), (1, 0), (1, 1), (1, -1)):
+            a = cells
+            b = cells + (di, dj)
+            ok = (b[:, 0] >= 0) & (b[:, 0] < shape[0]) & (b[:, 1] >= 0) & (b[:, 1] < shape[1])
+            a, b = a[ok], b[ok]
+            ok = free[b[:, 0], b[:, 1]]
+            if di and dj:   # no diagonal corner cutting between two blocked cells
+                ok &= free[a[:, 0] + di, a[:, 1]] & free[a[:, 0], a[:, 1] + dj]
+            a, b = a[ok], b[ok]
+            rows.append(idx[a[:, 0], a[:, 1]]); cols.append(idx[b[:, 0], b[:, 1]])
+            w.append(np.full(len(a), math.hypot(di, dj) * blocked.res))
+        n = len(cells)
+        G = sparse.csr_matrix((np.concatenate(w), (np.concatenate(rows), np.concatenate(cols))), shape=(n, n))
+        dist = dijkstra(G, directed=False, indices=int(idx[tuple(g)]))
+        out[free] = dist
+        return out
+
+    def plan_creep_hop(self, start_xy, goal_xy, observed, to_nominal, t=0.):
+        """Recovery creep: a SHORT path entirely inside currently observed-free space that gets closer to the leg
+        goal. Used only when no certified detour back onto the reference exists. Never clears prior walls,
+        never plans through unknown space: every cell of the hop's swept footprint is observed free, and the
+        hop end is not in the fused map's obstacle buffer. -> (path, cost_before, cost_after)."""
+        start_xy = np.asarray(start_xy, float)
+        obst, blocked, clear = self.fuse()
+        allowed = observed.allowed_course_cells(self.prior_obst, to_nominal, self.need)
+        cost = self.cost_to_go(goal_xy, blocked)
+        s_ij = blocked.ij(start_xy)
+        if not blocked.inside(s_ij) or not allowed[tuple(s_ij)]:
+            raise PlanError("recovery start footprint is not certified free")
+        c0 = float(cost[tuple(s_ij)])
+        if not math.isfinite(c0):
+            raise PlanError("no route to the leg goal on the fused map: a hop cannot make progress")
+        ij = np.indices(allowed.shape).reshape(2, -1).T
+        xy = blocked.xy(ij)
+        ok = (allowed.ravel() & ~blocked.occ.ravel()
+              & (np.linalg.norm(xy - start_xy, axis=1) <= self.p.hop_max_m)
+              & (cost.ravel() <= c0 - self.p.hop_min_progress_m))
+        cand = np.flatnonzero(ok)
+        if not len(cand):
+            raise PlanError("no observed-free hop gets closer to the leg goal")
+        cand = cand[np.argsort(cost.ravel()[cand], kind="stable")]
+        last = "no certified hop"
+        tried = 0
+        for k in cand:
+            if tried >= max(1, self.p.hop_max_tries):
+                break
+            end = xy[k]
+            tried += 1
+            try:
+                path = self._plan_on((obst, blocked, clear), start_xy, [end], 0., allowed)
+            except PlanError as exc:
+                last = str(exc)
+                continue
+            if path.length > 2.5 * self.p.hop_max_m:
+                last = "hop path winds too far for a short step"
+                continue
+            if not observed.certifies_path(path.pts, to_nominal, self.need):
+                last = "hop swept footprint is not observed free"
+                continue
+            self.path, self.t_plan = path, t
+            self.plan_mode = "creep"
+            self.path_certificate = path.pts.copy()
+            self._plan_signature = self._signature()
+            self.replans += 1
+            return path, c0, float(cost.ravel()[k])
+        raise PlanError(last)
 
     def needs_replan(self, t, progress_s):
         """Trust/clearing changes invalidate plans; ordinary obstacles replan only the affected path."""

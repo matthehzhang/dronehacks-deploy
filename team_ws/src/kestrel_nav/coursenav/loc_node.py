@@ -27,7 +27,10 @@ Out: /coursenav/pose      geometry_msgs/PoseWithCovarianceStamped, frame "course
 
 Live map params: live_map (true) fills it; use_landmarks (false) also lets the PF match its landmarks.
 Local grid params: local_map (true), local_size_m (8), local_decay_s (30), local_max_range_m (3),
-local_band_m (0.35: obstacles within this height of the aircraft). Prior monitor: prior_drop_fit (0.30),
+local_band_m (0.35: obstacles within this height of the aircraft); free-space evidence for recovery
+(all off by default; recovery_evidence:=true sets 160 / 4 m / 20 s / 0.29 m / 20 s): local_free_bins (0: dense free-only rays, e.g. 160), local_free_range_m (0: distant
+returns carve to this, else local_max_range_m), local_free_age_s (8: free evidence expiry),
+local_body_radius_m (0: the airframe's own disc is free) and local_swept_age_s (0: for this long). Prior monitor: prior_drop_fit (0.30),
 prior_drop_s (3), prior_restore_s (2); restore at min_fit_frac.
 
 Run:  python3 -m coursenav.loc_node --ros-args -p use_sim_time:=true
@@ -61,7 +64,7 @@ from .localgrid import LocalGrid, LocalParams
 from .occgrid import LiveGrid, OccParams
 from .priorstate import PriorMonitor, PriorParams
 from .pf import CorrectionLimiter, CorrectionPF, PFParams, compose, inverse, project_correction
-from .scan import depth_points_level, level_from_px4_q, scan_from_points, local_scan_from_points
+from .scan import depth_points_level, level_from_px4_q, scan_from_points, local_scan_from_points, with_dense_free_rays
 
 PX4_QOS = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                      history=HistoryPolicy.KEEP_LAST, depth=1)
@@ -116,11 +119,21 @@ class LocNode(Node):
                                  see_through=see_through_grid(cmap, self.field_zlo, self.field_zhi))
         self.prior_dist = self.pf.dist
         self.local = None
+        # recovery_evidence (the skybeta launch's recovery_creep): the free-space evidence creep hops need. Its
+        # defaults below are measured (scratch evaluation 2026-11-08: approach, 70 deg turn, 4 s hold and a
+        # +-25 deg sweep): only with 20 s of free memory is the aircraft's own spot certifiable at the first
+        # post-sweep request; explicit local_* parameters still override each value
+        ev = bool(dp("recovery_evidence", False).value)
         if bool(dp("local_map", True).value):
             self.local = LocalGrid(LocalParams(size_m=float(dp("local_size_m", 8.0).value),
                                                decay_s=float(dp("local_decay_s", 30.0).value),
-                                               max_range_m=float(dp("local_max_range_m", 3.0).value)))
+                                               max_range_m=float(dp("local_max_range_m", 3.0).value),
+                                               free_range_m=float(dp("local_free_range_m", 4.0 if ev else 0.0).value),
+                                               body_radius_m=float(dp("local_body_radius_m", 0.29 if ev else 0.0).value),
+                                               swept_age_s=float(dp("local_swept_age_s", 20.0 if ev else 0.0).value)))
         self.local_band = float(dp("local_band_m", 0.35).value)
+        self.local_free_bins = int(dp("local_free_bins", 160 if ev else 0).value)
+        self.local_free_age_s = float(dp("local_free_age_s", 20.0 if ev else 8.0).value)
         self.prior_mon = PriorMonitor(PriorParams(drop_fit=float(dp("prior_drop_fit", 0.30).value),
                                                   drop_s=float(dp("prior_drop_s", 3.0).value),
                                                   restore_fit=pfp.min_fit_frac,
@@ -332,10 +345,16 @@ class LocNode(Node):
         if self.local is not None:
             # the aircraft's own height band, at the RAW odometry pose (nominal frame): never gated
             optical_origin = np.asarray(self.cam_cal[2]) @ np.asarray(R_level).T
+            zlo, zhi = max(0.15, h - self.local_band), h + self.local_band
             lscan = local_scan_from_points(
-                pts, h, max(0.15, h - self.local_band), h + self.local_band,
+                pts, h, zlo, zhi,
                 obstacle_range_m=self.local.p.max_range_m,
                 camera_origin_xy=optical_origin[:2])
+            if getattr(self, "local_free_bins", 0) > 0:
+                # finer FREE-ONLY rays for recovery certification; obstacle marking stays on the 48-bin scan
+                lscan = with_dense_free_rays(lscan, pts, h, zlo, zhi, n_bins=self.local_free_bins,
+                                             obstacle_range_m=self.local.p.max_range_m,
+                                             camera_origin_xy=optical_origin[:2])
             self.local.integrate(t, compose(self.nominal, pose), lscan)
         self.last_update_t = t
         mean, cov = self.pf.estimate(pose)
@@ -466,7 +485,8 @@ class LocNode(Node):
         if self.local.origin is None:
             return
         now = self.get_clock().now()
-        (ox, oy), res, w, hgt, data = self.local.grid_fields(now=now.nanoseconds * 1e-9)
+        (ox, oy), res, w, hgt, data = self.local.grid_fields(now=now.nanoseconds * 1e-9,
+                                                             max_free_age_s=getattr(self, "local_free_age_s", 8.0))
         msg = OccupancyGrid()
         msg.header.stamp = now.to_msg()
         msg.header.frame_id = "coursenav_nominal"

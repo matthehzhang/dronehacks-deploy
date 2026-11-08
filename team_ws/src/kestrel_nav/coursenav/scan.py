@@ -25,6 +25,7 @@ class Scan:
     range: np.ndarray         # m from the body origin, in the horizontal plane
     sigma: np.ndarray         # m, per-beam measurement std
     free_origin_xy: np.ndarray | None = None  # measured optical origin for far free-only rays
+    free_only: np.ndarray | None = None       # per beam: True = carve free space only, never mark its endpoint
 
     def __len__(self):
         return len(self.range)
@@ -159,3 +160,33 @@ def local_scan_from_points(pts_level, height_m, zlo=0.3, zhi=1.6, *,
         out_s.append(sigmas[j])
     return Scan(np.concatenate([near.bearing, out_b]), np.concatenate([near.range, out_r]),
                 np.concatenate([near.sigma, out_s]), origin.copy())
+
+
+def with_dense_free_rays(obstacle_scan, pts_level, height_m, zlo=0.3, zhi=1.6, *, n_bins=160,
+                         obstacle_range_m=3.0, ray_range_m=12.0, camera_origin_xy=None,
+                         hfov_rad=math.radians(76), min_pts=3, sigma0=0.05, sigma_k=0.02):
+    """The obstacle scan, plus FREE-ONLY rays from a finer angular binning of the same points.
+
+    Why: with 48 bins (1.6 deg) neighbouring rays are more than one 5 cm cell apart beyond ~1.8 m,
+    so the cells between them stay unknown and every certified-free footprint erodes around them.
+    Obstacle marking is unchanged (the coarse scan keeps its robust per-bin quantile and endpoints).
+    The dense rays obey the same rules as local_scan_from_points: a near return ends its ray at the
+    bin's low quantile, a bin with any near point but too few for a return gives no ray at all and
+    vetoes far carving, far rays carve only up to their 3-sigma-shortened length. They never mark
+    an endpoint occupied, so a sparser bin cannot invent an obstacle either.
+    n_bins <= len of the coarse binning disables them (the obstacle scan is returned unchanged).
+    """
+    base = obstacle_scan if obstacle_scan is not None else Scan.empty()
+    if n_bins is None or n_bins <= 0 or pts_level is None or not len(pts_level):
+        return base
+    dense = local_scan_from_points(pts_level, height_m, zlo, zhi, obstacle_range_m=obstacle_range_m,
+                                   ray_range_m=ray_range_m, camera_origin_xy=camera_origin_xy,
+                                   n_bins=int(n_bins), hfov_rad=hfov_rad, min_pts=min_pts,
+                                   sigma0=sigma0, sigma_k=sigma_k)
+    if not len(dense):
+        return base
+    flags = np.concatenate([np.zeros(len(base), bool) if base.free_only is None else np.asarray(base.free_only, bool),
+                            np.ones(len(dense), bool)])
+    origin = base.free_origin_xy if base.free_origin_xy is not None else dense.free_origin_xy
+    return Scan(np.concatenate([base.bearing, dense.bearing]), np.concatenate([base.range, dense.range]),
+                np.concatenate([base.sigma, dense.sigma]), origin, flags)

@@ -131,6 +131,8 @@ def start_navigator(run_dir):
         args += ["-p", f"use_sim_time:={os.environ['KESTREL_USE_SIM_TIME']}"]
     if os.environ.get("KESTREL_DECLARED_HEADING_DEG"):            # skybeta: 0 (the interface permutes odometry ENU)
         args += ["-p", f"declared_heading_deg:={float(os.environ['KESTREL_DECLARED_HEADING_DEG'])}"]
+    if os.environ.get("KESTREL_RECOVERY_CREEP") in ("true", "false"):  # skybeta launch recovery_creep
+        args += ["-p", f"recovery_creep:={os.environ['KESTREL_RECOVERY_CREEP']}"]
     env = dict(os.environ, PYTHONPATH=f"{PROJECT}:{os.environ.get('PYTHONPATH', '')}")
     log = open(run_dir / "navigator.log", "w")
     print(f"navigator: starting (log {run_dir / 'navigator.log'})", flush=True)
