@@ -38,13 +38,11 @@ def test_zero_and_conflicting_units(clean_env):
 
 def test_flat_course_config_1p3_m_cruise_band_015_no_height_features(clean_env):
     """Whole course at 1.3 m with a +/-0.15 m obstacle band: a 1.073..1.727 m window (centre 1.4 m) and the
-    0.914..1.626 m window both fit the band at cruise; the height-change features are off."""
+    0.914..1.626 m window both fit the band at cruise; no height changes in flight."""
     import re
     from pathlib import Path
     doc = course.load_course()
     assert doc['cruise_z_m'] == 1.3
-    rp = doc['refnav_params']
-    assert rp['centre_vertical'] is False and rp['vertical_search'] is False and rp['punch_through'] is False
     yaml = (Path(course.PROJECT) / 'onboard/config/common.yaml').read_text()
     band = float(re.search(r'band_half_m:\s*([0-9.]+)', yaml).group(1))
     assert band == .15

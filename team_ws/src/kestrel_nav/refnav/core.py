@@ -5,13 +5,11 @@ import math
 from dataclasses import dataclass, field
 
 from . import depth as D
-from .vertical import VerticalCentring
 
 NAV_OFFBOARD = 14
 NAV_AUTO_LAND = 18
-AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "retreat", "search",
-            "punch")
-TRANSLATING = ("go", "backoff", "climb", "punch")           # phases in which the aircraft is commanded to move
+AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "retreat", "search")
+TRANSLATING = ("go", "backoff", "climb")           # phases in which the aircraft is commanded to move
 
 
 @dataclass
@@ -49,32 +47,6 @@ class Params:
     search_step_deg: float = 30.0              # dwell headings inside that sector
     search_blind_s: float = 2.0                # a heading with no usable depth this long is passed over: a yaw in
                                                 # place needs no depth, and turning is how depth comes back
-    centre_vertical: bool = True               # altitude target = midpoint of depth-measured openings ahead
-                                                # (cruise height_m when nothing constrains the vertical band)
-    lateral_m: float = 0.37                    # corridor half-width examined for openings (airframe + margin)
-    vertical_clearance_m: float = 0.24         # kept between the airframe's centre and an opening's edge
-    alt_min_m: float = 0.35
-    alt_max_m: float = 1.5                     # stays below the 1.727 m walls
-    alt_rate_mps: float = 0.25
-    vertical_search: bool = True               # a full heading sweep found no route while a face blocks the way
-                                                # close ahead: try other heights (a sill above cruise, a bar below
-                                                # it) with a short sweep at each, before the headings repeat
-    vertical_search_window_m: float = 1.35      # first height tried, ABOVE THE FLOOR: the window's centre (~55 in).
-                                                # 0.95 m above home (1.06 m above the floor) left the 0.914 m sill
-                                                # inside the navigator's +/-0.25 m band and the drone hovered there
-    floor_below_home_m: float = 0.10           # the landed body origin's height above the floor (fly_course: landed_z)
-    vertical_search_offsets_m: tuple = (-0.3,)  # then these, from cruise, in order, clipped to alt_min..max
-    vertical_face_m: float = 1.2               # a face this close ahead at the current height starts the ladder
-    vertical_hold_s: float = 20.0              # a height found by searching is held until past the face, at most this
-    punch_through: bool = True                 # at the window height with no navigator route: fly straight through.
-                                                # The navigator only routes through space SEEN free; through a window at
-                                                # 1.35 m its band (+/-0.25 m) returns nothing within its 3 m range (floor
-                                                # below the band, nets beyond), so the far side stays unknown for ever.
-                                                # Accepted risk (Matthew, 2026-11-08): no return can also be a blank wall.
-    punch_wait_s: float = 6.0                  # at the window height, facing the waypoint, wait this long for a route
-    punch_beyond_m: float = 1.0                # then fly the face distance plus this, straight on
-    punch_corridor_m: float = 0.30             # only if depth shows no return within this half-width at our height
-    punch_speed_mps: float = 0.25
     replan_reorient_deg: float = 45.0          # while moving, a receding replan is tracked in motion unless its
                                                 # initial heading differs by more than this (then stop and turn)
     depth_stride: int = 8                       # every n-th pixel of the depth image is used
@@ -195,8 +167,6 @@ class Mission:
     def __init__(self, params: Params):
         self.p = params
         self.health = Health(params.health_quiet_s, params.health_stale_s)
-        self.vc = None                # VerticalCentring once airborne at cruise height
-        self.vsearch = None           # altitude search of the current search episode: levels, next index, face
         self.phase = "wait"
         self.why = ""
         self.sp = None
@@ -363,9 +333,6 @@ class Mission:
             self.depth_ready_since = stamp
         self.frame, self.depth_t, self.depth_pts = f, stamp, f.points(0.3, 6.0)
         self.depth_reject = None                             # a refusal is only reported until a frame is used
-        lv = self.last_v
-        if self.vc is not None and lv is not None and lv.pos is not None and lv.heading is not None and self.home:
-            self.vc.observe(stamp, self.depth_pts, self.home[2] - lv.pos[2], lv.pos[:2], lv.heading)
         self.counts["depth_frames"] += 1
         return True
 
@@ -386,8 +353,6 @@ class Mission:
 
     # ------------------------------------------------------------------ step
     def _set(self, phase, now, out, why=""):
-        if self.phase == "search" and phase != "search":
-            self._end_altitude_search(now, out, phase)
         out.events.append(f"{self.phase} -> {phase}" + (f": {why}" if why else ""))
         self.phase, self.t_phase = phase, now
         if why:
@@ -531,9 +496,6 @@ class Mission:
             target = self.home[2] - p.height_m
             self.sp[2] = max(target, self.sp[2] - p.climb_rate_mps * dt)
             if self.sp[2] <= target + 1e-09 and abs(v.pos[2] - target) < p.climb_tol_m:
-                if p.centre_vertical and self.vc is None:
-                    self.vc = VerticalCentring(p.height_m, p.lateral_m, p.vertical_clearance_m,
-                                               p.alt_min_m, p.alt_max_m, p.alt_rate_mps)
                 if p.excite_yaw_deg > 0 and self.excite is None:
                     self.excite = [_wrap(self.sp[3] + math.radians(p.excite_yaw_deg)), self.sp[3]]
                     self._set('excite', now, out, f'estimator excitation: yaw {p.excite_yaw_deg:.0f} deg in place and back')
@@ -579,26 +541,18 @@ class Mission:
             step = math.radians(p.yaw_rate_dps) * dt
             self.sp[3] = _wrap(self.sp[3] + max(-step, min(step, err)))
             facing = abs(_wrap(self.search_target - v.heading)) < math.radians(p.face_tol_deg)
-            if facing and self._at_search_level(v):
+            if facing:
                 if self.search_settled is None:
                     self.search_settled = now
                 dwelt = now - self.search_settled
-                window_wait = self._window_level() and self.search_steps == 0 and not self._path_fresh(now)
-                if window_wait and dwelt >= p.punch_wait_s and self._punch_clear(now, v):
-                    self._begin_punch(now, out, v)
-                elif window_wait and dwelt < p.punch_wait_s:
-                    pass                                       # at the window height: give the navigator time
-                elif (self.depth_fresh(now) and dwelt >= max(p.turn_settle_s, 0.7)) or dwelt >= p.search_blind_s:
-                    if self.search_steps == 0:                 # looking along the bearing to the waypoint
-                        self.search_face = self._face_ahead(v) if self.depth_fresh(now) else None
+                if (self.depth_fresh(now) and dwelt >= max(p.turn_settle_s, 0.7)) or dwelt >= p.search_blind_s:
                     self.search_steps += 1
                     if self._path_fresh(now):
                         self.path_s, self.path_stop_done = (0.0, -1)
                         self.path_reorient = False
                         self._set('turn', now, out, 'sweep found a route: face it, then check fresh depth')
                     elif self.search_steps >= len(self.search_offsets):
-                        if not self._next_search_level(now, out, v):
-                            self._begin_sweep(v, self.search_cycles + 1)   # re-centre on the current bearing
+                        self._begin_sweep(v, self.search_cycles + 1)   # re-centre on the current bearing
                     else:
                         self.search_target = _wrap(self.search_center + self.search_offsets[self.search_steps])
                         self.search_settled = None
@@ -606,8 +560,6 @@ class Mission:
                 self.search_settled = None
         elif ph == 'go':
             self._go_path(now, dt, out, v)
-        elif ph == 'punch':
-            self._punch(now, dt, out, v)
         elif ph == 'hold':
             if now - self.t_phase >= p.hold_s:
                 self.legs_done += 1
@@ -623,11 +575,6 @@ class Mission:
                 self._end(now, out, 'complete' if why == 'route complete' else f'landed: {why}')
             elif now - self.t_phase > p.land_timeout_s:
                 self._end(now, out, f'landed: {self.land_reason}; landing not confirmed within {p.land_timeout_s:.0f} s')
-        if (self.vc is not None and self.home is not None and v.pos is not None
-                and self.phase in AIRBORNE and self.phase != 'climb'):
-            # Altitude: centred in openings measured by depth, else cruise; rate limited.
-            alt = self.vc.step(now, dt, self.home[2] - v.pos[2], v.pos[:2])
-            self.sp[2] = self.home[2] - alt
         if self.phase != 'go':
             self.v_cmd, self.a_cmd = (0.0, 0.0)
             self.v_vec = self.a_vec = None
@@ -854,146 +801,19 @@ class Mission:
         self.v_vec = self.a_vec = (0., 0.)
         self.tube_hold = False
         self._begin_sweep(v)
-        self.vsearch = None
-        if self.vc is not None:
-            self.vc.override = None
         self.motion_limit = dict(stamp=now,reason='search',detail=why)
         self._set('search', now, out, why)
-
-    # ------------------------------------------------------------------ altitude search
-    def _height(self, v):
-        return None if self.home is None or v.pos is None else self.home[2] - v.pos[2]
-
-    def _face_ahead(self, v):
-        """A face within vertical_face_m ahead at the current height in the latest depth, as
-        (distance, highest allowed height): returns above the aircraft NEARER than the face are an
-        overhang (a roof, a bar) that caps any climb by vertical_clearance_m. None: no face."""
-        import numpy as _np
-        p, h = self.p, self._height(v)
-        if self.depth_pts is None or len(self.depth_pts) == 0 or h is None:
-            return None
-        pts = _np.asarray(self.depth_pts, float)
-        x, y, up = pts[:, 0], pts[:, 1], -pts[:, 2]
-        corridor = (x > .3) & (_np.abs(y) <= p.lateral_m)
-        face = corridor & (x < p.vertical_face_m) & (_np.abs(up) <= .15)
-        if face.sum() < 6:
-            return None
-        d = float(_np.quantile(x[face], .1))
-        over = corridor & (x < d - .1) & (up > .15)
-        cap = h + float(up[over].min()) - p.vertical_clearance_m if over.any() else p.alt_max_m
-        return d, cap
-
-    def _at_search_level(self, v):
-        """No dwell counts while the altitude search is still moving to its level."""
-        if self.vc is None or self.vc.override is None:
-            return True
-        h = self._height(v)
-        return h is not None and abs(h - self.vc.override) < self.p.climb_tol_m
-
-    def _next_search_level(self, now, out, v):
-        """The sweep at this height found no route. -> True if a short sweep at another height begins."""
-        p = self.p
-        if not p.vertical_search or self.vc is None:
-            return False
-        if self.vsearch is None:
-            face = getattr(self, 'search_face', None)
-            if face is None:
-                return False                                   # open space or a far wall: headings only
-            levels = []
-            window = p.vertical_search_window_m - p.floor_below_home_m      # above home, like every height here
-            for lv in [window] + [p.height_m + off for off in p.vertical_search_offsets_m]:
-                lv = min(max(lv, p.alt_min_m), p.alt_max_m, face[1])
-                if abs(lv - p.height_m) >= .05 and all(abs(lv - q) >= .05 for q in levels):
-                    levels.append(lv)
-            self.vsearch = dict(levels=levels, i=0, face_m=face[0], heading=self.search_center)
-        S = self.vsearch
-        if S['i'] >= len(S['levels']):
-            if self.vc.override is not None:
-                self.vc.override = None
-                out.events.append('altitude search: no route at any height; back to cruise, headings only')
-            return False
-        level = S['levels'][S['i']]
-        S['i'] += 1
-        self.vc.override = level
-        out.events.append(f"altitude search: {level:.2f} m ({S['i']}/{len(S['levels'])}), face "
-                          f"{S['face_m']:.2f} m ahead")
-        self._begin_sweep(v, self.search_cycles + 1, reduced=True)
-        return True
-
-    def _window_level(self):
-        """The altitude search is at its first level: the window height (vertical_search_window_m)."""
-        S = self.vsearch
-        return (self.p.punch_through and self.vc is not None and S is not None and S['i'] == 1
-                and self.vc.override is not None and abs(self.vc.override - S['levels'][0]) < 1e-9)
-
-    def _punch_clear(self, now, v, extra=0.0):
-        """Fresh depth shows no return in the straight corridor ahead at our own height, out to the face
-        distance + punch_beyond_m (+ extra): what the punch-through flies."""
-        import numpy as _np
-        p, S = self.p, self.vsearch
-        if not self.depth_fresh(now) or self.depth_pts is None or S is None:
-            return False
-        pts = _np.asarray(self.depth_pts, float)
-        if len(pts) == 0:
-            return True
-        reach = S['face_m'] + p.punch_beyond_m + extra if self.phase != 'punch' else self.punch['left_m'] + extra
-        x, y, up = pts[:, 0], pts[:, 1], -pts[:, 2]
-        hits = (x > .3) & (x < reach) & (_np.abs(y) <= p.punch_corridor_m) & (_np.abs(up) <= .25)
-        return int(hits.sum()) < 3
-
-    def _begin_punch(self, now, out, v):
-        p, S = self.p, self.vsearch
-        dist = S['face_m'] + p.punch_beyond_m
-        hdg = v.heading
-        self.punch = dict(start=(v.pos[0], v.pos[1]), dir=(math.cos(hdg), math.sin(hdg)), dist=dist, s=0.0,
-                          left_m=dist, heading=hdg)
-        self.sp[3] = hdg
-        out.events.append(f"punch-through: no route at the window height {self.vc.override:.2f} m after "
-                          f"{p.punch_wait_s:.0f} s; corridor clear: flying {dist:.2f} m straight on")
-        self._set('punch', now, out, 'window height, no route: straight through the opening')
-
-    def _punch(self, now, dt, out, v):
-        """Fly the punch-through: a carrot along the heading at punch_speed_mps, height held; stop and search
-        again if a return appears in the corridor ahead, or once the distance is flown."""
-        P, p = self.punch, self.p
-        done = math.hypot(v.pos[0] - P['start'][0], v.pos[1] - P['start'][1])
-        P['left_m'] = max(P['dist'] - done, 0.0)
-        if not self._punch_clear(now, v, extra=.1):
-            self._search_path(now, out, v, 'punch-through stopped: a return in the corridor ahead')
-            return
-        if P['left_m'] <= .05:
-            self._search_path(now, out, v, f"punch-through done ({done:.2f} m): replan from beyond the opening")
-            return
-        P['s'] = min(P['s'] + p.punch_speed_mps * dt, done + .3, P['dist'])
-        self.sp[0] = P['start'][0] + P['dir'][0] * P['s']
-        self.sp[1] = P['start'][1] + P['dir'][1] * P['s']
-        self.sp[3] = P['heading']
-
-    def _end_altitude_search(self, now, out, phase):
-        """Leaving search at a searched height with a route: hold that height until past the face."""
-        vc, S, v = self.vc, self.vsearch, self.last_v
-        if vc is None or vc.override is None:
-            return
-        level = vc.override
-        vc.override = None
-        if phase == 'land' or S is None or v is None or v.pos is None:
-            return
-        d = S['face_m'] + .1                                       # the face plus a wall's thickness
-        at = (v.pos[0] + d * math.cos(S['heading']), v.pos[1] + d * math.sin(S['heading']))
-        vc.hold_level(level, at, S['heading'], now, self.p.vertical_hold_s)
-        out.events.append(f"altitude search: route found at {level:.2f} m; held until past the face")
 
     def _waypoint_ne(self):
         wp = getattr(self, 'waypoints_ne', None) or self.targets
         return wp[self.leg] if wp and 0 <= self.leg < len(wp) else None
 
-    def _begin_sweep(self, v, cycle=0, reduced=False):
+    def _begin_sweep(self, v, cycle=0):
         """Bounded yaw sweep centred on the bearing to the ACTIVE mission waypoint.
 
         Dwell headings: the bearing itself, then outward on the side the aircraft
         already faces, then the other side; never beyond +/-search_sweep_deg, so the
-        camera keeps looking where the aircraft must go (no full-circle scans).
-        reduced (altitude search levels): the bearing and one step either side."""
+        camera keeps looking where the aircraft must go (no full-circle scans)."""
         p, g = self.p, self._waypoint_ne()
         centre = v.heading
         if g is not None and v.pos is not None and math.hypot(g[0]-v.pos[0], g[1]-v.pos[1]) >= .3:
@@ -1002,14 +822,11 @@ class Mission:
         side = [k*step for k in range(1, int(half/step+1e-9)+1)]
         if half > 0 and (not side or side[-1] < half-1e-6):
             side.append(half)
-        if reduced:
-            side = side[:1]
         first = 1. if _wrap(v.heading-centre) >= 0 else -1.
         self.search_center = centre
         self.search_offsets = [0.] + [first*a for a in side] + [-first*a for a in side]
         self.search_steps, self.search_settled, self.search_cycles = 0, None, cycle
         self.search_target = _wrap(centre)
-        self.search_face = None
 
     def _speed(self, v, dt):
         """Measured horizontal speed: PX4's velocity when reported, else from successive positions."""
@@ -1070,10 +887,6 @@ class Mission:
                 "v_cmd": round(self.v_cmd, 3),
                 "motion_limit": getattr(self,'motion_limit',None),
                 "horizon_reached": getattr(self,'horizon_reached',None),
-                "vertical": None if self.vc is None else dict(target_m=round(self.vc.target, 3),
-                    command_m=None if self.vc.out is None else round(self.vc.out, 3), opening=self.vc.info,
-                    search_level_m=self.vc.override,
-                    held_kind=None if self.vc.held is None else self.vc.held[4]),
                 "search": (None if self.phase != 'search' or getattr(self, 'search_offsets', None) is None else
                            dict(centre_deg=round(math.degrees(self.search_center), 1),
                                 target_deg=round(math.degrees(self.search_target), 1),

@@ -20,6 +20,8 @@ ARGUMENTS = [
     ('auto_offboard_on_arm', 'true', 'enter Offboard once when the pilot arms, then switches to Position'),
         ('depth_topic', '/kestrel_nav/depth', 'depth image for refnav and the localizer (host_depth)'),
     ('depth_info_topic', '/kestrel_nav/depth/camera_info', ''),
+    ('rgb_topic', '/oak/rgb/image', 'colour image for the landing-target detector (HSV + depth); none = detector idles'),
+    ('rgb_info_topic', '/oak/rgb/camera_info', ''),
     ('depth_max_hz', '8.0', 'host_depth rate cap'),
     ('depth_max_range_m', '12.0', "host_depth range cap. refnav counts a corridor ray as OBSERVED if it returns any depth "
                                   "(its obstacle points stop at 6 m, the localizer's at 4 m): the hall beyond the "
@@ -57,6 +59,12 @@ def generate_launch_description():
              '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'height_source:=local_position', '-p', 'publish_zero_drift:=true', '-p', 'adaptive_hz:=4.0',
              '-p', ['landed_z_m:=', L('landed_z')], '-p', ['course_file:=', L('course_file')]],
         cwd=str(ROOT), additional_env=env, output='screen', name='localizer')
+    target = ExecuteProcess(
+        cmd=['nice', '-n', '5', 'python3', '-m', 'coursenav.target_node', '--ros-args',
+             '-p', ['rgb_topic:=', L('rgb_topic')], '-p', ['rgb_info_topic:=', L('rgb_info_topic')],
+             '-p', ['depth_topic:=', L('depth_topic')], '-p', ['depth_info_topic:=', L('depth_info_topic')],
+             '-p', ['use_sim_time:=', L('use_sim_time')]],
+        cwd=str(ROOT), additional_env=env, output='screen', name='target')
     fly_env = dict(env)
     fly = ExecuteProcess(
         cmd=['python3', str(ROOT / 'fly_course.py'), '--event-start', '--skip-preflight', '--no-own-localizer', '--no-return', '--start-from-mark',
@@ -70,4 +78,4 @@ def generate_launch_description():
                                        'KESTREL_PILOT_VERIFIED_LAUNCH_RADIUS_M': L('pilot_verified_launch_radius_m'),
                                        'KESTREL_NICE_NAV': '5'},
         output='screen', name='fly_course')
-    return LaunchDescription(declared + [flight_interface, host_depth, health, localizer, fly])
+    return LaunchDescription(declared + [flight_interface, host_depth, health, localizer, target, fly])

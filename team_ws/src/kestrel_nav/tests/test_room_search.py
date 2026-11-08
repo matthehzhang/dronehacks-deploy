@@ -254,59 +254,14 @@ def test_committed_route_survives_coverage_flicker_but_not_a_new_obstacle():
     assert not n.safe(np.array((.05, 0.)))
 
 
-def window_points(dist, bottom_rel, top_rel, lateral=.3, step=.03):
-    """Synthetic level-frame points (x fwd, y right, z down) of a wall at dist with an opening."""
-    ys = np.arange(-lateral, lateral+1e-9, step)
-    zs = np.arange(-1.0, 1.0, step)                       # up from -1 to +1 relative
-    pts = [(dist, y, -z) for y in ys for z in zs if z <= bottom_rel or z >= top_rel]
-    pts += [(dist+2.5, y, -z) for y in ys for z in zs if bottom_rel < z < top_rel]   # seen through
-    return np.array(pts)
 
 
-@pytest.mark.parametrize('bottom,top', [(.30, 1.10), (.55, 1.35), (.15, .80)])
-def test_vertical_target_is_midpoint_of_any_measured_opening(bottom, top):
-    from refnav.vertical import opening_target
-    h = .8
-    t, info = opening_target(window_points(1.0, bottom-h, top-h), h, .8, .37, .24, .35, 1.5)
-    assert info['kind'] == 'opening' and abs(t-(bottom+top)/2) < .05
 
 
-def test_vertical_solid_wall_open_space_and_one_sided_faces_keep_cruise():
-    from refnav.vertical import opening_target
-    wall = window_points(1.0, 0., 0.)                      # no gap
-    assert opening_target(wall, .8, .8, .37, .24, .35, 1.5)[0] is None
-    floor = np.array([(x, 0., .8) for x in np.arange(.4, 2.4, .05)])   # floor only, 0.8 m below
-    assert opening_target(floor, .8, .8, .37, .24, .35, 1.5)[0] is None
-    # a wall cut off by the image's top edge: surface just below, nothing above (run 5 ratchet)
-    cut = np.array([(1.1, y, -z) for y in np.arange(-.3, .3, .03) for z in np.arange(-.6, -.1, .03)])
-    assert opening_target(cut, .8, .8, .37, .24, .35, 1.5)[0] is None
-    # a band with edges above and below but nothing visible through it is not an opening
-    blind = np.array([p for p in window_points(1.0, -.3, .4) if p[0] < 1.5])
-    t, info = opening_target(blind, .8, .8, .37, .24, .35, 1.5)
-    assert t is None and info['kind'] == 'not_an_opening'
 
 
-def test_vertical_hold_until_past_the_opening_then_cruise():
-    from refnav.vertical import VerticalCentring
-    vc = VerticalCentring(.8, .37, .24, rate_mps=10.)
-    vc.observe(0., window_points(1.2, .55-.8, 1.35-.8), .8, (0., 0.), 0.)
-    assert abs(vc.step(.1, .1, .8, (0., 0.)) - .95) < .05
-    vc.observe(1., np.zeros((0, 3)), .95, (.8, 0.), 0.)        # edges out of view up close
-    assert abs(vc.step(1.1, .1, .95, (.8, 0.)) - .95) < .05
-    assert abs(vc.step(3., 2., .95, (1.8, 0.)) - .8) < .05     # 0.4 m past: cruise
 
 
-def test_altitude_is_centred_but_rate_limited_in_flight():
-    m = sweeping_mission(0., (4., 0.))
-    from refnav.vertical import VerticalCentring
-    m.vc = VerticalCentring(.8, .37, .24, rate_mps=.25)
-    m.home = [0., 0., 0., 0.]
-    m.depth_t = 2.
-    m.vc.observe(2., window_points(1.0, .55-.7, 1.35-.7), .7, (0., 0.), 0.)
-    m.step(2.0, m.last_v)
-    m.depth_t = 2.4
-    m.step(2.4, m.last_v)
-    assert .7 < -m.sp[2] <= .7+.25*.5+1e-6    # two 0.25 s ticks toward 0.95 at <= 0.25 m/s
 
 
 def test_follower_flies_a_route_closed_loop_through_step():

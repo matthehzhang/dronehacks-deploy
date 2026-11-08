@@ -215,7 +215,6 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
     nav_legs=[dict(name=w['name'],stop=w['xy'],goals=[w['xy']],path=True) for w in p['waypoints'][1:]]
     params.update(navcfg.get('refnav',{}))
     params.update(track_mode='path',local_horizon=True)
-    params.setdefault('floor_below_home_m', float(height))   # refnav heights are above home; window heights above the floor
     route_doc = {"route": route, "legs": legs, "params": params,
                  "_note": f"RUN RECORD of fly_course.py at {stamp}: planned from start {source} "
                           f"({sx:.4f}, {sy:.4f}, {syaw:.2f} deg). Rule 6.4: never an input to a later run."}

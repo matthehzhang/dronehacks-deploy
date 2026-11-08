@@ -294,7 +294,7 @@ class LocNode(Node):
             self.local_error = f'depth valid fraction below {self.local_min_valid:.2f}; local map not refreshed'
         nominal_body = compose(self.nominal,pose)
         self.pub_drift.publish(String(data=json.dumps(dict(stamp=t,delta=[0.,0.,0.],
-            nominal=nominal_body.tolist(),fixture=list(map(float,self.nominal)),
+            nominal=nominal_body.tolist(),fixture=list(map(float,self.nominal)),height_m=float(h),
             sigma_xy=None,accepted=0,rejected=0,resets=self.resets,uncorrected=True,
             source='vio_only_no_prior_matching'))))
         self._t_proc = self._scan_rate_now()
@@ -308,10 +308,12 @@ class LocNode(Node):
                 or self.local_stamp is not None and captured <= self.local_stamp):
             self.local_error = 'local map requires fresh depth, attitude, height and healthy capture-matched VIO'
             return False
-        # The band follows the aircraft (vertical centring changes height on purpose); walls
-        # are vertical, so the map is kept. Surfaces outside the band are handled by the
-        # vertical centring, not as 2-D walls. The floor is never in the band.
-        self.local_height = height
+        if self.local_height is None or abs(height-self.local_height) > .2:
+            # A 2-D obstacle map at another altitude is not this flight band.
+            self.local = LocalGrid(self.local.p)
+            self.local_height = height
+        # Never turn the visible ground into a ring of apparent walls during
+        # takeoff. The origin-map keep-outs and immediate depth guard remain.
         scan = scan_from_points(points,height,max(.15,height-self.band_half_m),height+self.band_half_m,rmin=.3,rmax=12.)
         self.local.integrate(captured,compose(self.nominal,pose),scan)
         self.local_stamp = captured

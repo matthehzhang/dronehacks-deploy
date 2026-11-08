@@ -81,12 +81,7 @@
     "min_valid_frac": 0.1,
     "search_step_deg": 45.0,
     "search_sweep_deg": 90.0,
-    "search_blind_s": 2.0,
-    "centre_vertical": false,
-    "vertical_search": false,
-    "punch_through": false,
-    "lateral_m": 0.37,
-    "vertical_clearance_m": 0.24
+    "search_blind_s": 2.0
   },
   "waypoint_file": "course/waypoint_intent.json",
   "room_boundary_file": "course/room_boundary.json"

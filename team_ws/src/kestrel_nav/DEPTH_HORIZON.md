@@ -219,3 +219,42 @@ window sill PX4's height estimate dropped, refnav's altitude loop commanded
   Motion is limited only by the planner's measured walls and room boundary.
   Kept: arm/disarm and Offboard authority (yield to pilot/PX4), estimator
   unhealthy and PX4 position invalid landings, landing requests.
+
+
+## Landing target from colour + depth, vertical probe (2026-11-08)
+
+- coursenav.target_node: HSV threshold on the colour camera (default hue 95-125,
+  S >= 90, V >= 60: the blue pad), largest blob; depth points are projected into
+  the colour image through camera_info + TF and the ones inside the blob give the
+  target's position (centre of their robust extent; floor-ray fallback). Off-floor
+  and wrong-size blobs are rejected. Publishes /coursenav/target.
+- nav_node: TargetTracker needs 3 agreeing detections (0.15 m) within 4 s, inside
+  the room clearance and within 2.5 m of the declared pad; the FINAL waypoint
+  follows the estimate on demand (replanned at once on the final leg). The colour
+  camera sees the floor only beyond ~1.9 m at cruise, so detection happens on
+  the approach (e.g. through the window) and the estimate persists.
+- Vertical probe: when a full waypoint-centred yaw sweep finds no route, the
+  cruise height steps through +0.25, +0.45, -0.2, 0 m (within 0.35-1.5 m) and the
+  sweep repeats; a height that yields a route is kept. loc_node restarts its 2-D
+  map when the flight band moves by > 0.15 m (sill-proof height, so a sill under
+  the aircraft never triggers it). Opening centring still overrides when both
+  edges of an opening are seen.
+- Launch: rgb_topic/rgb_info_topic arguments (sim /oak/rgb/image); no colour
+  stream -> the detector idles and the declared pad is used.
+
+
+## Height work reverted (2026-11-08)
+
+Height is being handled separately. Removed from this branch: depth-measured
+opening centring (refnav.vertical), the height probe, the VIO-anchored altitude
+hold and loc_node's VIO-anchored height / +/-0.25 m band / map-reset changes. The
+altitude hold is again the fixed cruise height on PX4's z, and loc_node again
+uses the rangefinder height with a +/-0.4 m band and a map reset on a 0.2 m
+height change. The sections above that describe those height mechanisms no longer
+apply. NOTE: the rangefinder-referenced height (EKF2_HGT_REF 2) still climbs over
+a window sill (run stack_20261108T124724Z); that is for the height work.
+
+Kept: room boundary, FASTER-style committed horizons, hazard-only route
+withdrawal, 0.12 m lateral margin, legacy-stop removal, and the colour+depth
+landing-target relocation, now evaluating every blue blob (largest first) and
+skipping blobs cut by the image edge, with detector statistics logged every 10 s.

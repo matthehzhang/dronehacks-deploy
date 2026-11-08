@@ -18,6 +18,7 @@ from .depth_planner import DepthPlanner
 from .course import resolve
 from .room import RoomBoundary
 from .airframe import planning_clearance
+from .target import TargetTracker
 AIRBORNE = ('hold', 'turn', 'check', 'go', 'blocked', 'backoff', 'recheck', 'align', 'search')
 
 class NavNode(Node):
@@ -40,6 +41,14 @@ class NavNode(Node):
         self.depth_nav = DepthPlanner(need, sp, rd.get('start_xy'), float(dp('pilot_verified_launch_radius_m', 0.0).value),
                                       room=self.room, body_radius=float(doc['vehicle']['radius_m']))
         self.depth_plan_t = -math.inf
+        # Landing target seen by the colour camera (coursenav.target_node) relocates the FINAL waypoint,
+        # within target_max_shift_m of the declared one and with the room clearance the planner needs.
+        final = np.asarray(self.nav_legs[-1]['stop'], float)
+        self.target_declared = final.copy()
+        self.target = TargetTracker(final, max_shift_m=float(dp('target_max_shift_m', 2.5).value),
+                                    inside=lambda xy: self.room is None or self.room.clearance(xy) >= self.depth_nav.need)
+        self.target_updates = 0
+        self.create_subscription(String, dp('target_topic', '/coursenav/target').value, self._on_target, 10)
         self.replan_s = float(dp('replan_s', 0.5).value)
         self.stale_grace_s = float(dp('stale_grace_s', 1.5).value)
         self.depth_plan_revision = -1
@@ -78,6 +87,29 @@ class NavNode(Node):
             self.drift = json.loads(m.data)
         except ValueError:
             pass
+
+    def _on_target(self, m):
+        try:
+            d = json.loads(m.data)
+            self.target.observe(float(d['stamp']), d['xy_course'])
+        except (ValueError, KeyError, TypeError):
+            pass
+
+    def _apply_target(self, leg):
+        """Move the final waypoint to the tracked target when it is confirmed elsewhere."""
+        est = self.target.estimate
+        if est is None:
+            return
+        stop = np.asarray(self.nav_legs[-1]['stop'], float)
+        if np.linalg.norm(est - stop) <= 0.05:
+            return
+        self.nav_legs[-1]['stop'] = [float(est[0]), float(est[1])]
+        self.nav_legs[-1]['goals'] = [self.nav_legs[-1]['stop']]
+        self.target_updates += 1
+        self.get_logger().info(f'landing target at {est.round(3).tolist()} (declared '
+                               f'{self.target_declared.round(3).tolist()}): final waypoint updated')
+        if leg == len(self.nav_legs) - 1:
+            self.depth_nav.path = None                    # on the final leg: replan to the new target now
 
     def _on_status(self, m):
         try:
@@ -131,6 +163,7 @@ class NavNode(Node):
         d, n = (self.drift, self.depth_nav)
         now = self.get_clock().now().nanoseconds * 1e-09
         leg, phase = (int(self.status.get('leg', 0)), self.status.get('phase'))
+        self._apply_target(leg)
         position = np.asarray(d['nominal'][:2], float)
 
         def to_ned(pts):
@@ -138,6 +171,9 @@ class NavNode(Node):
         out = dict(stamp=time.time(), leg=leg, pid=self.pid, valid=False, terminal=False, map_provenance='vio_depth_only_waypoint_intent', mission_preview=[], targets_ne={j: to_ned([L['stop']])[0].tolist() for j, L in enumerate(self.nav_legs) if j > leg})
         if leg < len(self.nav_legs):
             out.update(goal_course=list(map(float, self.nav_legs[leg]['stop'])), goal_ne=to_ned([self.nav_legs[leg]['stop']])[0].tolist())
+        out['target'] = dict(declared_course=self.target_declared.round(4).tolist(),
+                             final_course=list(map(float, self.nav_legs[-1]['stop'])), updates=self.target_updates,
+                             detections=len(self.target.obs))
         if self.room is not None:
             out['room_boundary'] = dict(polygon_course=self.room.poly.round(4).tolist(), source='declared enclosure, not depth',
                                         aircraft_clearance_m=round(float(self.room.clearance(position)), 3),
