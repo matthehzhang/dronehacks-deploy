@@ -5,24 +5,23 @@ organizers' stack (this repo's `fleet-ready` image) as a competitor package in `
 
 We have two approaches to the same course, each on its own branch:
 
-| | **Exploratory / generalizable** | **Hardcoded route** |
+| | Exploratory (depth-only) | Map-based route |
 |---|---|---|
 | Branch | [`package_mcp_hopecore`](https://github.com/matthehzhang/dronehacks-deploy/tree/package_mcp_hopecore) (= `package_154_new`, `6ee2b2d`) | [`groupbad218`](https://github.com/matthehzhang/dronehacks-deploy/tree/groupbad218) (`7d5e95f`) |
-| Author(s) | Anshul Mistry | Robert Schnurr |
 | Course knowledge | 7 named target points + the net boundary. **No walls** | The reconstructed course map (OBJ + 5 cm voxels) |
 | How it moves | Plans through space the depth camera has **seen** free, toward the next target, replanning every 0.5 s | Plans the full route on the map **before takeoff**, then follows it stop to stop |
 | When the course differs from the map | Adapts: it only ever trusted what it saw | Map errors become route errors. A depth check stops it 0.35 m short of what the camera confirms |
 | Best result | Gazebo `stack_20261108T135606Z`: all 7 targets, 0 touches, landed on the pad | Gazebo / offline only |
-| Real flights | **None yet** | **None yet** |
+| Real flights | None yet | None yet |
 
-**Neither has completed the course on the real drone.** Please review both with that in mind. The
+Neither has completed the course on the real drone yet, so please review both with that in mind. The
 [flight history](#what-has-happened-on-the-real-drone) below records what the real drone has done so far.
 
 Contents:
 1. [The course and its coordinates](#the-course-and-its-coordinates)
 2. [What both share](#what-both-share)
 3. [Exploratory: `package_mcp_hopecore`](#exploratory-package_mcp_hopecore)
-4. [Hardcoded: `groupbad218`](#hardcoded-groupbad218)
+4. [Map-based route: `groupbad218`](#map-based-route-groupbad218)
 5. [Side by side](#side-by-side)
 6. [What has happened on the real drone](#what-has-happened-on-the-real-drone)
 7. [How to run, record and replay](#how-to-run-record-and-replay)
@@ -194,7 +193,7 @@ passes with jamb edges smeared 2 cm by stereo, and fails at 4 cm (2/30).
 
 ---
 
-## Hardcoded: `groupbad218`
+## Map-based route: `groupbad218`
 
 Notes: `team_ws/src/kestrel_nav/README.md` on that branch (the newest sections are at the end).
 
@@ -242,7 +241,7 @@ refnav then follows the route, with turns at the corners and gate alignment at t
    (0.41–0.42 m).
 2. **The start estimate decides everything.** On 2026-11-08 the estimate was 19 cm behind the mark.
    That made the planner turn 22° left to recover, then deadlock on a zero-speed start path (history
-   below). Matthew's fix for this is paused. The 8 in forward launch may move the start out of the
+   below). A fix for this is paused. The 8 in forward launch may move the start out of the
    barrier's margin; check with `tools/preview_path.py`.
 3. **Ignoring depth coverage means blank or dark stretches don't stop it.** That's intended, but a
    wall that returns no depth isn't detected. Only measured obstacles stop it, at 0.35 m.
@@ -266,7 +265,7 @@ refnav then follows the route, with turns at the corners and gate alignment at t
 
 ## Side by side
 
-| Question | hopecore (exploratory) | groupbad218 (hardcoded) |
+| Question | hopecore (exploratory) | groupbad218 (map-based) |
 |---|---|---|
 | Uses map walls? | No | Yes |
 | Uses venue launch/pad measurements? | **No** (map values) | Yes |
@@ -285,7 +284,7 @@ refnav then follows the route, with turns at the corners and gate alignment at t
 ## What has happened on the real drone
 
 All on `skybeta-14`. The bags are in `cram304:docs/evidence/drone_bags_20261108/` (Git LFS), and
-Matthew's analysis is in `package_154_new:docs/PACKAGE154_ZERO_SPEED_HANDOFF.md`.
+the analysis is in `package_154_new:docs/PACKAGE154_ZERO_SPEED_HANDOFF.md`.
 
 | When (local) | Code | What happened | Cause |
 |---|---|---|---|
@@ -329,7 +328,7 @@ Only one `kestrel_nav` can be active. Back the current one up first (`cp -a ~/te
   `pilot_verified_launch_radius_m` is 0 by default and is no longer needed since `059ff2e`.
 - groupbad218's launch takes `chicane:=auto|window|gate_b` and an optional
   `start_x/start_y/start_yaw_deg` override.
-- Matthew's helper on the drone, `~/team_ws/tools/fly.sh 154new`, rebuilds and restarts only the
+- A helper on the drone, `~/team_ws/tools/fly.sh 154new`, rebuilds and restarts only the
   competitor pane, starts a fresh recording and shows the logs.
 
 **Before every attempt:**
@@ -386,9 +385,9 @@ survives even when the bag doesn't.
 
 | Branch | What |
 |---|---|
-| `package_154_new` | same commit as `package_mcp_hopecore`, plus Matthew's handoff on the 11-08 stall (`docs/PACKAGE154_ZERO_SPEED_HANDOFF.md`) |
-| `cram304`, `kestral_blocked_recovery` | Matthew's port of AsiakN's workspace `refnav/blocked-recovery`: local grid, prior-map switch, recovery creep. Also the drone bag archive |
-| `kestral_group154_timed` | group154 plus timed trajectory and search policies (Anshul) |
+| `package_154_new` | same commit as `package_mcp_hopecore`, plus the handoff notes on the 11-08 stall (`docs/PACKAGE154_ZERO_SPEED_HANDOFF.md`) |
+| `cram304`, `kestral_blocked_recovery` | port of the workspace's `refnav/blocked-recovery`: local grid, prior-map switch, recovery creep. Also the drone bag archive |
+| `kestral_group154_timed` | group154 plus timed trajectory and search policies |
 | `kestral_group154`, `kestral_nav934am` | earlier group154/group119 ports to skybeta |
 | `course-waypoints` (local), `cage-hop-test` | cage tests (`hop_test`, `tune_test`) and a map-only waypoint runner (`course.launch.py`) |
 | `kestral_group154-livemap` | live-map/replan experiment, superseded by the two candidates above |
