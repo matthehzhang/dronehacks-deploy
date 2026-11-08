@@ -15,6 +15,8 @@ from .navplan import course_to_ned, smooth_params_for
 from .planner import PlanError
 from .localgrid import occupied_points_from_grid
 from .depth_planner import DepthPlanner
+from .course import resolve
+from .room import RoomBoundary
 AIRBORNE = ('hold', 'turn', 'check', 'go', 'blocked', 'backoff', 'recheck', 'align', 'search')
 
 class NavNode(Node):
@@ -32,7 +34,10 @@ class NavNode(Node):
         self.depth_only = True
         need = float(doc['vehicle']['radius_m'] + doc['vehicle']['margin_m'])
         sp = smooth_params_for(rd.get('navigation', {}), rd.get('params', {}), need)
-        self.depth_nav = DepthPlanner(need, sp, rd.get('start_xy'), float(dp('pilot_verified_launch_radius_m', 0.0).value))
+        # Declared enclosure limits: a hard constraint independent of depth (nets may be invisible).
+        self.room = RoomBoundary.load(resolve(doc, 'room_boundary_file')) if doc.get('room_boundary_file') else None
+        self.depth_nav = DepthPlanner(need, sp, rd.get('start_xy'), float(dp('pilot_verified_launch_radius_m', 0.0).value),
+                                      room=self.room)
         self.depth_plan_t = -math.inf
         self.depth_plan_revision = -1
         self.last_obstacle_stops = 0
@@ -57,6 +62,10 @@ class NavNode(Node):
         self.create_timer(0.5, self._publish_grid)
         self.pub = self.create_publisher(String, dp('path_topic', '/coursenav/path').value, 10)
         self.create_timer(1.0 / float(dp('rate_hz', 10.0).value), self._tick)
+        if self.room is None:
+            self.get_logger().warning('navigator: NO room boundary declared; invisible nets are unconstrained')
+        else:
+            self.get_logger().info(f'navigator: room boundary {self.room.poly.round(3).tolist()} (hard constraint, not depth)')
         self.get_logger().info(f"navigator: {len(self.nav_legs)} legs ({sum((L['path'] for L in self.nav_legs))} path legs), cruise {sp.cruise_mps:.2f} m/s, buffer {need:.2f} m")
         from pathlib import Path
         Path(route_file).with_name('navigator_ready').write_text(json.dumps({'mode': 'depth_only', 'legs': []}))
@@ -85,10 +94,12 @@ class NavNode(Node):
         m.info.width, m.info.height = blocked.occ.shape
         m.info.origin.position.x, m.info.origin.position.y = map(float, blocked.origin)
         m.info.origin.orientation.w = 1.0
-        # Purple is reserved for measured-obstacle inflation. Incomplete
-        # footprint evidence remains unknown, never displayed as an obstacle.
+        # 100 (purple) is reserved for measured-obstacle inflation; 99 is the
+        # declared room-boundary keep-out (not depth). Incomplete footprint
+        # evidence remains unknown (-1), never displayed as an obstacle.
         data = np.full(blocked.occ.shape,-1,np.int8)
         data[~blocked.occ] = 0
+        data[n.room_clear < n.need] = 99
         data[n.obstacle_clear < n.need] = 100
         m.data = data.T.ravel().tolist()
         self.pub_grid.publish(m)
@@ -122,6 +133,12 @@ class NavNode(Node):
         def to_ned(pts):
             return course_to_ned(pts, d['fixture'], self.decl)
         out = dict(stamp=time.time(), leg=leg, pid=self.pid, valid=False, terminal=False, map_provenance='vio_depth_only_waypoint_intent', mission_preview=[], targets_ne={j: to_ned([L['stop']])[0].tolist() for j, L in enumerate(self.nav_legs) if j > leg})
+        if leg < len(self.nav_legs):
+            out.update(goal_course=list(map(float, self.nav_legs[leg]['stop'])), goal_ne=to_ned([self.nav_legs[leg]['stop']])[0].tolist())
+        if self.room is not None:
+            out['room_boundary'] = dict(polygon_course=self.room.poly.round(4).tolist(), source='declared enclosure, not depth',
+                                        aircraft_clearance_m=round(float(self.room.clearance(position)), 3),
+                                        required_m=round(n.need, 3))
         fresh = self.local_stamp is not None and -0.05 <= now - self.local_stamp <= 0.5 and (not self.local_error)
         out.update(local_map_fresh=bool(fresh), local_map_error=self.local_error)
         if not fresh or self.local_fields is None:
@@ -132,6 +149,7 @@ class NavNode(Node):
             start_cell = n.grid.ij(position)
             if n.grid.inside(start_cell):
                 out['start_clearance'] = dict(required_m=n.need,
+                    room_m=float(n.room_clear[tuple(start_cell)]) if np.isfinite(n.room_clear[tuple(start_cell)]) else None,
                     observed_m=float(n.observed_clear[tuple(start_cell)]),
                     obstacle_m=None if not np.isfinite(n.obstacle_clear[tuple(start_cell)]) else float(n.obstacle_clear[tuple(start_cell)]))
             goal = np.asarray(self.nav_legs[leg]['stop'], float)
@@ -162,7 +180,8 @@ class NavNode(Node):
                     self.last_plan_error = ''
                 except PlanError as exc:
                     self.last_plan_error = str(exc)
-            out.update(local_obstacle_cells=int(n.grid.occ.sum()), plan_error=self.last_plan_error, reason=self.last_plan_error or n.reason)
+            out.update(local_obstacle_cells=int(n.grid.occ.sum()), plan_error=self.last_plan_error, reason=self.last_plan_error or n.reason,
+                       planner=dict(n.diag))
             if n.path is not None:
                 P = n.path
                 out.update(valid=True, pid=self.pid, terminal=bool(n.terminal), goal_course=goal.tolist(), horizon_course=P.pts[-1].tolist(), pts_course=P.pts.round(4).tolist(), pts_ne=to_ned(P.pts).round(4).tolist(), v=P.v.round(4).tolist(), stops=list(P.stops), tubes=None if P.tube is None else P.tube.round(4).tolist())

@@ -60,6 +60,9 @@ class Params:
                                                 # < 0 (default): any obstacle closer than stop_m blocks (original rule)
     corridor_search: bool = True               # active yaw search instead of landing for unobserved corridor
     local_horizon: bool = True                 # observed-depth horizons may end before the mission waypoint
+    search_sweep_deg: float = 60.0             # search yaws at most this far either side of the bearing to the
+                                                # active waypoint (never a full-circle scan)
+    search_step_deg: float = 30.0              # dwell headings inside that sector
     corridor_wait_land_s: float = -1.0          # >= 0: land when the current leg's corridor has gone this long
                                                 # without an observing frame (in check or go). < 0 (default): hold
                                                 # and wait indefinitely (original rule)
@@ -686,9 +689,8 @@ class Mission:
                 if now - seen > p.corridor_wait_land_s:
                     if p.corridor_search:
                         self.sp[:2] = v.pos[:2]
-                        self.search_target = _wrap(v.heading + math.pi / 2)
-                        self.search_steps, self.search_settled = (0, None)
-                        self._set('search', now, out, 'corridor unobserved: scan other headings for live A*')
+                        self._begin_sweep(v)
+                        self._set('search', now, out, 'corridor unobserved: sweep toward waypoint for live A*')
                     else:
                         self._land(now, out, f'corridor of leg {self.leg + 1} not observed for {now - seen:.1f} s (corridor_wait_land_s {p.corridor_wait_land_s:g} s)')
         if getattr(self, 'path_reorient', False) and self.phase in ('go', 'check', 'blocked', 'backoff', 'recheck'):
@@ -730,6 +732,9 @@ class Mission:
                 self.sp = [n, e, d, v.heading]
                 c, s = (math.cos(v.heading), math.sin(v.heading))
                 self.targets = [(n + f * c + l * s, e + f * s - l * c) for f, l in p.route]
+                # True mission waypoints. targets[leg] becomes a horizon endpoint while
+                # following; search bearings always use these instead.
+                self.waypoints_ne = list(self.targets)
                 self._set('arm', now, out, 'vehicle already armed on the ground: event start' if v.armed else '')
         elif ph == 'arm':
             ok, why = self.health.arm_ok(now)
@@ -806,13 +811,15 @@ class Mission:
                     self.search_settled = now
                 if now - self.search_settled >= max(p.turn_settle_s, 0.7):
                     self.search_steps += 1
-                    if self.search_steps >= 4 and self._path_fresh(now):
+                    if self._path_fresh(now):
                         self.path_s, self.path_stop_done = (0.0, -1)
                         self.path_reorient = False
                         self.clr_hist, self.corr_t = ([], None)
-                        self._set('turn', now, out, 'scan complete: face updated A* route, then check fresh depth')
+                        self._set('turn', now, out, 'sweep found a route: face it, then check fresh depth')
+                    elif self.search_steps >= len(self.search_offsets):
+                        self._begin_sweep(v, self.search_cycles + 1)   # re-centre on the current bearing
                     else:
-                        self.search_target = _wrap(self.search_target + math.pi / 2)
+                        self.search_target = _wrap(self.search_center + self.search_offsets[self.search_steps])
                         self.search_settled = None
             else:
                 self.search_settled = None
@@ -1227,10 +1234,33 @@ class Mission:
         self.v_cmd = self.a_cmd = self.yaw_rate_cmd = 0.
         self.v_vec = self.a_vec = (0., 0.)
         self.tube_hold = False
-        self.search_target = _wrap(v.heading + math.pi/2)
-        self.search_steps, self.search_settled = 0, None
+        self._begin_sweep(v)
         self.motion_limit = dict(stamp=now,reason='search',detail=why)
         self._set('search', now, out, why)
+
+    def _waypoint_ne(self):
+        wp = getattr(self, 'waypoints_ne', None) or self.targets
+        return wp[self.leg] if wp and 0 <= self.leg < len(wp) else None
+
+    def _begin_sweep(self, v, cycle=0):
+        """Bounded yaw sweep centred on the bearing to the ACTIVE mission waypoint.
+
+        Dwell headings: the bearing itself, then outward on the side the aircraft
+        already faces, then the other side; never beyond +/-search_sweep_deg, so the
+        camera keeps looking where the aircraft must go (no full-circle scans)."""
+        p, g = self.p, self._waypoint_ne()
+        centre = v.heading
+        if g is not None and v.pos is not None and math.hypot(g[0]-v.pos[0], g[1]-v.pos[1]) >= .3:
+            centre = math.atan2(g[1]-v.pos[1], g[0]-v.pos[0])
+        half, step = math.radians(max(p.search_sweep_deg, 0.)), math.radians(max(p.search_step_deg, 1.))
+        side = [k*step for k in range(1, int(half/step+1e-9)+1)]
+        if half > 0 and (not side or side[-1] < half-1e-6):
+            side.append(half)
+        first = 1. if _wrap(v.heading-centre) >= 0 else -1.
+        self.search_center = centre
+        self.search_offsets = [0.] + [first*a for a in side] + [-first*a for a in side]
+        self.search_steps, self.search_settled, self.search_cycles = 0, None, cycle
+        self.search_target = _wrap(centre)
 
     def _speed(self, v, dt):
         """Measured horizontal speed: PX4's velocity when reported, else from successive positions."""
@@ -1310,6 +1340,11 @@ class Mission:
                 "v_cmd": round(self.v_cmd, 3),
                 "motion_limit": getattr(self,'motion_limit',None),
                 "horizon_reached": getattr(self,'horizon_reached',None),
+                "search": (None if self.phase != 'search' or getattr(self, 'search_offsets', None) is None else
+                           dict(centre_deg=round(math.degrees(self.search_center), 1),
+                                target_deg=round(math.degrees(self.search_target), 1),
+                                step=self.search_steps, steps=len(self.search_offsets),
+                                cycle=self.search_cycles, half_deg=self.p.search_sweep_deg)),
                 "depth_age_s": None if self.depth_t is None else round(now - self.depth_t, 3),
                 "corridor_age_s": None if self.corr_t is None else round(now - self.corr_t, 3),
                 "corridor_coverage": None if self.last_coverage is None else round(self.last_coverage, 2),

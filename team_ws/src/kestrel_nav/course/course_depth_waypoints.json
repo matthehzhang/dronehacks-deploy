@@ -123,5 +123,6 @@
       "group": "Launch mark"
     }
   },
-  "waypoint_file": "course/waypoint_intent.json"
+  "waypoint_file": "course/waypoint_intent.json",
+  "room_boundary_file": "course/room_boundary.json"
 }

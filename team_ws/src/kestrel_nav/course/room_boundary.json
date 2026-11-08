@@ -1,0 +1,10 @@
+{
+  "frame": "declared course ENU, aligned once to VIO at launch (same frame as waypoint_intent.json)",
+  "source": "inside faces of the four perimeter nets of the published 20 x 20 ft enclosure (+/-3.048 m about the floor centre); outer enclosure only, no internal obstacles, walls, buffers or passages",
+  "polygon_xy": [
+    [-3.048, -3.048],
+    [3.048, -3.048],
+    [3.048, 3.048],
+    [-3.048, 3.048]
+  ]
+}

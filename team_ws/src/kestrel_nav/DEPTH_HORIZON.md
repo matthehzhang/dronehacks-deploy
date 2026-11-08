@@ -29,9 +29,12 @@ attitude, height, estimator-health and control-authority checks remain.
    Unknown cells are distinct from obstacles, but are not certified flight
    space. Origin obstacles never participate.
 3. A* reaches the current waypoint when it is reachable in that region.
-   Otherwise a reachable observation pose is selected near the observed-space
-   boundary, scored by waypoint distance, travel distance and recent visits.
-   Exploration may temporarily move away from the waypoint to see a detour.
+   Otherwise a reachable observation pose is selected near unobserved space
+   INSIDE the room. It must reduce an optimistic cost-to-go to the waypoint
+   (measured obstacles and the room boundary block it, unknown is assumed
+   passable for ranking only) by at least 0.15 m, falling back to 0.05 m.
+   Detours around measured walls therefore count as progress; poses that move
+   away from the waypoint are not chosen. Ties break on travel and visits.
 4. Existing line-of-sight pruning, corner smoothing and acceleration/braking
    profiles produce the executable horizon. Every smoothed segment is checked
    densely against the current grid. No start snapping or unchecked escape
@@ -43,14 +46,30 @@ attitude, height, estimator-health and control-authority checks remain.
 6. A nonterminal horizon never completes a mission waypoint. Arrival is
    acknowledged by `(leg,pid)`; repeated packets cannot resurrect that consumed
    horizon. The planner records the visit and chooses the next horizon.
-7. Without an executable route the aircraft holds XY and scans successive
-   headings. A fresh executable route returns it to face/check/follow. Actual
+7. Without an executable route the aircraft holds XY and sweeps a bounded
+   sector centred on the bearing to the ACTIVE mission waypoint (dwell at 0,
+   then +/-30 and +/-60 deg, starting on the side it already faces), re-centred
+   each cycle. It never performs a full-circle scan. The horizon endpoint never
+   replaces the waypoint for this bearing (`goal_ne` on `/coursenav/path`). A fresh executable route returns it to face/check/follow. Actual
    sensor loss, estimator faults and pilot takeover retain their existing
    behavior. No arm/disarm logic or flight-interface settings were changed.
 
 This is receding-horizon graph planning with a constrained trajectory follower,
 not a nonlinear MPC optimizer and not a guarantee of globally shortest paths
 through unknown space.
+
+## Room boundary (hard, not depth)
+
+Nets may be invisible to the camera, so `course/room_boundary.json` declares
+the enclosure: the inside faces of the four perimeter nets (+/-3.048 m). It is
+the OUTER boundary only; no internal obstacle, wall, buffer or passage from the
+origin map is used. The aircraft footprint plus margin must stay inside it for
+every start, segment and endpoint, regardless of what depth reports (depth may
+see free hall space through a net). It overrides the launch disc. Explicit
+failures: `start_violates_room_boundary_clearance`,
+`waypoint_violates_room_boundary_clearance`. Frontiers outside the room are
+ignored. Unknown depth is never turned into an obstacle. The boundary lives in
+the VIO-aligned course frame, so VIO drift shifts it with the aircraft estimate.
 
 ## Launch blind spot
 
@@ -71,7 +90,10 @@ The explicit waypoint list selects the window route.
 
 - `/coursenav/local_occupancy`: depth probability grid in `coursenav_nominal`.
 - `/coursenav/traversability`: current footprint-feasible grid; unknown=-1,
-  measured occupied and blocked known cells=100, feasible known cells=0.
+  feasible=0, room-boundary keep-out=99, measured-obstacle inflation=100.
+  Footprint cells blocked only by incomplete coverage stay -1.
+- `/coursenav/path`: also `goal_ne`, `room_boundary` (polygon, aircraft
+  clearance) and `planner` (goal_state, cost_to_go_m, progress_m, candidates).
 - `/coursenav/path`: `map_provenance`, `terminal`, `goal_course`,
   `horizon_course`, path geometry, speeds, tubes, `pid`, and explicit failures
   such as `start_footprint_not_observed_clear`.

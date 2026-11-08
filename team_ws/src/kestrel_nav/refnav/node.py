@@ -253,10 +253,17 @@ class RefNav(Node):
                 mi.sp[:2] = mi.last_v.pos[:2]
         if mi.targets is None:
             return
+        wps = getattr(mi, 'waypoints_ne', None)
         for j, ne in (d.get('targets_ne') or {}).items():
             j = int(j)
             if mi.leg < j < len(mi.targets) and len(ne) == 2 and all((math.isfinite(float(c)) for c in ne)):
                 mi.targets[j] = (float(ne[0]), float(ne[1]))
+                if wps and j < len(wps):
+                    wps[j] = mi.targets[j]
+        goal = d.get('goal_ne')
+        if (wps and int(d.get('leg', -1)) == mi.leg < len(wps) and goal and len(goal) == 2
+                and all((math.isfinite(float(c)) for c in goal))):
+            wps[mi.leg] = (float(goal[0]), float(goal[1]))   # true waypoint: centre of any search sweep
         if int(d.get('leg', -1)) == mi.leg and d.get('pts_ne'):
             received = self._now()
             accepted = mi.on_path(received, mi.leg, d['pts_ne'], d.get('v') or [], d.get('stops') or [], pid=d.get('pid', 0), tubes=d.get('tubes'), terminal=d.get('terminal', True))
