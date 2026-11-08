@@ -87,3 +87,28 @@ problem: 28 persistent legacy landmark cells closed the north passage while
 fresh local depth had zero occupied cells in that region. The planner now
 excludes the old layer entirely. The run was ended for this mapping correction;
 it was not a completed course run.
+
+## Final package validation
+
+Source commit: `8dd5ab39dc4107a9bee561aacf6c7ac450f4a5fb`.
+
+- Package suite: **355 passed, 1 expected failure**. The long offline
+  `test_square_pad.py` and `test_livenav_sim.py` suites were excluded; the
+  actual Gazebo run below exercises the flight package.
+- ROS Jazzy colcon overlay build passed.
+- Gazebo GUI run: `stack_20261108T094858Z`, SITL source snapshot `747d7e0`.
+- **6/6 mission stops reached**, tunnel and window traversed, route-complete
+  landing on the pad, **zero recorded touches**, final monitor **armed=false**.
+- Raw monitor `flight_completed=false` reflects the incompatible legacy
+  checkpoint grader (`crash_ground_contact` on the final landing), not a
+  missing mission stop. The controller reached leg 6/6 and requested landing
+  with reason `route complete`; its final streamed phase was `land`.
+- Live/replay visualization retains 19 A* revisions. Initial plans and active
+  revisions are distinct; unknown/no-return depth is never made occupied.
+- This test did not inject a new moving obstacle. Direction-change/recovery
+  transitions have regression coverage; arbitrary real-world detours and
+  real flight reliability are not established by this simulation.
+
+Only `team_ws/src/kestrel_nav` differs from groupbad218. Recorder lifecycle,
+arming/disarming logic, PX4 configuration and the Skybeta flight interface
+adapter are unchanged.
