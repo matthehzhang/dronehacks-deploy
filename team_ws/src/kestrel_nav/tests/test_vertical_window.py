@@ -106,6 +106,7 @@ def fly(m, t, alt_of_route=None, steps=3000, dt=.05):
 
 def test_blocked_face_triggers_altitude_ladder_and_holds_the_level_found():
     m = blocked_mission()
+    m.p.punch_through = False                                # the ladder alone (punch-through tested below)
     t = fly(m, 2., steps=1)
     assert m.phase == 'search'
     seen = set()
@@ -122,6 +123,7 @@ def test_blocked_face_triggers_altitude_ladder_and_holds_the_level_found():
     assert max(seen) >= 1.25 and min(seen) < .8              # climbed, later tried below cruise too
     # a route appears at 1.3 m: the search ends there and that height is held through the face
     m = blocked_mission()
+    m.p.punch_through = False
     t = fly(m, 2., alt_of_route=(1.2, 1.4))
     assert m.phase == 'turn'
     h = -m.sp[2]
@@ -200,3 +202,36 @@ def test_altitude_search_goes_straight_to_window_height_above_the_floor(floor):
             first = m.vc.override
             break
     assert first is not None and abs(first + floor - 1.35) < 1e-9
+
+
+def punch_run(far, steps=4000):
+    """Blocked at a raised window, never a navigator route; depth through the opening ends `far` m beyond
+    the face. -> (mission, max forward progress, phases seen, height when punching)."""
+    m = blocked_mission()
+    t, phases, x, h_punch = 2., set(), 0., None
+    for _ in range(steps):
+        t += .05
+        h = -m.sp[2]
+        m.depth_t = t
+        m.depth_pts = scene(.5 - x, .9144, 1.6256, h, far=far) - [0., 0., 0.]
+        m.step(t, Vehicle(pos=(m.sp[0], m.sp[1], -h), heading=m.sp[3], pos_ok=True, vel=(0., 0., 0.)))
+        x = m.sp[0]
+        phases.add(m.phase)
+        if m.phase == 'punch' and h_punch is None:
+            h_punch = -m.sp[2]
+        if 'punch' in phases and m.phase == 'search':
+            break
+    return m, x, phases, h_punch
+
+
+def test_punch_through_at_window_height_when_the_corridor_is_clear():
+    m, x, phases, h_punch = punch_run(far=3.0)
+    assert 'punch' in phases
+    assert abs(h_punch - (1.35 - .10)) < .05                 # at the window height, not cruise
+    assert 1.3 <= x <= .5 + 1.0 + .1                         # through the face and ~1 m beyond, no further
+    assert m.phase == 'search'                               # then the navigator plans from beyond
+
+
+def test_no_punch_when_depth_shows_something_just_beyond_the_opening():
+    m, x, phases, _ = punch_run(far=.5, steps=3000)          # a surface 0.5 m behind the face, in our band
+    assert 'punch' not in phases and x == 0.

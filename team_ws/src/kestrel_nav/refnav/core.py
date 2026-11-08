@@ -9,8 +9,9 @@ from .vertical import VerticalCentring
 
 NAV_OFFBOARD = 14
 NAV_AUTO_LAND = 18
-AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "retreat", "search")
-TRANSLATING = ("go", "backoff", "climb")           # phases in which the aircraft is commanded to move
+AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "retreat", "search",
+            "punch")
+TRANSLATING = ("go", "backoff", "climb", "punch")           # phases in which the aircraft is commanded to move
 
 
 @dataclass
@@ -65,6 +66,15 @@ class Params:
     vertical_search_offsets_m: tuple = (-0.3,)  # then these, from cruise, in order, clipped to alt_min..max
     vertical_face_m: float = 1.2               # a face this close ahead at the current height starts the ladder
     vertical_hold_s: float = 20.0              # a height found by searching is held until past the face, at most this
+    punch_through: bool = True                 # at the window height with no navigator route: fly straight through.
+                                                # The navigator only routes through space SEEN free; through a window at
+                                                # 1.35 m its band (+/-0.25 m) returns nothing within its 3 m range (floor
+                                                # below the band, nets beyond), so the far side stays unknown for ever.
+                                                # Accepted risk (Matthew, 2026-11-08): no return can also be a blank wall.
+    punch_wait_s: float = 6.0                  # at the window height, facing the waypoint, wait this long for a route
+    punch_beyond_m: float = 1.0                # then fly the face distance plus this, straight on
+    punch_corridor_m: float = 0.30             # only if depth shows no return within this half-width at our height
+    punch_speed_mps: float = 0.25
     replan_reorient_deg: float = 45.0          # while moving, a receding replan is tracked in motion unless its
                                                 # initial heading differs by more than this (then stop and turn)
     depth_stride: int = 8                       # every n-th pixel of the depth image is used
@@ -573,7 +583,12 @@ class Mission:
                 if self.search_settled is None:
                     self.search_settled = now
                 dwelt = now - self.search_settled
-                if (self.depth_fresh(now) and dwelt >= max(p.turn_settle_s, 0.7)) or dwelt >= p.search_blind_s:
+                window_wait = self._window_level() and self.search_steps == 0 and not self._path_fresh(now)
+                if window_wait and dwelt >= p.punch_wait_s and self._punch_clear(now, v):
+                    self._begin_punch(now, out, v)
+                elif window_wait and dwelt < p.punch_wait_s:
+                    pass                                       # at the window height: give the navigator time
+                elif (self.depth_fresh(now) and dwelt >= max(p.turn_settle_s, 0.7)) or dwelt >= p.search_blind_s:
                     if self.search_steps == 0:                 # looking along the bearing to the waypoint
                         self.search_face = self._face_ahead(v) if self.depth_fresh(now) else None
                     self.search_steps += 1
@@ -591,6 +606,8 @@ class Mission:
                 self.search_settled = None
         elif ph == 'go':
             self._go_path(now, dt, out, v)
+        elif ph == 'punch':
+            self._punch(now, dt, out, v)
         elif ph == 'hold':
             if now - self.t_phase >= p.hold_s:
                 self.legs_done += 1
@@ -902,6 +919,55 @@ class Mission:
                           f"{S['face_m']:.2f} m ahead")
         self._begin_sweep(v, self.search_cycles + 1, reduced=True)
         return True
+
+    def _window_level(self):
+        """The altitude search is at its first level: the window height (vertical_search_window_m)."""
+        S = self.vsearch
+        return (self.p.punch_through and self.vc is not None and S is not None and S['i'] == 1
+                and self.vc.override is not None and abs(self.vc.override - S['levels'][0]) < 1e-9)
+
+    def _punch_clear(self, now, v, extra=0.0):
+        """Fresh depth shows no return in the straight corridor ahead at our own height, out to the face
+        distance + punch_beyond_m (+ extra): what the punch-through flies."""
+        import numpy as _np
+        p, S = self.p, self.vsearch
+        if not self.depth_fresh(now) or self.depth_pts is None or S is None:
+            return False
+        pts = _np.asarray(self.depth_pts, float)
+        if len(pts) == 0:
+            return True
+        reach = S['face_m'] + p.punch_beyond_m + extra if self.phase != 'punch' else self.punch['left_m'] + extra
+        x, y, up = pts[:, 0], pts[:, 1], -pts[:, 2]
+        hits = (x > .3) & (x < reach) & (_np.abs(y) <= p.punch_corridor_m) & (_np.abs(up) <= .25)
+        return int(hits.sum()) < 3
+
+    def _begin_punch(self, now, out, v):
+        p, S = self.p, self.vsearch
+        dist = S['face_m'] + p.punch_beyond_m
+        hdg = v.heading
+        self.punch = dict(start=(v.pos[0], v.pos[1]), dir=(math.cos(hdg), math.sin(hdg)), dist=dist, s=0.0,
+                          left_m=dist, heading=hdg)
+        self.sp[3] = hdg
+        out.events.append(f"punch-through: no route at the window height {self.vc.override:.2f} m after "
+                          f"{p.punch_wait_s:.0f} s; corridor clear: flying {dist:.2f} m straight on")
+        self._set('punch', now, out, 'window height, no route: straight through the opening')
+
+    def _punch(self, now, dt, out, v):
+        """Fly the punch-through: a carrot along the heading at punch_speed_mps, height held; stop and search
+        again if a return appears in the corridor ahead, or once the distance is flown."""
+        P, p = self.punch, self.p
+        done = math.hypot(v.pos[0] - P['start'][0], v.pos[1] - P['start'][1])
+        P['left_m'] = max(P['dist'] - done, 0.0)
+        if not self._punch_clear(now, v, extra=.1):
+            self._search_path(now, out, v, 'punch-through stopped: a return in the corridor ahead')
+            return
+        if P['left_m'] <= .05:
+            self._search_path(now, out, v, f"punch-through done ({done:.2f} m): replan from beyond the opening")
+            return
+        P['s'] = min(P['s'] + p.punch_speed_mps * dt, done + .3, P['dist'])
+        self.sp[0] = P['start'][0] + P['dir'][0] * P['s']
+        self.sp[1] = P['start'][1] + P['dir'][1] * P['s']
+        self.sp[3] = P['heading']
 
     def _end_altitude_search(self, now, out, phase):
         """Leaving search at a searched height with a route: hold that height until past the face."""
