@@ -1,17 +1,14 @@
 """Vertical centring from live depth. PURE (numpy only); no course geometry.
 
-Openings (windows, gaps under bars, passages over sills) are measured from the
-depth points in the corridor ahead, relative to the aircraft, so neither their
-height nor the height estimate's absolute error matters. In each forward slab
-(near to far), surfaces above and below the aircraft that intrude into the
-corridor are found; the floor is excluded. The first slab that constrains the
-vertical band decides the target:
-
-  above and below, gap >= 2*clearance -> the gap's midpoint
-  only below                          -> at least clearance above it
-  only above                          -> at least clearance below it
-  gap < 2*clearance (a solid face)    -> not an opening; ignored here (the planner
-                                         treats it as a wall)
+Only a confirmed OPENING moves the altitude target: in one forward slab of the
+corridor ahead there is a surface above the aircraft and one below it (floor
+excluded), the gap between them fits the airframe with vertical_clearance_m at
+each edge, and depth returns are seen THROUGH the gap from beyond the slab
+(proof it is a hole, not a wall). The target is the gap's midpoint; otherwise
+cruise height. One-sided readings are ignored: with a narrow vertical field of
+view a wall cut off by the image edge looks exactly like a sill or a bar, and
+anything inside the aircraft's own height band is already a 2-D wall for the
+planner. No opening height is configured anywhere.
 
 Points are in the level heading frame relative to the body origin:
 x forward, y right, z down (refnav.depth.DepthFrame.points).
@@ -22,49 +19,45 @@ import numpy as np
 
 
 def opening_target(pts, height, cruise, lateral_m, clearance_m, alt_min, alt_max,
-                   x_min=0.3, x_max=2.5, slab_m=0.15, min_pts=6, floor_band_m=0.12):
-    """-> (target height above the floor, info dict) or (None, info) when nothing constrains."""
+                   x_min=0.3, x_max=2.5, slab_m=0.15, min_pts=6, floor_band_m=0.12,
+                   max_gap_m=1.3, behind_m=0.3, min_through=6):
+    """-> (target height above the floor, info dict) or (None, info) when no opening is confirmed."""
     info = {}
     if pts is None or len(pts) == 0 or not np.isfinite(height):
         return None, info
     p = np.asarray(pts, float)
     x, y, up = p[:, 0], p[:, 1], -p[:, 2]
-    keep = ((x > x_min) & (x < x_max) & (np.abs(y) <= lateral_m)
+    keep = ((x > x_min) & (np.abs(y) <= lateral_m)
             & (up > -(height - floor_band_m))            # the floor is not an obstacle
             & (up < alt_max + 0.5 - height))             # far overhead (roof, nets) is irrelevant
     x, up = x[keep], up[keep]
-    if len(x) < min_pts:
+    near = x < x_max
+    if near.sum() < min_pts:
         return None, info
-    order = np.argsort(x)
-    x, up = x[order], up[order]
     edges = np.arange(x_min, x_max + slab_m, slab_m)
     idx = np.digitize(x, edges) - 1
     for k in range(len(edges) - 1):
-        z = up[idx == k]
+        z = up[(idx == k) & near]
         if len(z) < min_pts:
             continue
         above, below = z[z > 0], z[z < 0]
         top = float(np.quantile(above, .1)) if len(above) >= 3 else None
         bot = float(np.quantile(below, .9)) if len(below) >= 3 else None
-        if top is None and bot is None:
-            continue
-        info = dict(slab_x_m=round(float(edges[k] + slab_m / 2), 2),
-                    top_rel_m=None if top is None else round(top, 3),
-                    bottom_rel_m=None if bot is None else round(bot, 3))
-        if top is not None and bot is not None:
-            if top - bot < 2 * clearance_m:
-                info['kind'] = 'solid_face'
-                continue                                  # a wall at this height: the planner's business
-            rel = (top + bot) / 2
-            info['kind'] = 'opening'
-        elif bot is not None:
-            rel = max(cruise - height, bot + clearance_m)
-            info['kind'] = 'below_only'
-        else:
-            rel = min(cruise - height, top - clearance_m)
-            info['kind'] = 'above_only'
-        target = float(np.clip(height + rel, alt_min, alt_max))
-        info['target_m'] = round(target, 3)
+        if top is None or bot is None:
+            continue                                      # one-sided: never moves the altitude
+        slab_x = float(edges[k] + slab_m / 2)
+        gap = top - bot
+        through = int(((x > slab_x + behind_m) & (up > bot) & (up < top)).sum())
+        info = dict(slab_x_m=round(slab_x, 2), top_rel_m=round(top, 3), bottom_rel_m=round(bot, 3),
+                    gap_m=round(gap, 3), through=through)
+        if gap < 2 * clearance_m:
+            info['kind'] = 'solid_face'
+            return None, info                             # a wall here: the planner's business
+        if gap > max_gap_m or through < min_through:
+            info['kind'] = 'not_an_opening'
+            return None, info
+        target = float(np.clip(height + (top + bot) / 2, alt_min, alt_max))
+        info.update(kind='opening', target_m=round(target, 3))
         return target, info
     return None, info
 
@@ -77,7 +70,7 @@ class VerticalCentring:
     is rate limited."""
 
     def __init__(self, cruise, lateral_m, clearance_m, alt_min=.35, alt_max=1.5,
-                 rate_mps=.25, hold_m=.4, hold_s=20.):
+                 rate_mps=.25, hold_m=.4, hold_s=6.):
         self.cruise, self.lateral_m, self.clearance_m = float(cruise), float(lateral_m), float(clearance_m)
         self.alt_min, self.alt_max = float(alt_min), float(alt_max)
         self.rate, self.hold_m, self.hold_s = float(rate_mps), float(hold_m), float(hold_s)
@@ -92,9 +85,6 @@ class VerticalCentring:
         self.info = info
         if t is None:
             return
-        if (self.held is not None and self.held[4] == 'opening' and info.get('kind') != 'opening'
-                and self._past(pos_ne) <= self.hold_m):
-            return        # one edge out of view up close: keep the full opening already measured
         d = info['slab_x_m']
         at = (pos_ne[0] + d * np.cos(heading), pos_ne[1] + d * np.sin(heading))
         self.held = (t, at, heading, now, info.get('kind'))

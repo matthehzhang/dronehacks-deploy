@@ -271,25 +271,29 @@ def test_vertical_target_is_midpoint_of_any_measured_opening(bottom, top):
     assert info['kind'] == 'opening' and abs(t-(bottom+top)/2) < .05
 
 
-def test_vertical_solid_wall_and_open_space_keep_cruise():
+def test_vertical_solid_wall_open_space_and_one_sided_faces_keep_cruise():
     from refnav.vertical import opening_target
     wall = window_points(1.0, 0., 0.)                      # no gap
     assert opening_target(wall, .8, .8, .37, .24, .35, 1.5)[0] is None
     floor = np.array([(x, 0., .8) for x in np.arange(.4, 2.4, .05)])   # floor only, 0.8 m below
     assert opening_target(floor, .8, .8, .37, .24, .35, 1.5)[0] is None
+    # a wall cut off by the image's top edge: surface just below, nothing above (run 5 ratchet)
+    cut = np.array([(1.1, y, -z) for y in np.arange(-.3, .3, .03) for z in np.arange(-.6, -.1, .03)])
+    assert opening_target(cut, .8, .8, .37, .24, .35, 1.5)[0] is None
+    # a band with edges above and below but nothing visible through it is not an opening
+    blind = np.array([p for p in window_points(1.0, -.3, .4) if p[0] < 1.5])
+    t, info = opening_target(blind, .8, .8, .37, .24, .35, 1.5)
+    assert t is None and info['kind'] == 'not_an_opening'
 
 
-def test_vertical_hold_survives_edges_leaving_view_and_ends_after_passing():
+def test_vertical_hold_until_past_the_opening_then_cruise():
     from refnav.vertical import VerticalCentring
     vc = VerticalCentring(.8, .37, .24, rate_mps=10.)
     vc.observe(0., window_points(1.2, .55-.8, 1.35-.8), .8, (0., 0.), 0.)
     assert abs(vc.step(.1, .1, .8, (0., 0.)) - .95) < .05
-    # close up only the sill is in view: the full opening target is kept
-    sill = np.array([(.5, y, .2) for y in np.arange(-.3, .3, .03)]*3)
-    vc.observe(1., sill, .95, (.8, 0.), 0.)
+    vc.observe(1., np.zeros((0, 3)), .95, (.8, 0.), 0.)        # edges out of view up close
     assert abs(vc.step(1.1, .1, .95, (.8, 0.)) - .95) < .05
-    # 0.4 m past the opening: back to cruise
-    assert abs(vc.step(3., 2., .95, (1.8, 0.)) - .8) < .05
+    assert abs(vc.step(3., 2., .95, (1.8, 0.)) - .8) < .05     # 0.4 m past: cruise
 
 
 def test_altitude_is_centred_but_rate_limited_in_flight():

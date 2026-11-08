@@ -200,11 +200,13 @@ window sill PX4's height estimate dropped, refnav's altitude loop commanded
 - Altitude hold and loc_node use VIO z anchored to the rangefinder height and
   corrected slowly (tau 10 s); a sill or object below no longer moves them. No
   local-map wipe on height change.
-- refnav.vertical: the altitude target is the midpoint of the opening measured
-  by depth in the corridor ahead (lowest surface above, highest below, floor
-  excluded), keeping vertical_clearance_m from each edge; one-sided surfaces
-  keep that clearance; otherwise cruise height. No opening height is
-  configured anywhere. The target is held until 0.4 m past the opening and is
+- refnav.vertical: the altitude target is the midpoint of a CONFIRMED opening
+  in the corridor ahead: a surface above and one below in the same slab (floor
+  excluded), a gap fitting the airframe with vertical_clearance_m per edge, and
+  depth returns seen through the gap from beyond it. One-sided readings never
+  move the altitude (run stack_20261108T135908Z: a wall cut off by the image
+  edge read as a sill and ratcheted the target to 1.15 m). Otherwise cruise. No opening height is
+  configured anywhere. The target is held until 0.4 m past the opening (at most 6 s) and is
   rate limited to 0.25 m/s within 0.35-1.5 m.
 - The 2-D depth band is the flight height +/-0.25 m (vertical sweep + margin);
   surfaces outside it are the vertical centring's job.
