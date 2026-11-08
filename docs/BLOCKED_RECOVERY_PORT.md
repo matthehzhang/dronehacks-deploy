@@ -262,7 +262,7 @@ precede validation; staging does not replace the already-running Python processe
 Validation for this change is recorded under `evidence/blocked_recovery_20261108/range_ray_fix/`.
 
 
-## Recovery creep and recovery evidence (2026-11-08, `recovery_creep:=true`, default OFF)
+## Recovery creep and recovery evidence (2026-11-08, `recovery_creep`, default ON since 2026-11-08; `recovery_creep:=false` restores the previous behaviour)
 
 **Why.** Real-flight report: after the leg-1 turn the drone moved a little, paused, swept and never
 entered visible free space. Through the real `LocalGrid` + `ObservedFree` (scratch evaluation: open

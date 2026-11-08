@@ -34,9 +34,9 @@ ARGUMENTS = [
     ('depth_max_range_m', '12.0', "host_depth range cap. refnav counts a corridor ray as OBSERVED if it returns any depth "
                                   "(its obstacle points stop at 6 m, the localizer's at 4 m): the hall beyond the "
                                   "see-through nets is 6-9 m away and at the old 6 m cap every such ray read unobserved"),
-    ('recovery_creep', 'false', 'blocked recovery: fly short certified observed-free hops (0.5 m, 0.15 m/s) when no '
+    ('recovery_creep', 'true', 'blocked recovery: fly short certified observed-free hops (0.5 m, 0.15 m/s) when no '
                                 'certified detour exists, and give the localizer the evidence hops need (dense free rays, '
-                                '4 m free carving, 20 s free memory, swept airframe disc). false = the previous behaviour'),
+                                '4 m free carving, 20 s free memory, swept airframe disc). Default on; false = the previous behaviour'),
     ('arm_wait_s', '600.0', 'refnav: how long the arm phase waits for the pilot to arm and switch to Position'),
     ('wait_s', '900.0', 'refnav: how long it waits for readiness before giving up'),
     ('landed_z', '0.10', 'landed body-origin height above the floor: PX4 dist_bottom 0.100 m on skybeta-14 (no distance_sensor topic there)'),
