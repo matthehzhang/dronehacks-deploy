@@ -54,7 +54,7 @@ No force-disarm command is added. This has not been flight validated.
 
 The skybeta launch now enables `return_home:=true`. After successful pad landing
 and disarm, a separate return layer holds the pad XY/yaw target, rearms, requests
-Offboard and climbs vertically to **2.50 m above the original floor reference**.
+Offboard and climbs vertically to **2.30 m above the original floor reference**.
 The climb's commanded target must finish and the measured height must remain
 within **5 cm for one second** before turning or translating toward the original
 launch position. It then follows a circular arc home at 0.30 m/s, lands, and explicitly
@@ -67,7 +67,7 @@ The existing outbound controller is unchanged. Return setup starts only after
 successful outbound completion, never on abort/fault landings. Invalid return
 configuration leaves the completed run on the pad. This skybeta return does not
 use the native-PX4 return's battery/localizer-confidence/map-clearance/time-budget
-qualification. Height 2.50 m is the operator-selected return height, not a checked
+qualification. Height 2.30 m is the operator-selected return height, not a checked
 clearance guarantee. Existing controller input/obstacle handling still applies.
 To fly only the committed outbound sequence, use
 `ros2 launch kestrel_nav refnav_skybeta.launch.py return_home:=false`.
