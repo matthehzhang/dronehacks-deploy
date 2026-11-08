@@ -46,6 +46,8 @@ class Params:
     search_sweep_deg: float = 60.0             # search yaws at most this far either side of the bearing to the
                                                 # active waypoint (never a full-circle scan)
     search_step_deg: float = 30.0              # dwell headings inside that sector
+    search_blind_s: float = 2.0                # a heading with no usable depth this long is passed over: a yaw in
+                                                # place needs no depth, and turning is how depth comes back
     centre_vertical: bool = True               # altitude target = midpoint of depth-measured openings ahead
                                                 # (cruise height_m when nothing constrains the vertical band)
     lateral_m: float = 0.37                    # corridor half-width examined for openings (airframe + margin)
@@ -563,12 +565,13 @@ class Mission:
             step = math.radians(p.yaw_rate_dps) * dt
             self.sp[3] = _wrap(self.sp[3] + max(-step, min(step, err)))
             facing = abs(_wrap(self.search_target - v.heading)) < math.radians(p.face_tol_deg)
-            if facing and self.depth_fresh(now) and self._at_search_level(v):
+            if facing and self._at_search_level(v):
                 if self.search_settled is None:
                     self.search_settled = now
-                if now - self.search_settled >= max(p.turn_settle_s, 0.7):
+                dwelt = now - self.search_settled
+                if (self.depth_fresh(now) and dwelt >= max(p.turn_settle_s, 0.7)) or dwelt >= p.search_blind_s:
                     if self.search_steps == 0:                 # looking along the bearing to the waypoint
-                        self.search_face = self._face_ahead(v)
+                        self.search_face = self._face_ahead(v) if self.depth_fresh(now) else None
                     self.search_steps += 1
                     if self._path_fresh(now):
                         self.path_s, self.path_stop_done = (0.0, -1)

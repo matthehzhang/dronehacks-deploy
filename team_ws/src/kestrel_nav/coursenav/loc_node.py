@@ -94,6 +94,9 @@ class LocNode(Node):
         self.local_stamp = None
         self.local_height = None
         self.band_half_m = float(dp('band_half_m', 0.25).value)   # airframe vertical sweep + margin
+        # A frame with few returns adds little but cannot add free space: a beam without a return is unknown.
+        # Below this only a dead or blinded camera (was .30: the sim's sparse stereo froze the map at the start).
+        self.local_min_valid = float(dp('local_min_valid_frac', 0.05).value)
         self._h_off, self._h_t = None, 0.
         self.local_error = 'waiting for fresh calibrated depth and odometry'
         self.height = None                     # (stamp_wall, metres of the body origin above the floor)
@@ -284,11 +287,11 @@ class LocNode(Node):
         # The prior matcher is diagnostic infrastructure only in this mode.
         # Neither its fit nor its correction may influence local geometry.
         pose = od[1]
-        if float(np.mean(np.isfinite(d) & (d > 0))) >= .3:
+        if float(np.mean(np.isfinite(d) & (d > 0))) >= self.local_min_valid:
             if self._integrate_local(t,pose,pts,h):
                 self._publish_local()
         else:
-            self.local_error = 'depth valid fraction below .30; local map not refreshed'
+            self.local_error = f'depth valid fraction below {self.local_min_valid:.2f}; local map not refreshed'
         nominal_body = compose(self.nominal,pose)
         self.pub_drift.publish(String(data=json.dumps(dict(stamp=t,delta=[0.,0.,0.],
             nominal=nominal_body.tolist(),fixture=list(map(float,self.nominal)),

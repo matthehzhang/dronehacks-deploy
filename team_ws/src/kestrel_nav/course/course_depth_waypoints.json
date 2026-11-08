@@ -77,8 +77,11 @@
     "hold_s": 0.25,
     "yaw_rate_dps": 35.0,
     "accel_mps2": 0.5,
-    "min_valid_frac_static": 0.15,
-    "min_valid_frac": 0.3,
+    "min_valid_frac_static": 0.03,
+    "min_valid_frac": 0.1,
+    "search_step_deg": 45.0,
+    "search_sweep_deg": 90.0,
+    "search_blind_s": 2.0,
     "lateral_m": 0.37,
     "vertical_clearance_m": 0.24
   },
