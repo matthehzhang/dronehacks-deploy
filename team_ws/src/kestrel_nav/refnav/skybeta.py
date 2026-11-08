@@ -22,6 +22,8 @@ KP_XY = 1.0          # PX4 MPC_XY_P default 0.95: the same proportional loop
 KP_Z = 1.0           # PX4 MPC_Z_P default 1.0
 KP_YAW = 2.0
 V_XY_MAX = 0.6       # m/s; refnav's legs fly <= 0.30
+RETURN_KP_XY = 0.5
+RETURN_V_XY_MAX = 0.3
 V_Z_MAX = 0.5
 YAWRATE_MAX = math.radians(45.0)   # PX4 MPC_YAWRAUTO_MAX
 PAD_SNAP_M = 0.5     # the route ended this close to its last target (the pad): centre on it before descending
@@ -39,15 +41,15 @@ def _wrap(a):
     return (a + math.pi) % (2 * math.pi) - math.pi
 
 
-def twist_from_setpoint(sp, vel_ff, yawspeed_ff, pos, heading):
+def twist_from_setpoint(sp, vel_ff, yawspeed_ff, pos, heading, *, kp_xy=KP_XY, v_xy_max=V_XY_MAX):
     """-> (vx_e, vy_n, vz_up, yawrate_enu) for the interface from a NED setpoint and the NED estimate."""
     n, e, d, yaw = sp
     pn, pe, pd = pos
-    vn = (vel_ff[0] if vel_ff is not None else 0.0) + KP_XY * (n - pn)
-    ve = (vel_ff[1] if vel_ff is not None else 0.0) + KP_XY * (e - pe)
+    vn = (vel_ff[0] if vel_ff is not None else 0.0) + kp_xy * (n - pn)
+    ve = (vel_ff[1] if vel_ff is not None else 0.0) + kp_xy * (e - pe)
     h = math.hypot(vn, ve)
-    if h > V_XY_MAX:
-        vn, ve = vn * V_XY_MAX / h, ve * V_XY_MAX / h
+    if h > v_xy_max:
+        vn, ve = vn * v_xy_max / h, ve * v_xy_max / h
     vd = max(-V_Z_MAX, min(V_Z_MAX, KP_Z * (d - pd)))
     yr = 0.0
     if yaw is not None and math.isfinite(yaw) and heading is not None:
@@ -132,6 +134,7 @@ class SkybetaOutput:
     def publish(self, now, out, v):
         """One tick of refnav output -> at most one twist. Returns what was published (for the trace)."""
         returning = getattr(self.node.mission, 'stage', None) == 'return'
+        xy_control = dict(kp_xy=RETURN_KP_XY, v_xy_max=RETURN_V_XY_MAX) if returning else {}
         if returning and not getattr(self, 'return_control_active', False):
             # A landing latch must not consume the new takeoff's hold/climb commands
             # or immediately send another disarm when its motors start again.
@@ -161,7 +164,7 @@ class SkybetaOutput:
                     and landed_t is not None and 0 <= now - landed_t <= 1.0):
                 self._disarm(now)
             sp = (self.land_xy[0], self.land_xy[1], v.pos[2], self.land_yaw)
-            vx, vy, _, wz = twist_from_setpoint(sp, None, None, v.pos, v.heading)
+            vx, vy, _, wz = twist_from_setpoint(sp, None, None, v.pos, v.heading, **xy_control)
             if not self.descending:
                 off = math.dist(v.pos[:2], self.land_xy)
                 yerr = abs(_wrap(self.land_yaw - v.heading)) if v.heading is not None else math.inf
@@ -178,5 +181,5 @@ class SkybetaOutput:
             return self._send(vx, vy, -LAND_VZ, wz)
         if out.stream and out.setpoint is not None and v.pos is not None:
             return self._send(*twist_from_setpoint(out.setpoint, out.velocity, getattr(out, "yawspeed", None),
-                                                   v.pos, v.heading))
+                                                   v.pos, v.heading, **xy_control))
         return None

@@ -47,6 +47,10 @@ PX4 drift or horizontal instability. It uses PX4 position Z, not `dist_bottom`
 or raw ToF. The user-measured ToF ground clearance is 0.06 m; this is sensor
 height, not the configured body-origin landed height, and is not used by this
 PX4-only re-anchor.
+During `stage=return` only, horizontal position gain is 0.5 and the total
+horizontal velocity command (including feed-forward) is capped at 0.30 m/s.
+Outbound flight and pad landing retain gain 1.0 and the 0.60 m/s cap. Vertical
+and yaw control, route geometry and all existing transition timing are unchanged.
 This change has CPU regression coverage, but has not been flight validated.
 
 At the end, the skybeta launch disables the mission's landing timeout: the existing
