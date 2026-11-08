@@ -237,3 +237,18 @@ def test_new_obstacle_in_long_free_cell_is_occupied_after_three_returns():
     for k in range(3):
         g.integrate(2.+k*.1, (0., 0., 0.), near)
     assert g.occupied().any()
+
+
+def test_committed_route_survives_coverage_flicker_but_not_a_new_obstacle():
+    n = planner(body_radius=.29)
+    prob = np.full((100, 100), -1)
+    prob[50:, :] = 10                       # everything ahead (x >= 0) observed; behind unknown
+    n.update((-2.5, -2.5), .05, prob, position=(.05, 0.))
+    p = n.plan((.05, 0.), (2., 0.))
+    assert n.terminal and np.interp(.1, p.s, p.v) > 0   # relief: departs although behind is unseen
+    prob[50:53, :] = -1                     # coverage beside the aircraft lost
+    n.update((-2.5, -2.5), .05, prob, position=(.05, 0.))
+    assert n.safe(np.array((.05, 0.)))      # committed route kept
+    prob[78:81, 48:53] = 95                 # a measured obstacle appears on the route
+    n.update((-2.5, -2.5), .05, prob, position=(.05, 0.))
+    assert not n.safe(np.array((.05, 0.)))

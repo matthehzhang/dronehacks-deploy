@@ -182,7 +182,8 @@ class NavNode(Node):
                 n.path = None
             # Receding horizon (FASTER-style): while following a non-terminal route, replan
             # whenever the map changed so the committed prefix keeps extending ahead.
-            extend = (n.path is not None and (not n.terminal) and now - self.depth_plan_t >= self.replan_s
+            # Only while translating: a new route id during turn/check would restart the facing turn.
+            extend = (n.path is not None and (not n.terminal) and phase == 'go' and now - self.depth_plan_t >= self.replan_s
                       and n.revision != self.depth_plan_revision)
             want = n.path is None or extend
             if want and now - self.depth_plan_t >= 0.5:

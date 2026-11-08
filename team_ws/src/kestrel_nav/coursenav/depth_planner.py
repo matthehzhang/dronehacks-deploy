@@ -76,7 +76,7 @@ def grid_distances(passable, res, sources):
 class DepthPlanner:
     def __init__(self, need, smooth, launch_xy=None, launch_radius=0., room=None,
                  min_progress=.15, frontier_band=.4, body_radius=None, certify_below=70,
-                 min_commit_m=.4):
+                 min_commit_m=.4, relief_radius=.35):
         if not np.isfinite(launch_radius) or not 0 <= launch_radius <= 2.:
             raise ValueError('pilot-verified launch radius must be between 0 and 2 m')
         self.need, self.sp = float(need), replace(smooth, need_m=float(need))
@@ -86,6 +86,7 @@ class DepthPlanner:
         self.min_progress, self.frontier_band = float(min_progress), float(frontier_band)
         self.body_radius = None if body_radius is None else float(body_radius)
         self.certify_below, self.min_commit_m = int(certify_below), float(min_commit_m)
+        self.relief_radius = float(relief_radius)
         self.path = None
         self.terminal = False
         self.visits = []
@@ -138,28 +139,41 @@ class DepthPlanner:
         self.obstacle_clear = obstacle_clear - raster
         self.room_clear = room_clear - raster
         self.clear = np.minimum(np.minimum(observed_clear, obstacle_clear), room_clear) - raster
+        # Hazards = what can actually be hit: measured obstacles and the room boundary.
+        self.hazard_clear = np.minimum(obstacle_clear, room_clear) - raster
+        if self.relief_radius > 0 and position is not None:
+            # Around the aircraft's current position, coverage flicker (cells beside/behind a
+            # forward camera) does not block departure; measured obstacles and the room still do.
+            xy = self.grid.xy(np.indices(prob.shape).transpose(1, 2, 0)) if xy is None else xy
+            near = np.linalg.norm(xy-np.asarray(position, float)[:2], axis=2) <= self.relief_radius
+            self.clear = np.where(near, self.hazard_clear, self.clear)
         blocked = self.clear < self.need
         if (self.blocked is None or not np.array_equal(self.blocked.origin, self.grid.origin)
                 or not np.array_equal(self.blocked.occ, blocked) or not np.array_equal(self.free, free)):
             self.revision += 1
         self.free, self.known = free, prob >= 0
         self.blocked = Grid2D(blocked, self.grid.origin, res)
+        self.hazard = Grid2D(self.hazard_clear < self.need, self.grid.origin, res)
 
-    def _safe_points(self, points):
+    def _safe_points(self, points, grid=None):
         # Densify even long straight shortcuts; never validate vertices alone.
+        grid = grid or self.blocked
         pts = np.asarray(points)
         samples = [pts[0]]
         for a, b in zip(pts[:-1], pts[1:]):
             n = max(1, int(math.ceil(np.linalg.norm(b-a)/(self.grid.res*.4))))
             samples.extend(a+(b-a)*t for t in np.linspace(0, 1, n+1)[1:])
         ij = self.grid.ij(samples)
-        return bool(self.grid.inside(ij).all() and not self.blocked.occ[ij[:, 0], ij[:, 1]].any())
+        return bool(self.grid.inside(ij).all() and not grid.occ[ij[:, 0], ij[:, 1]].any())
 
     def safe(self, position):
+        """A committed route was certified when planned. It is withdrawn only for HAZARDS
+        (a measured obstacle or the room boundary inside clearance), not because cells
+        the camera is no longer looking at lose coverage."""
         if self.path is None or self.grid is None:
             return False
         first = max(0, int(np.argmin(np.linalg.norm(self.path.pts-position, axis=1)))-1)
-        return self._safe_points(np.vstack([position, self.path.pts[first:]]))
+        return self._safe_points(np.vstack([position, self.path.pts[first:]]), self.hazard)
 
     def _reachable(self, start):
         """Travel distance through certified cells from the aircraft."""
