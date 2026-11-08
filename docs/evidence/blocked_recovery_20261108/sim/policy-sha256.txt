@@ -1,0 +1,5 @@
+098297ed9de09ee6f502010f443f7675b4e4df9a1246d52ccf00881c93dc343b  /home/matthew/team_src/team_ws/src/kestrel_nav/refnav/core.py
+e468b5faae762b0c1db4c0ff6a2a202525d98aad1c70f8cdd4a2d4a4cc2402d5  /home/matthew/team_src/team_ws/src/kestrel_nav/coursenav/loc_node.py
+1044bcb4d1fc76d492fa24a105462d05bab59bedba0de5be0ab55f85342c6aae  /home/matthew/team_src/team_ws/src/kestrel_nav/course/course_new_origin.json
+ef86d5ea34edb7d655551ad2faf5bedff6c916425013aeb4e03e927e0b46809b  /home/matthew/team_src/team_ws/src/kestrel_nav/course/new_course_origin.obj
+f58cd51c411b58d3ecfc2509486ed58558adffa8c0d0ae9d827b6c1e60236f9c  /home/matthew/team_src/team_ws/src/kestrel_nav/maps/course_new_origin.npz

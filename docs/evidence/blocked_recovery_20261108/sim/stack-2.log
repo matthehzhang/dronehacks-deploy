@@ -1,0 +1,219 @@
+[INFO] [launch]: All log files can be found below /home/matthew/.local/state/dronehacks-sim/instances/2/ros/log/2026-11-08-00-40-59-907738-compute-29295
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: [dronehacks_sim] skybeta stack: fake_vio + px4_odom_bridge + flight_interface (+competitor). Go signal: ros2 run dronehacks_sim fake_pilot
+[INFO] [flight_interface-3]: process started with pid [29411]
+[INFO] [fake_vio-1]: process started with pid [29409]
+[INFO] [px4_odom_bridge-2]: process started with pid [29410]
+[INFO] [nice-4]: process started with pid [29412]
+[INFO] [skybeta_health-5]: process started with pid [29413]
+[INFO] [localizer-6]: process started with pid [29414]
+[INFO] [fly_course-7]: process started with pid [29415]
+[px4_odom_bridge-2] [INFO] [1794127267.816427779] [px4_odom_bridge]: PX4 odom bridge up: /visual_slam/tracking/odometry -> /fmu/in/vehicle_visual_odometry (velocity=on, pose_frame=FRD[2], status=/visual_slam/status)
+[fake_vio-1] [INFO] [1794127268.258463460] [fake_vio]: publishing /visual_slam/status (vo_state=1)
+[fake_vio-1] [INFO] [1794127268.259301347] [fake_vio]: SIM-ONLY fake_vio: truth /sim/truth_tf [sky_beta_0] -> /visual_slam/tracking/odometry @ 30.0 Hz, frames odom->base_link, noise pos 0.01 m yaw 0.005 rad, drift 0.0 m/m, latency 60.0 ms, tf=True
+[fake_vio-1] [INFO] [1794127268.314926414] [fake_vio]: using gz OdometryPublisher twist instead of differentiated truth
+[fake_vio-1] [INFO] [1794127268.356515440] [fake_vio]: texture score 14.89 (loss threshold 0.0)
+[flight_interface-3] [0m[INFO] [1794127268.895546318] [flight_interface]: skybeta flight interface up @ 10.0 Hz
+[flight_interface-3]   envelope: altitude 0.30-3.00 m, speed <= 1.50 m/s
+[flight_interface-3]   px4_msgs msg dir: /home/matthew/px4_ws/install/px4_msgs/share/px4_msgs/msg
+[flight_interface-3]   resolved topics:
+[flight_interface-3]     offboard_control_mode    /fmu/in/offboard_control_mode
+[flight_interface-3]     trajectory_setpoint      /fmu/in/trajectory_setpoint
+[flight_interface-3]     vehicle_command          /fmu/in/vehicle_command
+[flight_interface-3]     vehicle_land_detected    /fmu/out/vehicle_land_detected
+[flight_interface-3]     vehicle_local_position   /fmu/out/vehicle_local_position
+[flight_interface-3]     vehicle_status           /fmu/out/vehicle_status_v1
+[flight_interface-3]   mode requests: disabled
+[flight_interface-3]   Offboard on the switch to Position after arming: ON[0m
+[flight_interface-3] [0m[INFO] [1794127268.896467001] [flight_interface]: This node never arms: the safety pilot does, on RC.[0m
+[flight_interface-3] [0m[INFO] [1794127268.897881088] [flight_interface]: PX4 link up: nav_state=4 (AUTO_LOITER), armed=False[0m
+[fake_vio-1] [INFO] [1794127269.236055074] [fake_vio]: odom origin fixed at world ENU [-1.001, -2.487, 0.146], yaw0 -3.142 rad
+[px4_odom_bridge-2] [INFO] [1794127269.254470484] [px4_odom_bridge]: cuVSLAM re-acquired tracking (vo_state=1); reset_counter -> 1
+[fake_vio-1] [INFO] [1794127269.515633181] [fake_vio]: first odometry published
+[flight_interface-3] [0m[INFO] [1794127269.536359096] [flight_interface]: envelope origin captured at ENU (-0.01, -0.00, -0.01); altitude 0.30-3.00 m, speed <= 1.50 m/s[0m
+[nice-4] [INFO] [1794127271.578146298] [host_depth]: host_depth: /oak/left/image_mono + /oak/right/image_mono -> /kestrel_nav/depth at <= 8.0 Hz, scale 0.5, 64 disparities, 2 threads
+[nice-4] [INFO] [1794127271.696579167] [host_depth]: waiting for TF oak_left_camera_optical_frame <- oak_right_camera_optical_frame: "oak_right_camera_optical_frame" passed to lookupTransform argument source_frame does not exist. 
+[nice-4] [INFO] [1794127272.304112675] [host_depth]: rectified 1024x640 -> 512x320  f=305.3px  baseline=75.0mm  swap=False  min depth 0.36 m at 64 disparities
+[nice-4] [INFO] [1794127272.920105513] [host_depth]: depth frames 2  proc 98 ms  valid 85%
+[fake_vio-1] [INFO] [1794127273.514325634] [fake_vio]: texture score 14.89 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127278.478168806] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127283.675633768] [fake_vio]: texture score 14.93 (loss threshold 0.0)
+[nice-4] [INFO] [1794127284.200540065] [host_depth]: depth frames 34  proc 248 ms  valid 85%
+[fake_vio-1] [INFO] [1794127288.741186325] [fake_vio]: texture score 14.89 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127293.836173521] [fake_vio]: texture score 14.84 (loss threshold 0.0)
+[nice-4] [INFO] [1794127295.280733962] [host_depth]: depth frames 67  proc 194 ms  valid 85%
+[fake_vio-1] [INFO] [1794127298.957546861] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127304.016910993] [fake_vio]: texture score 14.89 (loss threshold 0.0)
+[nice-4] [INFO] [1794127306.235531532] [host_depth]: depth frames 99  proc 254 ms  valid 85%
+[fake_vio-1] [INFO] [1794127309.158321295] [fake_vio]: texture score 14.85 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127311.299812428] [fake_vio]: VIO freeze 188 ms (messages held, stamps kept)
+[fake_vio-1] [INFO] [1794127314.294097474] [fake_vio]: texture score 14.83 (loss threshold 0.0)
+[nice-4] [INFO] [1794127317.137727645] [host_depth]: depth frames 131  proc 218 ms  valid 85%
+[fake_vio-1] [INFO] [1794127319.316237971] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[fly_course-7] course and map ready in 59.1 s
+[fly_course-7] run record: /home/matthew/.local/state/dronehacks-sim/instances/2/team_ws/src/kestrel_nav/logs/run_20261108T004159
+[fake_vio-1] [INFO] [1794127324.476225533] [fake_vio]: texture score 14.84 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127326.814951817] [coursenav_loc]: height from /fmu/out/vehicle_local_position dist_bottom (fallback landed_z_m - z)
+[localizer-6] [INFO] [1794127326.819154148] [coursenav_loc]: shadow localizer: prior [-2.515  0.914  1.571] sigma (0.05, 0.03490658503988659); depth /kestrel_nav/depth; log /home/matthew/.local/state/dronehacks-sim/instances/2/team_ws/src/kestrel_nav/logs/coursenav_20261108T004206.csv
+[localizer-6] [INFO] [1794127326.833826926] [coursenav_loc]: particle filter initialised from the course start prior
+[nice-4] [INFO] [1794127328.296768271] [host_depth]: depth frames 163  proc 245 ms  valid 85%
+[fake_vio-1] [INFO] [1794127329.560161382] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127334.677367736] [fake_vio]: texture score 14.86 (loss threshold 0.0)
+[nice-4] [INFO] [1794127339.516110797] [host_depth]: depth frames 195  proc 241 ms  valid 85%
+[fake_vio-1] [INFO] [1794127339.857298243] [fake_vio]: texture score 14.90 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127343.394634594] [coursenav_loc]: scan cost: mean 5.3 ms CPU/frame (p90 6.7 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127344.956511448] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127350.095218040] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[nice-4] [INFO] [1794127350.479093370] [host_depth]: depth frames 231  proc 196 ms  valid 85%
+[fake_vio-1] [INFO] [1794127355.115826747] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127359.095241615] [coursenav_loc]: scan cost: mean 5.0 ms CPU/frame (p90 6.2 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127360.220383157] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[nice-4] [INFO] [1794127361.361963197] [host_depth]: depth frames 265  proc 185 ms  valid 85%
+[fake_vio-1] [INFO] [1794127365.316962997] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127370.436206058] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[nice-4] [INFO] [1794127372.215994829] [host_depth]: depth frames 300  proc 193 ms  valid 85%
+[localizer-6] [INFO] [1794127374.675372241] [coursenav_loc]: scan cost: mean 5.4 ms CPU/frame (p90 7.2 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127375.637125122] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[fly_course-7] start launch mark (course file): (-2.515, 0.914) yaw 90.0 deg; landed body height 0.100 m -> height_m 0.700 (body at 0.8 m above the floor)
+[fly_course-7] planned in 3.60 s: chicane window: window: score -1.05 (points 5, time 81 s, min clearance 0.41 m); gate_b: NO PLAN (gate_b_pre is reachable only through gate_b: the ungated path crosses those opening lines outside their crossing legs. No gated approach at 0.41 m clearance)
+[fly_course-7]   12 legs, 14.65 m, min clearance 0.41 m, estimated 81 s; leg-end violations []; predicted false blocks []
+[fly_course-7] navigation: path mode, 5 stops (3 navigator legs)
+[fly_course-7] navigator: starting (log /home/matthew/.local/state/dronehacks-sim/instances/2/team_ws/src/kestrel_nav/logs/run_20261108T004159/navigator.log)
+[fly_course-7] waiting for the navigator to pre-plan the legs (0 s)
+[fake_vio-1] [INFO] [1794127380.817463652] [fake_vio]: texture score 14.86 (loss threshold 0.0)
+[nice-4] [INFO] [1794127383.318272582] [host_depth]: depth frames 334  proc 231 ms  valid 85%
+[fake_vio-1] [INFO] [1794127386.156093419] [fake_vio]: texture score 14.90 (loss threshold 0.0)
+[fly_course-7] waiting for the navigator to pre-plan the legs (10 s)
+[localizer-6] [INFO] [1794127390.715357592] [coursenav_loc]: scan cost: mean 5.3 ms CPU/frame (p90 6.9 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127391.256727249] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[nice-4] [INFO] [1794127394.194519218] [host_depth]: depth frames 368  proc 227 ms  valid 85%
+[fake_vio-1] [INFO] [1794127396.436768538] [fake_vio]: texture score 14.89 (loss threshold 0.0)
+[fly_course-7] waiting for the navigator to pre-plan the legs (20 s)
+[fake_vio-1] [INFO] [1794127401.614405102] [fake_vio]: texture score 14.91 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127404.537228041] [fake_vio]: VIO freeze 151 ms (messages held, stamps kept)
+[nice-4] [INFO] [1794127405.315315422] [host_depth]: depth frames 401  proc 247 ms  valid 85%
+[fake_vio-1] [INFO] [1794127406.754007531] [fake_vio]: texture score 14.83 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127407.158068336] [coursenav_loc]: scan cost: mean 5.3 ms CPU/frame (p90 6.7 ms) over 50 frames
+[fly_course-7] waiting for the navigator to pre-plan the legs (30 s)
+[fake_vio-1] [INFO] [1794127411.795355177] [fake_vio]: texture score 14.92 (loss threshold 0.0)
+[nice-4] [INFO] [1794127416.275205193] [host_depth]: depth frames 436  proc 207 ms  valid 85%
+[fake_vio-1] [INFO] [1794127416.838418703] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[fly_course-7] waiting for the navigator to pre-plan the legs (40 s)
+[fake_vio-1] [INFO] [1794127421.860487682] [fake_vio]: texture score 14.90 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127423.299946049] [coursenav_loc]: scan cost: mean 5.2 ms CPU/frame (p90 6.6 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127426.936961017] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[fly_course-7] navigator: ready after 47 s
+[fly_course-7] Flight source: /home/matthew/.local/state/dronehacks-sim/instances/2/team_ws/src/kestrel_nav/refnav; starting refnav 166.5 s after start
+[nice-4] [INFO] [1794127427.275322028] [host_depth]: depth frames 470  proc 196 ms  valid 85%
+[fly_course-7] [INFO] [1794127430.755171405] [refnav]: skybeta output: twist only, no /fmu/in; PX4 topics /fmu/out/vehicle_local_position, /fmu/out/vehicle_status_v1, /fmu/out/vehicle_land_detected
+[fly_course-7] [INFO] [1794127431.205036981] [refnav]: route 5 legs; depth /kestrel_nav/depth; health /estimator/healthy; sim time True
+[fly_course-7] [INFO] [1794127431.377323205] [refnav]: calibration from TF: base_link <- oak_left_rect_frame t=(0.102,0.037,0.046) optical axis 0.0 deg off forward
+[fake_vio-1] [INFO] [1794127431.976863189] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127437.156456140] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[fly_course-7] [INFO] [1794127437.854779836] [refnav]: wait -> arm
+[nice-4] [INFO] [1794127438.135950521] [host_depth]: depth frames 504  proc 151 ms  valid 85%
+[localizer-6] [INFO] [1794127439.136527381] [coursenav_loc]: scan cost: mean 5.2 ms CPU/frame (p90 6.6 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127442.259465706] [fake_vio]: texture score 14.90 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127447.439521809] [fake_vio]: texture score 14.89 (loss threshold 0.0)
+[nice-4] [INFO] [1794127449.234064610] [host_depth]: depth frames 539  proc 171 ms  valid 85%
+[fake_vio-1] [INFO] [1794127452.479506904] [fake_vio]: texture score 14.84 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127453.475733079] [fake_vio]: VIO freeze 261 ms (messages held, stamps kept)
+[localizer-6] [INFO] [1794127455.714672378] [coursenav_loc]: scan cost: mean 5.0 ms CPU/frame (p90 6.1 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127457.639416215] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[nice-4] [INFO] [1794127460.376266561] [host_depth]: depth frames 574  proc 126 ms  valid 85%
+[fake_vio-1] [INFO] [1794127462.797065357] [fake_vio]: texture score 14.89 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127467.974389514] [fake_vio]: texture score 14.85 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127471.878803279] [coursenav_loc]: scan cost: mean 4.6 ms CPU/frame (p90 5.5 ms) over 50 frames
+[nice-4] [INFO] [1794127471.897529100] [host_depth]: depth frames 609  proc 172 ms  valid 85%
+[fake_vio-1] [INFO] [1794127473.035605504] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127475.599458634] [fake_vio]: VIO freeze 175 ms (messages held, stamps kept)
+[fake_vio-1] [INFO] [1794127478.157288032] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[nice-4] [INFO] [1794127482.958713216] [host_depth]: depth frames 644  proc 137 ms  valid 85%
+[fake_vio-1] [INFO] [1794127483.237712753] [fake_vio]: texture score 14.89 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127487.679412257] [coursenav_loc]: scan cost: mean 4.9 ms CPU/frame (p90 5.8 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127488.274143388] [fake_vio]: texture score 14.89 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127493.300030664] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[nice-4] [INFO] [1794127493.777126223] [host_depth]: depth frames 680  proc 137 ms  valid 85%
+[fake_vio-1] [INFO] [1794127498.416107752] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127503.360402451] [coursenav_loc]: scan cost: mean 4.8 ms CPU/frame (p90 5.9 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127503.437085730] [fake_vio]: texture score 14.86 (loss threshold 0.0)
+[nice-4] [INFO] [1794127504.918240123] [host_depth]: depth frames 715  proc 162 ms  valid 85%
+[fake_vio-1] [INFO] [1794127508.477427982] [fake_vio]: texture score 14.83 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127513.594433702] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[nice-4] [INFO] [1794127515.657323306] [host_depth]: depth frames 751  proc 161 ms  valid 85%
+[fake_vio-1] [INFO] [1794127518.195542224] [fake_vio]: VIO freeze 181 ms (messages held, stamps kept)
+[fake_vio-1] [INFO] [1794127518.656554646] [fake_vio]: texture score 14.85 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127518.935301508] [coursenav_loc]: scan cost: mean 4.8 ms CPU/frame (p90 5.8 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127523.719354828] [fake_vio]: texture score 14.84 (loss threshold 0.0)
+[nice-4] [INFO] [1794127526.494852026] [host_depth]: depth frames 787  proc 141 ms  valid 85%
+[fake_vio-1] [INFO] [1794127528.853674788] [fake_vio]: texture score 14.85 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127533.995191776] [fake_vio]: texture score 14.86 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127534.154997558] [coursenav_loc]: scan cost: mean 4.8 ms CPU/frame (p90 5.8 ms) over 50 frames
+[nice-4] [INFO] [1794127537.460016494] [host_depth]: depth frames 823  proc 166 ms  valid 85%
+[fake_vio-1] [INFO] [1794127539.160722099] [fake_vio]: texture score 14.92 (loss threshold 0.0)
+[flight_interface-3] [0m[INFO] [1794127544.076713802] [flight_interface]: nav_state AUTO_LOITER -> ALTCTL[0m
+[fake_vio-1] [INFO] [1794127544.233810117] [fake_vio]: texture score 14.86 (loss threshold 0.0)
+[flight_interface-3] [33m[WARN] [1794127545.854903987] [flight_interface]: auto offboard: armed: waiting for the switch to Position[0m
+[flight_interface-3] [0m[INFO] [1794127546.701270192] [flight_interface]: nav_state ALTCTL -> POSCTL[0m
+[flight_interface-3] [33m[WARN] [1794127546.730259247] [flight_interface]: auto offboard: switched to Position after arming: requesting Offboard[0m
+[flight_interface-3] [0m[INFO] [1794127546.815379177] [flight_interface]: nav_state POSCTL -> OFFBOARD[0m
+[fly_course-7] [INFO] [1794127546.857490125] [refnav]: arm -> climb
+[flight_interface-3] [33m[WARN] [1794127546.977653712] [flight_interface]: auto offboard: Offboard active[0m
+[nice-4] [INFO] [1794127548.579769474] [host_depth]: depth frames 857  proc 159 ms  valid 85%
+[fake_vio-1] [INFO] [1794127549.300725890] [fake_vio]: texture score 14.82 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127549.494839164] [fake_vio]: VIO freeze 286 ms (messages held, stamps kept)
+[fly_course-7] [INFO] [1794127550.319485270] [refnav]: EKF reset in flight: heading +0.0 deg, xy 0.00 m (counters (11, 4) -> (12, 4)): small, continuing
+[flight_interface-3] [0m[INFO] [1794127550.396610526] [flight_interface]: nav_state OFFBOARD -> POSCTL[0m
+[fly_course-7] [INFO] [1794127550.494683230] [refnav]: climb -> done: yielded: PX4 left Offboard (nav_state 2): a pilot or a failsafe has it
+[fly_course-7] [INFO] [1794127550.496794696] [refnav]: mission done: yielded: PX4 left Offboard (nav_state 2): a pilot or a failsafe has it
+[localizer-6] [INFO] [1794127550.554584736] [coursenav_loc]: scan cost: mean 5.2 ms CPU/frame (p90 6.6 ms) over 50 frames
+[flight_interface-3] [33m[WARN] [1794127552.617426930] [flight_interface]: twist setpoint stale (1.06s > 1.00s) - holding position. A pose setpoint does not expire; a twist setpoint must be refreshed.[0m
+[flight_interface-3] [0m[INFO] [1794127552.721438992] [flight_interface]: nav_state POSCTL -> OFFBOARD[0m
+[fake_vio-1] [INFO] [1794127554.373642320] [fake_vio]: texture score 14.84 (loss threshold 0.0)
+[ERROR] [fly_course-7]: process has died [pid 29415, exit code 1, cmd 'python3 /home/matthew/.local/state/dronehacks-sim/instances/2/team_ws/src/kestrel_nav/fly_course.py --event-start --skip-preflight --no-own-localizer --no-return --start-from-mark --chicane auto --landed-z 0.10 --localizer-timeout 120.0 -- -p px4_output:=skybeta -p depth_topic:=/kestrel_nav/depth -p depth_info_topic:=/kestrel_nav/depth/camera_info -p arm_wait_s:=600.0 -p wait_s:=900.0 -p use_sim_time:=true -p path_turn_hold:=true'].
+[fake_vio-1] [INFO] [1794127559.557230496] [fake_vio]: texture score 14.85 (loss threshold 0.0)
+[nice-4] [INFO] [1794127559.557325937] [host_depth]: depth frames 893  proc 152 ms  valid 85%
+[fake_vio-1] [INFO] [1794127564.698366336] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127565.580431680] [coursenav_loc]: scan cost: mean 4.9 ms CPU/frame (p90 5.9 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127569.818928850] [fake_vio]: texture score 14.92 (loss threshold 0.0)
+[nice-4] [INFO] [1794127570.516082389] [host_depth]: depth frames 930  proc 92 ms  valid 85%
+[fake_vio-1] [INFO] [1794127574.896955762] [fake_vio]: texture score 14.85 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127579.937046804] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127580.562655619] [coursenav_loc]: scan cost: mean 4.7 ms CPU/frame (p90 6.2 ms) over 50 frames
+[nice-4] [INFO] [1794127581.534289708] [host_depth]: depth frames 967  proc 108 ms  valid 85%
+[flight_interface-3] [0m[INFO] [1794127583.655023053] [flight_interface]: nav_state OFFBOARD -> AUTO_LAND[0m
+[fake_vio-1] [INFO] [1794127584.959683661] [fake_vio]: texture score 14.84 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127590.163572660] [fake_vio]: texture score 14.93 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127591.617302797] [fake_vio]: VIO freeze 252 ms (messages held, stamps kept)
+[nice-4] [INFO] [1794127592.695269475] [host_depth]: depth frames 1004  proc 86 ms  valid 85%
+[fake_vio-1] [INFO] [1794127595.299290441] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127596.159104182] [coursenav_loc]: scan cost: mean 4.7 ms CPU/frame (p90 6.2 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127600.335384446] [fake_vio]: texture score 14.85 (loss threshold 0.0)
+[flight_interface-3] [0m[INFO] [1794127603.754971916] [flight_interface]: nav_state AUTO_LAND -> OFFBOARD[0m
+[nice-4] [INFO] [1794127603.919582289] [host_depth]: depth frames 1041  proc 96 ms  valid 85%
+[fake_vio-1] [INFO] [1794127605.557990294] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127610.637155639] [fake_vio]: texture score 14.85 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127611.380901054] [coursenav_loc]: scan cost: mean 4.4 ms CPU/frame (p90 5.2 ms) over 50 frames
+[nice-4] [INFO] [1794127615.044985365] [host_depth]: depth frames 1078  proc 115 ms  valid 85%
+[fake_vio-1] [INFO] [1794127615.841811159] [fake_vio]: texture score 14.86 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127620.917216345] [fake_vio]: texture score 14.89 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127625.857500677] [fake_vio]: VIO freeze 318 ms (messages held, stamps kept)
+[fake_vio-1] [INFO] [1794127626.016962186] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[nice-4] [INFO] [1794127626.216060335] [host_depth]: depth frames 1114  proc 99 ms  valid 85%
+[localizer-6] [INFO] [1794127627.398495870] [coursenav_loc]: scan cost: mean 4.5 ms CPU/frame (p90 5.4 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127631.042844837] [fake_vio]: texture score 14.87 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127636.159129358] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[nice-4] [INFO] [1794127637.337667395] [host_depth]: depth frames 1151  proc 99 ms  valid 85%
+[fake_vio-1] [INFO] [1794127639.534992163] [fake_vio]: VIO freeze 232 ms (messages held, stamps kept)
+[fake_vio-1] [INFO] [1794127640.495636423] [fake_vio]: VIO freeze 227 ms (messages held, stamps kept)
+[fake_vio-1] [INFO] [1794127641.198676822] [fake_vio]: texture score 14.85 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127643.575780566] [coursenav_loc]: scan cost: mean 4.8 ms CPU/frame (p90 6.1 ms) over 50 frames
+[fake_vio-1] [INFO] [1794127646.357067570] [fake_vio]: texture score 14.86 (loss threshold 0.0)
+[nice-4] [INFO] [1794127648.395785071] [host_depth]: depth frames 1188  proc 101 ms  valid 85%
+[fake_vio-1] [INFO] [1794127651.380757472] [fake_vio]: texture score 14.88 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127656.539274021] [fake_vio]: texture score 14.84 (loss threshold 0.0)
+[localizer-6] [INFO] [1794127658.674944051] [coursenav_loc]: scan cost: mean 4.6 ms CPU/frame (p90 5.8 ms) over 50 frames
+[nice-4] [INFO] [1794127659.657501103] [host_depth]: depth frames 1225  proc 117 ms  valid 85%
+[fake_vio-1] [INFO] [1794127660.376594200] [fake_vio]: VIO freeze 193 ms (messages held, stamps kept)
+[fake_vio-1] [INFO] [1794127661.698598779] [fake_vio]: texture score 14.89 (loss threshold 0.0)
+[fake_vio-1] [INFO] [1794127666.776195054] [fake_vio]: texture score 14.88 (loss threshold 0.0)

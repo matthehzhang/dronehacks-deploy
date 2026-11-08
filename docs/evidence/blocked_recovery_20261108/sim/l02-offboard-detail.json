@@ -1,0 +1,107 @@
+{
+  "offboard_control_mode": [
+    {
+      "timestamp": 145504143.0,
+      "position": 0.0,
+      "velocity": 1.0,
+      "acceleration": 0.0,
+      "attitude": 0.0,
+      "body_rate": 0.0,
+      "thrust_and_torque": 0.0,
+      "direct_actuator": 0.0
+    },
+    {
+      "timestamp": 145604143.0,
+      "position": 0.0,
+      "velocity": 1.0,
+      "acceleration": 0.0,
+      "attitude": 0.0,
+      "body_rate": 0.0,
+      "thrust_and_torque": 0.0,
+      "direct_actuator": 0.0
+    },
+    {
+      "timestamp": 145704143.0,
+      "position": 0.0,
+      "velocity": 1.0,
+      "acceleration": 0.0,
+      "attitude": 0.0,
+      "body_rate": 0.0,
+      "thrust_and_torque": 0.0,
+      "direct_actuator": 0.0
+    },
+    {
+      "timestamp": 145804143.0,
+      "position": 0.0,
+      "velocity": 1.0,
+      "acceleration": 0.0,
+      "attitude": 0.0,
+      "body_rate": 0.0,
+      "thrust_and_torque": 0.0,
+      "direct_actuator": 0.0
+    },
+    {
+      "timestamp": 145920809.0,
+      "position": 0.0,
+      "velocity": 1.0,
+      "acceleration": 0.0,
+      "attitude": 0.0,
+      "body_rate": 0.0,
+      "thrust_and_torque": 0.0,
+      "direct_actuator": 0.0
+    }
+  ],
+  "trajectory_setpoint": [
+    {
+      "timestamp": 145504143.0,
+      "position[0]": null,
+      "position[1]": null,
+      "position[2]": null,
+      "velocity[0]": -0.012059444561600685,
+      "velocity[1]": -3.917934373021126e-05,
+      "velocity[2]": -0.5,
+      "acceleration[0]": null,
+      "acceleration[1]": null,
+      "acceleration[2]": null,
+      "jerk[0]": 0.0,
+      "jerk[1]": 0.0,
+      "jerk[2]": 0.0,
+      "yaw": null,
+      "yawspeed": -0.0001609325408935547
+    },
+    {
+      "timestamp": 145704143.0,
+      "position[0]": null,
+      "position[1]": null,
+      "position[2]": null,
+      "velocity[0]": -0.011697928421199322,
+      "velocity[1]": -0.00063679413869977,
+      "velocity[2]": -0.5,
+      "acceleration[0]": null,
+      "acceleration[1]": null,
+      "acceleration[2]": null,
+      "jerk[0]": 0.0,
+      "jerk[1]": 0.0,
+      "jerk[2]": 0.0,
+      "yaw": null,
+      "yawspeed": -0.00022935867309570312
+    },
+    {
+      "timestamp": 145945809.0,
+      "position[0]": -0.006293506361544132,
+      "position[1]": 0.005742180626839399,
+      "position[2]": null,
+      "velocity[0]": 4.336224446888082e-05,
+      "velocity[1]": 5.3487499826587737e-05,
+      "velocity[2]": 0.031599126756191254,
+      "acceleration[0]": -0.0023206197656691074,
+      "acceleration[1]": -0.002862494206055999,
+      "acceleration[2]": 0.6000000238418579,
+      "jerk[0]": null,
+      "jerk[1]": null,
+      "jerk[2]": 8.0,
+      "yaw": 1.5707811117172241,
+      "yawspeed": 0.0
+    }
+  ]
+}

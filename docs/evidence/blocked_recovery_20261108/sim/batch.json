@@ -1,0 +1,47 @@
+{
+  "seed": 8177313980703840530,
+  "maps": [
+    "L13",
+    "L02"
+  ],
+  "policy": "Identical policy snapshots \u00b7 a592ce0c90b4",
+  "created": 1794127230.5747166,
+  "instances": [
+    {
+      "id": 1,
+      "DRONEHACKS_UNIT": "dronehacks-sim-i1.service",
+      "ROS_DOMAIN_ID": "51",
+      "GZ_PARTITION": "dronehacks-isolated-1",
+      "ROS_HOME": "/home/matthew/.local/state/dronehacks-sim/instances/1/ros",
+      "DRONEHACKS_LOG_DIR": "/home/matthew/.local/state/dronehacks-sim/instances/1/logs",
+      "DRONEHACKS_RUNS_DIR": "/home/matthew/.local/state/dronehacks-sim/instances/1/scores",
+      "DRONEHACKS_PX4_INSTANCE": "1",
+      "DRONEHACKS_PX4_WORKDIR": "/home/matthew/.local/state/dronehacks-sim/instances/1/px4",
+      "DRONEHACKS_TEAM_WS": "/home/matthew/.local/state/dronehacks-sim/instances/1/team_ws",
+      "DRONEHACKS_COMPETITOR_CONFIG": "/home/matthew/.local/state/dronehacks-sim/instances/1/competitor.env",
+      "DRONEHACKS_OBSERVER_PORT": "8101",
+      "snapshot": {
+        "source_sha256": "a592ce0c90b4e7878c79e383a85a3d2269f201b7937d1cc2218879f564cc8c50"
+      }
+    },
+    {
+      "id": 2,
+      "DRONEHACKS_UNIT": "dronehacks-sim-i2.service",
+      "ROS_DOMAIN_ID": "52",
+      "GZ_PARTITION": "dronehacks-isolated-2",
+      "ROS_HOME": "/home/matthew/.local/state/dronehacks-sim/instances/2/ros",
+      "DRONEHACKS_LOG_DIR": "/home/matthew/.local/state/dronehacks-sim/instances/2/logs",
+      "DRONEHACKS_RUNS_DIR": "/home/matthew/.local/state/dronehacks-sim/instances/2/scores",
+      "DRONEHACKS_PX4_INSTANCE": "2",
+      "DRONEHACKS_PX4_WORKDIR": "/home/matthew/.local/state/dronehacks-sim/instances/2/px4",
+      "DRONEHACKS_TEAM_WS": "/home/matthew/.local/state/dronehacks-sim/instances/2/team_ws",
+      "DRONEHACKS_COMPETITOR_CONFIG": "/home/matthew/.local/state/dronehacks-sim/instances/2/competitor.env",
+      "DRONEHACKS_OBSERVER_PORT": "8102",
+      "snapshot": {
+        "source_sha256": "a592ce0c90b4e7878c79e383a85a3d2269f201b7937d1cc2218879f564cc8c50"
+      }
+    }
+  ],
+  "sensor_profile": "hardware",
+  "impairments": "normal"
+}

@@ -1,0 +1,8 @@
+[fly_course-7] [INFO] [1794127430.755171405] [refnav]: skybeta output: twist only, no /fmu/in; PX4 topics /fmu/out/vehicle_local_position, /fmu/out/vehicle_status_v1, /fmu/out/vehicle_land_detected
+[fly_course-7] [INFO] [1794127431.205036981] [refnav]: route 5 legs; depth /kestrel_nav/depth; health /estimator/healthy; sim time True
+[fly_course-7] [INFO] [1794127431.377323205] [refnav]: calibration from TF: base_link <- oak_left_rect_frame t=(0.102,0.037,0.046) optical axis 0.0 deg off forward
+[fly_course-7] [INFO] [1794127437.854779836] [refnav]: wait -> arm
+[fly_course-7] [INFO] [1794127546.857490125] [refnav]: arm -> climb
+[fly_course-7] [INFO] [1794127550.319485270] [refnav]: EKF reset in flight: heading +0.0 deg, xy 0.00 m (counters (11, 4) -> (12, 4)): small, continuing
+[fly_course-7] [INFO] [1794127550.494683230] [refnav]: climb -> done: yielded: PX4 left Offboard (nav_state 2): a pilot or a failsafe has it
+[fly_course-7] [INFO] [1794127550.496794696] [refnav]: mission done: yielded: PX4 left Offboard (nav_state 2): a pilot or a failsafe has it

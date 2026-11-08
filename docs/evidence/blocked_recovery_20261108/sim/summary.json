@@ -1,0 +1,58 @@
+{
+  "policy_branch": "kestral_blocked_recovery",
+  "runtime_commit": "8cf5909 (runtime identical to d8fafbc)",
+  "test": "Mismatched-prior randomized worlds, explicitly requested by user",
+  "seed": 8177313980703840530,
+  "maps": [
+    "L13",
+    "L02"
+  ],
+  "sensor_profile": "hardware",
+  "impairments": "normal",
+  "prior": "Unchanged new_course_origin policy prior; no COURSENAV_COURSE override or per-layout map injection",
+  "downloaded_obj_sha256": "ef86d5ea34edb7d655551ad2faf5bedff6c916425013aeb4e03e927e0b46809b",
+  "snapshot_sha256": "a592ce0c90b4e7878c79e383a85a3d2269f201b7937d1cc2218879f564cc8c50",
+  "results": [
+    {
+      "map": "L13",
+      "policy_result": "landed: route blocked: obstacle 0.94 m ahead on leg 1; still blocked after hold, back-off and recheck",
+      "recovery": "4 s hold, 0.20 m backoff, 2 s recheck, land in place",
+      "touches": 0,
+      "checkpoints": 0,
+      "graded_elapsed_s": 30.67499509199999,
+      "grader_reason": "crash_ground_contact",
+      "grader_caveat": "Grader counts off-pad ground contact as failure, including deliberate abort landing; policy explicitly commanded this landing.",
+      "prior_state": "dropped",
+      "final_armed": false,
+      "final_landed": true
+    },
+    {
+      "map": "L02",
+      "policy_result": "yielded: PX4 left Offboard (nav_state 2): a pilot or a failsafe has it",
+      "touches": 0,
+      "checkpoints": 0,
+      "grader_phase": "waiting",
+      "grader_elapsed_s": null,
+      "intervention": "Agent commanded simulation-only LAND after policy yielded; confirmed disarmed and landed.",
+      "prior_state": "placed with fit=null; 0 localization updates and insufficient beams",
+      "final_armed": false,
+      "final_landed": true
+    }
+  ],
+  "l02_px4_evidence": {
+    "ev_position_yaw_fusion_cleared_s": 145.812476,
+    "local_velocity_invalid_s": 145.837476,
+    "offboard_to_posctl_s": 145.849976,
+    "offboard_velocity_mode": true,
+    "last_heartbeat_s": 145.804143,
+    "heartbeat_age_at_transition_ms": 45.833,
+    "heartbeat_gaps_over_200ms_140_to149s": [],
+    "interpretation": "Estimator invalidation caused velocity Offboard eligibility to fail despite fresh heartbeat. Underlying reason for estimator invalidation is not isolated; injected VIO freeze temporally precedes it. No proof of scheduler heartbeat timeout."
+  },
+  "limitations": [
+    "No checkpoint completion on either mismatched world.",
+    "Prior monitor can remain placed with fit=null while below its minimum beam count; prior_required is false in unchanged policy.",
+    "Previous new-origin runs were discarded at user request; not included as outcomes.",
+    "Both simulated aircraft disarmed; pilot/capture processes stopped, worlds/viewer left available."
+  ]
+}

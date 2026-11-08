@@ -1,0 +1,67 @@
+{
+  "log": "/home/matthew/.local/state/dronehacks-sim/instances/2/px4/log/2026-11-08/08_40_50.ulg",
+  "nav_transitions": [
+    {
+      "t": 9095831,
+      "nav_state": 4,
+      "failsafe": false
+    },
+    {
+      "t": 142962477,
+      "nav_state": 1,
+      "failsafe": false
+    },
+    {
+      "t": 144187476,
+      "nav_state": 2,
+      "failsafe": false
+    },
+    {
+      "t": 144237476,
+      "nav_state": 14,
+      "failsafe": false
+    },
+    {
+      "t": 145849976,
+      "nav_state": 2,
+      "failsafe": true
+    },
+    {
+      "t": 146924976,
+      "nav_state": 14,
+      "failsafe": false
+    },
+    {
+      "t": 160970807,
+      "nav_state": 18,
+      "failsafe": false
+    }
+  ],
+  "flags_at_transition": [
+    {
+      "t": 145849976,
+      "flags": {
+        "mode_req_angular_velocity": 8311934.0,
+        "mode_req_attitude": 8310910.0,
+        "mode_req_local_alt": 8257662.0,
+        "mode_req_local_position": 7995448.0,
+        "mode_req_local_position_relaxed": 262212.0,
+        "mode_req_global_position": 56.0,
+        "mode_req_mission": 8.0,
+        "mode_req_offboard_signal": 16384.0,
+        "mode_req_home_position": 32.0,
+        "mode_req_wind_and_flight_time_compliance": 2621464.0,
+        "mode_req_prevent_arming": 3944480.0,
+        "mode_req_manual_control": 33863.0,
+        "mode_req_other": 2139095040.0,
+        "local_position_invalid": 1.0,
+        "local_velocity_invalid": 1.0,
+        "global_position_invalid": 1.0,
+        "auto_mission_missing": 1.0,
+        "offboard_control_signal_lost": 1.0,
+        "home_position_invalid": 1.0,
+        "gcs_connection_lost": 1.0
+      }
+    }
+  ]
+}

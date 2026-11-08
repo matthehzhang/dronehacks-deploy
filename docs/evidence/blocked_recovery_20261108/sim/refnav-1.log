@@ -1,0 +1,30 @@
+[fly_course-7] [INFO] [1794127444.433366434] [refnav]: skybeta output: twist only, no /fmu/in; PX4 topics /fmu/out/vehicle_local_position, /fmu/out/vehicle_status_v1, /fmu/out/vehicle_land_detected
+[fly_course-7] [INFO] [1794127444.775445909] [refnav]: route 5 legs; depth /kestrel_nav/depth; health /estimator/healthy; sim time True
+[fly_course-7] [WARN] [1794127444.875074210] [refnav]: depth frame not used (1x): no camera_info yet on /kestrel_nav/depth/camera_info
+[fly_course-7] [INFO] [1794127444.997337486] [refnav]: calibration from TF: base_link <- oak_left_rect_frame t=(0.102,0.037,0.046) optical axis 0.0 deg off forward
+[fly_course-7] [INFO] [1794127452.115451137] [refnav]: wait -> arm
+[fly_course-7] [INFO] [1794127543.816451154] [refnav]: arm -> climb
+[fly_course-7] [INFO] [1794127557.694239966] [refnav]: climb -> turn: leg 1/5
+[fly_course-7] [INFO] [1794127557.697619230] [refnav]: turn: no path yet for leg 1: keeping the heading (not the straight bearing to the stop); go waits for the path
+[fly_course-7] [INFO] [1794127557.735682171] [refnav]: turn -> check
+[fly_course-7] [INFO] [1794127558.778894897] [refnav]: check -> go
+[fly_course-7] [INFO] [1794127559.600094351] [refnav]: go -> turn: path corner on leg 1: stop and turn
+[fly_course-7] [INFO] [1794127560.796847382] [refnav]: turn -> check
+[fly_course-7] [INFO] [1794127562.116052918] [refnav]: check -> go
+[fly_course-7] [INFO] [1794127580.118263832] [refnav]: go -> turn: path corner on leg 1: stop and turn
+[fly_course-7] [INFO] [1794127587.075215361] [refnav]: first large turn since take-off: going only once back on the setpoint
+[fly_course-7] [INFO] [1794127587.075709455] [refnav]: turn -> check
+[fly_course-7] [INFO] [1794127587.174398210] [refnav]: first-turn gate released after 0.0 s (0.002 m off the setpoint, 0.008 m/s)
+[fly_course-7] [INFO] [1794127588.480884489] [refnav]: check -> go
+[fly_course-7] [INFO] [1794127593.336322964] [refnav]: EKF reset in flight: heading +0.0 deg, xy 0.01 m (counters (20, 7) -> (21, 7)): small, continuing
+[fly_course-7] [INFO] [1794127594.654867155] [refnav]: EKF reset in flight: heading -0.6 deg, xy 0.03 m (counters (21, 7) -> (22, 8)): small, continuing
+[fly_course-7] [INFO] [1794127597.157668439] [refnav]: go -> turn: path corner on leg 1: stop and turn
+[fly_course-7] [INFO] [1794127598.994490838] [refnav]: turn -> check
+[fly_course-7] [INFO] [1794127600.298915553] [refnav]: check -> go
+[fly_course-7] [INFO] [1794127601.219774445] [refnav]: go -> blocked: route blocked: obstacle 0.94 m ahead on leg 1; holding up to 4 s
+[fly_course-7] [INFO] [1794127610.318376388] [refnav]: blocked -> backoff: still blocked after 4 s: backing off 0.20 m
+[fly_course-7] [INFO] [1794127612.094048778] [refnav]: backoff -> recheck: rechecking for 2 s
+[fly_course-7] [INFO] [1794127616.660011655] [refnav]: recheck -> land: route blocked: obstacle 0.94 m ahead on leg 1; still blocked after hold, back-off and recheck
+[fly_course-7] [INFO] [1794127616.695857205] [refnav]: landing in place at 0.3 m/s until PX4 disarms
+[fly_course-7] [INFO] [1794127634.716349186] [refnav]: land -> done: landed: route blocked: obstacle 0.94 m ahead on leg 1; still blocked after hold, back-off and recheck
+[fly_course-7] [INFO] [1794127634.733616734] [refnav]: mission done: landed: route blocked: obstacle 0.94 m ahead on leg 1; still blocked after hold, back-off and recheck

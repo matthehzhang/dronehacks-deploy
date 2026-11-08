@@ -1,0 +1,329 @@
+{
+  "estimator_status_flags": [
+    {
+      "t": 140166644,
+      "cs_tilt_align": 1.0,
+      "cs_yaw_align": 0.0,
+      "cs_ev_pos": 1.0,
+      "cs_ev_yaw": 1.0,
+      "cs_ev_vel": 0.0
+    },
+    {
+      "t": 145812476,
+      "cs_tilt_align": 1.0,
+      "cs_yaw_align": 0.0,
+      "cs_ev_pos": 0.0,
+      "cs_ev_yaw": 0.0,
+      "cs_ev_vel": 0.0
+    },
+    {
+      "t": 145912476,
+      "cs_tilt_align": 1.0,
+      "cs_yaw_align": 0.0,
+      "cs_ev_pos": 1.0,
+      "cs_ev_yaw": 0.0,
+      "cs_ev_vel": 0.0
+    },
+    {
+      "t": 146474976,
+      "cs_tilt_align": 1.0,
+      "cs_yaw_align": 0.0,
+      "cs_ev_pos": 1.0,
+      "cs_ev_yaw": 1.0,
+      "cs_ev_vel": 0.0
+    }
+  ],
+  "failsafe_flags": [
+    {
+      "t": 140129144,
+      "angular_velocity_invalid": 0.0,
+      "attitude_invalid": 0.0,
+      "local_altitude_invalid": 0.0,
+      "local_position_invalid": 0.0,
+      "local_position_invalid_relaxed": 0.0,
+      "local_velocity_invalid": 0.0,
+      "global_position_invalid": 1.0,
+      "auto_mission_missing": 1.0,
+      "offboard_control_signal_lost": 0.0,
+      "home_position_invalid": 1.0,
+      "manual_control_signal_lost": 1.0,
+      "gcs_connection_lost": 1.0,
+      "battery_warning": 0.0,
+      "battery_low_remaining_time": 0.0,
+      "battery_unhealthy": 0.0,
+      "geofence_breached": 0.0,
+      "mission_failure": 0.0,
+      "vtol_fixed_wing_system_failure": 0.0,
+      "wind_limit_exceeded": 0.0,
+      "flight_time_limit_exceeded": 0.0,
+      "local_position_accuracy_low": 0.0,
+      "navigator_failure": 0.0,
+      "fd_critical_failure": 0.0,
+      "fd_esc_arming_failure": 0.0,
+      "fd_imbalanced_prop": 0.0,
+      "fd_motor_failure": 0.0
+    },
+    {
+      "t": 143562477,
+      "angular_velocity_invalid": 0.0,
+      "attitude_invalid": 0.0,
+      "local_altitude_invalid": 0.0,
+      "local_position_invalid": 0.0,
+      "local_position_invalid_relaxed": 0.0,
+      "local_velocity_invalid": 0.0,
+      "global_position_invalid": 1.0,
+      "auto_mission_missing": 1.0,
+      "offboard_control_signal_lost": 0.0,
+      "home_position_invalid": 1.0,
+      "manual_control_signal_lost": 0.0,
+      "gcs_connection_lost": 1.0,
+      "battery_warning": 0.0,
+      "battery_low_remaining_time": 0.0,
+      "battery_unhealthy": 0.0,
+      "geofence_breached": 0.0,
+      "mission_failure": 0.0,
+      "vtol_fixed_wing_system_failure": 0.0,
+      "wind_limit_exceeded": 0.0,
+      "flight_time_limit_exceeded": 0.0,
+      "local_position_accuracy_low": 0.0,
+      "navigator_failure": 0.0,
+      "fd_critical_failure": 0.0,
+      "fd_esc_arming_failure": 0.0,
+      "fd_imbalanced_prop": 0.0,
+      "fd_motor_failure": 0.0
+    },
+    {
+      "t": 145837476,
+      "angular_velocity_invalid": 0.0,
+      "attitude_invalid": 0.0,
+      "local_altitude_invalid": 0.0,
+      "local_position_invalid": 1.0,
+      "local_position_invalid_relaxed": 0.0,
+      "local_velocity_invalid": 1.0,
+      "global_position_invalid": 1.0,
+      "auto_mission_missing": 1.0,
+      "offboard_control_signal_lost": 1.0,
+      "home_position_invalid": 1.0,
+      "manual_control_signal_lost": 0.0,
+      "gcs_connection_lost": 1.0,
+      "battery_warning": 0.0,
+      "battery_low_remaining_time": 0.0,
+      "battery_unhealthy": 0.0,
+      "geofence_breached": 0.0,
+      "mission_failure": 0.0,
+      "vtol_fixed_wing_system_failure": 0.0,
+      "wind_limit_exceeded": 0.0,
+      "flight_time_limit_exceeded": 0.0,
+      "local_position_accuracy_low": 0.0,
+      "navigator_failure": 0.0,
+      "fd_critical_failure": 0.0,
+      "fd_esc_arming_failure": 0.0,
+      "fd_imbalanced_prop": 0.0,
+      "fd_motor_failure": 0.0
+    },
+    {
+      "t": 146912476,
+      "angular_velocity_invalid": 0.0,
+      "attitude_invalid": 0.0,
+      "local_altitude_invalid": 0.0,
+      "local_position_invalid": 0.0,
+      "local_position_invalid_relaxed": 0.0,
+      "local_velocity_invalid": 1.0,
+      "global_position_invalid": 1.0,
+      "auto_mission_missing": 1.0,
+      "offboard_control_signal_lost": 0.0,
+      "home_position_invalid": 1.0,
+      "manual_control_signal_lost": 0.0,
+      "gcs_connection_lost": 1.0,
+      "battery_warning": 0.0,
+      "battery_low_remaining_time": 0.0,
+      "battery_unhealthy": 0.0,
+      "geofence_breached": 0.0,
+      "mission_failure": 0.0,
+      "vtol_fixed_wing_system_failure": 0.0,
+      "wind_limit_exceeded": 0.0,
+      "flight_time_limit_exceeded": 0.0,
+      "local_position_accuracy_low": 0.0,
+      "navigator_failure": 0.0,
+      "fd_critical_failure": 0.0,
+      "fd_esc_arming_failure": 0.0,
+      "fd_imbalanced_prop": 0.0,
+      "fd_motor_failure": 0.0
+    },
+    {
+      "t": 147424976,
+      "angular_velocity_invalid": 0.0,
+      "attitude_invalid": 0.0,
+      "local_altitude_invalid": 0.0,
+      "local_position_invalid": 0.0,
+      "local_position_invalid_relaxed": 0.0,
+      "local_velocity_invalid": 0.0,
+      "global_position_invalid": 1.0,
+      "auto_mission_missing": 1.0,
+      "offboard_control_signal_lost": 0.0,
+      "home_position_invalid": 1.0,
+      "manual_control_signal_lost": 0.0,
+      "gcs_connection_lost": 1.0,
+      "battery_warning": 0.0,
+      "battery_low_remaining_time": 0.0,
+      "battery_unhealthy": 0.0,
+      "geofence_breached": 0.0,
+      "mission_failure": 0.0,
+      "vtol_fixed_wing_system_failure": 0.0,
+      "wind_limit_exceeded": 0.0,
+      "flight_time_limit_exceeded": 0.0,
+      "local_position_accuracy_low": 0.0,
+      "navigator_failure": 0.0,
+      "fd_critical_failure": 0.0,
+      "fd_esc_arming_failure": 0.0,
+      "fd_imbalanced_prop": 0.0,
+      "fd_motor_failure": 0.0
+    }
+  ],
+  "offboard_control_mode": {
+    "count_window": 90,
+    "gaps_over_200ms": [],
+    "fields": [
+      "timestamp",
+      "position",
+      "velocity",
+      "acceleration",
+      "attitude",
+      "body_rate",
+      "thrust_and_torque",
+      "direct_actuator"
+    ]
+  },
+  "trajectory_setpoint": {
+    "count_window": 45,
+    "gaps_over_200ms": [
+      {
+        "from": 140133310,
+        "to": 140345810,
+        "ms": 212.5
+      },
+      {
+        "from": 141333310,
+        "to": 141545810,
+        "ms": 212.5
+      },
+      {
+        "from": 142933310,
+        "to": 143137477,
+        "ms": 204.167
+      },
+      {
+        "from": 143729143,
+        "to": 143945810,
+        "ms": 216.667
+      },
+      {
+        "from": 144704143,
+        "to": 144920810,
+        "ms": 216.667
+      },
+      {
+        "from": 145704143,
+        "to": 145945809,
+        "ms": 241.666
+      },
+      {
+        "from": 146533309,
+        "to": 146745809,
+        "ms": 212.5
+      },
+      {
+        "from": 147104143,
+        "to": 147320809,
+        "ms": 216.666
+      },
+      {
+        "from": 147708309,
+        "to": 147916643,
+        "ms": 208.334
+      },
+      {
+        "from": 147916643,
+        "to": 148120809,
+        "ms": 204.166
+      }
+    ],
+    "fields": [
+      "timestamp",
+      "position[0]",
+      "position[1]",
+      "position[2]",
+      "velocity[0]",
+      "velocity[1]",
+      "velocity[2]",
+      "acceleration[0]",
+      "acceleration[1]",
+      "acceleration[2]",
+      "jerk[0]",
+      "jerk[1]",
+      "jerk[2]",
+      "yaw",
+      "yawspeed"
+    ]
+  },
+  "vehicle_local_position": [
+    {
+      "t": 140008310,
+      "xy_valid": 1.0,
+      "z_valid": 1.0,
+      "v_xy_valid": 1.0,
+      "v_z_valid": 1.0
+    }
+  ],
+  "vehicle_status": [
+    {
+      "t": 140429144,
+      "arming_state": 1.0,
+      "nav_state_user_intention": 4.0,
+      "nav_state": 4.0,
+      "failsafe": 0.0
+    },
+    {
+      "t": 142962477,
+      "arming_state": 1.0,
+      "nav_state_user_intention": 1.0,
+      "nav_state": 1.0,
+      "failsafe": 0.0
+    },
+    {
+      "t": 143712477,
+      "arming_state": 2.0,
+      "nav_state_user_intention": 1.0,
+      "nav_state": 1.0,
+      "failsafe": 0.0
+    },
+    {
+      "t": 144187476,
+      "arming_state": 2.0,
+      "nav_state_user_intention": 2.0,
+      "nav_state": 2.0,
+      "failsafe": 0.0
+    },
+    {
+      "t": 144237476,
+      "arming_state": 2.0,
+      "nav_state_user_intention": 14.0,
+      "nav_state": 14.0,
+      "failsafe": 0.0
+    },
+    {
+      "t": 145849976,
+      "arming_state": 2.0,
+      "nav_state_user_intention": 14.0,
+      "nav_state": 2.0,
+      "failsafe": 1.0
+    },
+    {
+      "t": 146924976,
+      "arming_state": 2.0,
+      "nav_state_user_intention": 14.0,
+      "nav_state": 14.0,
+      "failsafe": 0.0
+    }
+  ]
+}

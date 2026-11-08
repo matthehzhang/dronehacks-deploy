@@ -86,10 +86,10 @@ images were absent, so the causes of those near returns cannot be established.
 
 An identical package is staged at `~/policies/group154_blocked_recovery/kestrel_nav`.
 The existing device `fly.sh` supports the `group154_*` selector and was syntax checked.
-From the laptop over USB-C:
+From the laptop (`dronehacks` already selects USB-C automatically when connected):
 
 ```bash
-ssh -t -o HostName=192.168.55.1 dronehacks '~/team_ws/tools/fly.sh group154_blocked_recovery'
+ssh -t dronehacks '~/team_ws/tools/fly.sh group154_blocked_recovery'
 ```
 
 This is a user-invoked start: it checks disarmed telemetry, asks for sudo credentials
@@ -97,3 +97,23 @@ if needed, saves the previous package, selects this package, restarts the stack 
 watches mission output. The agent did not invoke it or arm hardware. Pilot arming
 and mode switching are still required. The active package changes only when run.
 The preloaded localizer and OBJ hashes were verified against the local committed copy.
+
+## Randomized worlds with the deployed prior unchanged
+
+User selected mismatch testing: L13 and L02, seed 8177313980703840530, identical
+policy snapshots, no COURSENAV_COURSE overrides or injected map assets. The previous
+same-map runs were discarded. Compact evidence is in `evidence/blocked_recovery_20261108/sim/`.
+
+- L13: blocked at 0.94 m, held/backed off/rechecked, then deliberately landed and
+  disarmed. Zero checkpoints, zero touches; grader records off-pad ground contact
+  at 30.675 s. Prior dropped on poor fit but prior_required is false in the supplied
+  policy, so it did not itself gate the flight.
+- L02: PX4 external-vision position/yaw flags cleared, local velocity became invalid,
+  then PX4 rejected velocity Offboard. Heartbeat was only 45.8 ms old, with no nearby
+  gaps above 200 ms. This is estimator validity rejection, not evidence of a policy
+  heartbeat timeout. Refnav yielded; the agent commanded simulation-only LAND and
+  confirmed disarm. No checkpoints; grader remained waiting.
+
+Both localizers stayed alive. Both worlds remain available; pilots and evidence
+recorders were stopped after both aircraft were confirmed landed and disarmed.
+These runs did not demonstrate successful completion under prior-map mismatch.

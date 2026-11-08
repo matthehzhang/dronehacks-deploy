@@ -1,0 +1,75 @@
+Nov 08 00:45:38 compute systemd[248]: Started dronehacks-sim-i1-pilot.service - /usr/bin/bash /home/matthew/dronehacks-sim/scripts/instance_pilot.sh.
+Nov 08 00:45:39 compute bash[34597]: [pilot] Waiting for current refnav arm phase and a fresh hold setpoint
+Nov 08 00:45:39 compute bash[34597]: [pilot] Current policy phase and delivered hold setpoint verified
+Nov 08 00:45:40 compute bash[34662]: [INFO] [1794127540.871541316] [fake_pilot]: fake_pilot: cmd -> /fmu/in/vehicle_command, status <- /fmu/out/vehicle_status_v1, lpos <- /fmu/out/vehicle_local_position
+Nov 08 00:45:40 compute bash[34662]: [INFO] [1794127540.874021764] [fake_pilot]: waiting for PX4 status + valid local position (xy_valid && z_valid)...
+Nov 08 00:45:40 compute bash[34662]: [INFO] [1794127540.875362640] [fake_pilot]: waiting for status + valid local position: armed=None nav_state=None pos_valid=True
+Nov 08 00:45:41 compute bash[34662]: [INFO] [1794127541.439126455] [fake_pilot]: switching to Altitude before arming (the pilot arms with the mode switch on Altitude)
+Nov 08 00:45:41 compute bash[34662]: [INFO] [1794127541.512873862] [fake_pilot]: ARM
+Nov 08 00:45:42 compute bash[34662]: [INFO] [1794127542.529701446] [fake_pilot]: armed. armed=True nav_state=1 pos_valid=True
+Nov 08 00:45:42 compute bash[34662]: [INFO] [1794127542.532555181] [fake_pilot]: waiting for : armed=True nav_state=1 pos_valid=True
+Nov 08 00:45:43 compute bash[34662]: [INFO] [1794127543.538592996] [fake_pilot]: DO_SET_MODE POSCTL
+Nov 08 00:45:43 compute bash[34662]: [INFO] [1794127543.626774376] [fake_pilot]: mode POSCTL active. armed=True nav_state=2 pos_valid=True -- flight_interface should now request Offboard (watch /skybeta/state)
+Nov 08 00:45:43 compute bash[34662]: [INFO] [1794127543.627774551] [fake_pilot]: holding the stick stream (Ctrl-C = RC loss -> PX4 NAV_RCL_ACT / COM_RCL_EXCEPT apply)
+Nov 08 00:45:43 compute bash[34662]: [INFO] [1794127543.628645856] [fake_pilot]: waiting for hold: armed=True nav_state=2 pos_valid=True
+Nov 08 00:45:45 compute bash[34662]: [INFO] [1794127545.641409886] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:45:47 compute bash[34662]: [INFO] [1794127547.646096806] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:45:49 compute bash[34662]: [INFO] [1794127549.692628555] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:45:51 compute bash[34662]: [INFO] [1794127551.703036248] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:45:53 compute bash[34662]: [INFO] [1794127553.720495646] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:45:55 compute bash[34662]: [INFO] [1794127555.733000431] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:45:57 compute bash[34662]: [INFO] [1794127557.736735810] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:45:59 compute bash[34662]: [INFO] [1794127559.739412353] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:01 compute bash[34662]: [INFO] [1794127561.749508380] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:03 compute bash[34662]: [INFO] [1794127563.751512364] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:05 compute bash[34662]: [INFO] [1794127565.752398170] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:07 compute bash[34662]: [INFO] [1794127567.788690649] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:09 compute bash[34662]: [INFO] [1794127569.794519520] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:11 compute bash[34662]: [INFO] [1794127571.798476440] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:13 compute bash[34662]: [INFO] [1794127573.801483240] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:15 compute bash[34662]: [INFO] [1794127575.813093409] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:17 compute bash[34662]: [INFO] [1794127577.816013567] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:19 compute bash[34662]: [INFO] [1794127579.819587338] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:21 compute bash[34662]: [INFO] [1794127581.821179738] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:23 compute bash[34662]: [INFO] [1794127583.848887569] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:25 compute bash[34662]: [INFO] [1794127585.858387787] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:27 compute bash[34662]: [INFO] [1794127587.900190566] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:29 compute bash[34662]: [INFO] [1794127589.902276005] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:31 compute bash[34662]: [INFO] [1794127591.913624264] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:33 compute bash[34662]: [INFO] [1794127593.927681742] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:35 compute bash[34662]: [INFO] [1794127595.936568965] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:37 compute bash[34662]: [INFO] [1794127597.970822197] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:39 compute bash[34662]: [INFO] [1794127599.973385026] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:41 compute bash[34662]: [INFO] [1794127601.975277715] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:43 compute bash[34662]: [INFO] [1794127603.992034282] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:45 compute bash[34662]: [INFO] [1794127605.997935130] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:48 compute bash[34662]: [INFO] [1794127608.001366034] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:50 compute bash[34662]: [INFO] [1794127610.002038157] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:52 compute bash[34662]: [INFO] [1794127612.031886075] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:54 compute bash[34662]: [INFO] [1794127614.040914896] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:56 compute bash[34662]: [INFO] [1794127616.045339336] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:46:58 compute bash[34662]: [INFO] [1794127618.046995806] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:47:00 compute bash[34662]: [INFO] [1794127620.048103977] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:47:02 compute bash[34662]: [INFO] [1794127622.073563562] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:47:04 compute bash[34662]: [INFO] [1794127624.088347293] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:47:06 compute bash[34662]: [INFO] [1794127626.114987078] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:47:08 compute bash[34662]: [INFO] [1794127628.132389655] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:47:10 compute bash[34662]: [INFO] [1794127630.172878590] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:47:12 compute bash[34662]: [INFO] [1794127632.182099578] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:47:14 compute bash[34662]: [INFO] [1794127634.208373535] [fake_pilot]: waiting for hold: armed=True nav_state=14 pos_valid=True
+Nov 08 00:47:16 compute bash[34662]: [INFO] [1794127636.234381021] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:18 compute bash[34662]: [INFO] [1794127638.250774354] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:20 compute bash[34662]: [INFO] [1794127640.279260841] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:22 compute bash[34662]: [INFO] [1794127642.280735148] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:24 compute bash[34662]: [INFO] [1794127644.285336045] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:26 compute bash[34662]: [INFO] [1794127646.319644607] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:28 compute bash[34662]: [INFO] [1794127648.326666885] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:30 compute bash[34662]: [INFO] [1794127650.335184980] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:32 compute bash[34662]: [INFO] [1794127652.366998812] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:34 compute bash[34662]: [INFO] [1794127654.380413042] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:36 compute bash[34662]: [INFO] [1794127656.385120890] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:38 compute bash[34662]: [INFO] [1794127658.387616629] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:40 compute bash[34662]: [INFO] [1794127660.390925064] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:42 compute bash[34662]: [INFO] [1794127662.439377793] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:44 compute bash[34662]: [INFO] [1794127664.440079059] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
+Nov 08 00:47:46 compute bash[34662]: [INFO] [1794127666.442783441] [fake_pilot]: waiting for hold: armed=False nav_state=14 pos_valid=True
