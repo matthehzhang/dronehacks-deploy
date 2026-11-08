@@ -324,7 +324,7 @@ def skybeta_return_spec(doc):
         dx, dy = start[0]-pad[0], start[1]-pad[1]
         mid = ((start[0]+pad[0])/2, (start[1]+pad[1])/2)
         side = 1 if -mid[0]*dy + mid[1]*dx >= 0 else -1
-    return dict(height_above_floor_m=config.get('cruise_z_m', 2.1), speed_mps=.3,
+    return dict(height_above_floor_m=config.get('cruise_z_m', 2.5), speed_mps=.3,
                 arc_offset_m=.6096, arc_side=side)
 
 

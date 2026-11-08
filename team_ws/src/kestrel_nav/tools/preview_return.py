@@ -29,6 +29,7 @@ def main():
     spec = skybeta_return_spec(load_course())
     points, _ = return_arc(pad[::-1], start[::-1], spec['arc_offset_m'], spec['arc_side'])
     arc = points[:, ::-1]
+    target = spec['height_above_floor_m']
     fig = plt.figure(figsize=(13, 7))
     top = fig.add_subplot(121)
     height = fig.add_subplot(122, projection='3d')
@@ -58,15 +59,15 @@ def main():
     top.set(xlabel='Course x / east (m)', ylabel='Course y / north (m)',
             title='Blue: outbound | orange: curved return')
     top.grid(alpha=.2)
-    height.plot([pad[0]]*2, [pad[1]]*2, [.1, 2.1], color='#df7a23', lw=3)
-    height.plot(arc[:, 0], arc[:, 1], np.full(len(arc), 2.1), color='#df7a23', lw=3)
-    height.plot([start[0]]*2, [start[1]]*2, [2.1, .1], color='#df7a23', lw=3)
-    height.text(pad[0], pad[1], 2.2, 'Hold XY until 2.1 m\nsettles for 1 second', fontsize=9)
+    height.plot([pad[0]]*2, [pad[1]]*2, [.1, target], color='#df7a23', lw=3)
+    height.plot(arc[:, 0], arc[:, 1], np.full(len(arc), target), color='#df7a23', lw=3)
+    height.plot([start[0]]*2, [start[1]]*2, [target, .1], color='#df7a23', lw=3)
+    height.text(pad[0], pad[1], target+.1, f'Hold XY until {target:.2f} m\nsettles for 1 second', fontsize=9)
     height.set(xlabel='Course x (m)', ylabel='Course y (m)', zlabel='Height above floor (m)',
-               zlim=(0, 2.5), title='Return: up first, curved transit, down last')
+               zlim=(0, target+.5), title='Return: up first, curved transit, down last')
     height.view_init(elev=24, azim=35)
     fig.suptitle('Outbound completion first; return starts only after pad disarm', fontweight='bold')
-    fig.text(.5, .025, 'Target geometry only. Return height 2.1 m is operator selected; actual arm/Offboard '
+    fig.text(.5, .025, f'Target geometry only. Return height {target:.2f} m is operator selected; actual arm/Offboard '
              'acceptance and flight dynamics are not simulated.', ha='center', fontsize=9)
     fig.tight_layout(rect=[0, .07, 1, .93])
     image = output / 'return_preview.png'

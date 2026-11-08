@@ -75,7 +75,7 @@ def finished(m):
     ('route complete', 'complete', True, True),
 ])
 def test_return_requires_successful_outbound_landing_and_disarm(reason, result, landed, armed):
-    m = SkybetaReturnMission(params(), dict(height_above_floor_m=2.1))
+    m = SkybetaReturnMission(params(), dict(height_above_floor_m=2.5))
     v = finished(m)
     m.land_reason, v.landed, v.armed = reason, landed, armed
     if result != 'complete':
@@ -87,8 +87,8 @@ def test_return_requires_successful_outbound_landing_and_disarm(reason, result, 
         assert out.phase == 'arm'
         assert m.home == (*v.pos, v.heading)
         assert m.targets == [(0., 0.)]
-        assert m.home[2] - m.p.height_m == pytest.approx(-2.)  # 2.1 above original floor
-        assert m.p.height_m == pytest.approx(1.8)  # raised pad, not a 2.1 m relative climb
+        assert m.home[2] - m.p.height_m == pytest.approx(-2.4)  # 2.5 above original floor
+        assert m.p.height_m == pytest.approx(2.2)  # raised pad, not a 2.5 m relative climb
 
 
 @pytest.mark.parametrize('spec', [{}, None, {'height_above_floor_m': 'invalid'},
@@ -106,7 +106,7 @@ def test_broken_optional_return_config_leaves_completed_outbound_run_alone(spec)
 
 
 def test_return_climb_never_advances_xy_until_actual_height_settles():
-    m = SkybetaReturnMission(params(), dict(height_above_floor_m=2.1))
+    m = SkybetaReturnMission(params(), dict(height_above_floor_m=2.5))
     feed(m, .01)
     v = finished(m)
     m.step(.1, v)
@@ -122,15 +122,15 @@ def test_return_climb_never_advances_xy_until_actual_height_settles():
         assert out.phase == 'climb'
         assert out.setpoint[:2] == xy and out.velocity in (None, (0., 0.))
         assert m.leg_start is None
-    v.pos = (*xy, -2.)
+    v.pos = (*xy, -2.4)
     for t in (12., 12.4, 12.9):
         feed(m, t)
         assert m.step(t, v).phase == 'climb'
     # A height excursion restarts the one-second hold.
-    v.pos = (*xy, -1.9)
+    v.pos = (*xy, -2.3)
     feed(m, 13.)
     assert m.step(13., v).phase == 'climb'
-    v.pos = (*xy, -2.)
+    v.pos = (*xy, -2.4)
     for t in (13.1, 13.6, 14.):
         feed(m, t)
         assert m.step(t, v).phase == 'climb'
@@ -145,7 +145,7 @@ def test_full_outbound_is_identical_then_return_rearms_climbs_lands_and_disarms(
     configuration.track_mode = mode
     configuration.arrive_m = .15  # deployed path profile; capture_m is .10 m
     baseline = C.Mission(copy.deepcopy(configuration))
-    m = SkybetaReturnMission(configuration, dict(height_above_floor_m=2.1))
+    m = SkybetaReturnMission(configuration, dict(height_above_floor_m=2.5))
     normal, normal_commands, _ = adapter(baseline)
     returning, commands, messages = adapter(m)
     v = C.Vehicle(pos=(0., 0., 0.), heading=0., vel=(0, 0, 0), pos_ok=True,
@@ -239,7 +239,7 @@ def test_full_outbound_is_identical_then_return_rearms_climbs_lands_and_disarms(
 
 
 def test_outbound_arm_commands_never_enable_return_control():
-    m = SkybetaReturnMission(params(), dict(height_above_floor_m=2.1))
+    m = SkybetaReturnMission(params(), dict(height_above_floor_m=2.5))
     output, commands, _ = adapter(m)
     v = C.Vehicle(pos=(0, 0, 0), heading=0, armed=False, landed=True)
     output.publish(.1, C.Output('arm', commands=['offboard', 'arm']), v)
@@ -248,7 +248,7 @@ def test_outbound_arm_commands_never_enable_return_control():
 
 @pytest.mark.parametrize('arm_acknowledged', [False, True])
 def test_missing_arm_or_offboard_acknowledgement_cannot_start_return_motion(arm_acknowledged):
-    m = SkybetaReturnMission(params(), dict(height_above_floor_m=2.1))
+    m = SkybetaReturnMission(params(), dict(height_above_floor_m=2.5))
     feed(m, .01)
     v = finished(m)
     m.step(.1, v)
@@ -269,7 +269,7 @@ def test_missing_arm_or_offboard_acknowledgement_cannot_start_return_motion(arm_
 
 
 def test_return_ignores_late_outbound_path_and_correction_messages():
-    m = SkybetaReturnMission(params(), dict(height_above_floor_m=2.1))
+    m = SkybetaReturnMission(params(), dict(height_above_floor_m=2.5))
     v = finished(m)
     m.step(.1, v)
     targets = list(m.targets)
@@ -318,3 +318,12 @@ def test_return_arc_is_continuously_curved_with_exact_two_foot_offset(side):
     d = np.diff(points, axis=0)
     cross = d[:-1, 0]*d[1:, 1]-d[:-1, 1]*d[1:, 0]
     assert np.all(cross*side < 0)
+
+
+def test_deployed_return_configuration_targets_two_point_five_metres():
+    import fly_course
+    from coursenav.course import load_course
+
+    doc = load_course()
+    assert fly_course.skybeta_return_spec(doc)['height_above_floor_m'] == 2.5
+    assert doc['cruise_z_m'] == .8
