@@ -63,6 +63,12 @@
       "_note": "Checkpoint 3: fly the tube's axis, entering at the end nearer the maze. Expands to tunnel_entry (align: entry_m before the mouth, far enough for the camera to see both rim edges: a 0.63 m half-bore needs 0.9 m plus the camera offset) and tunnel_exit (straight, exit_m past the far end)."
     },
     {
+      "name": "tunnel_clearance",
+      "xy": [2.05, -1.85],
+      "mode": "align",
+      "_note": "Required full stop beyond the tunnel before turning toward the window. Approximate placement from the user's pink waypoint, not surveyed. Existing align approach mode preserves a stopping navigator leg; no gate-alignment geometry is attached. This goal cannot be dropped as a via point or smoothed into the following leg. Map geometry is unchanged."
+    },
+    {
       "name": "chicane",
       "choose": "chicane"
     },

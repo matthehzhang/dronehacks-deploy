@@ -3,6 +3,14 @@
 
 ## Active group154 map (2026-11-08)
 
+After `tunnel_exit`, the route now requires a full stop at `tunnel_clearance`,
+course ENU **(2.05, -1.85) m**, before turning toward the window. This is an
+approximate placement from the user's pink waypoint to pass the rotated wall
+tip. It is a separate stopping leg, so smoothing/replanning cannot shortcut
+the goal. Existing `align` approach mode marks the stop; it has no gate
+alignment measurement. The map is unchanged, so clearance to the real rotated
+wall still needs checking. This detour has not been flight validated.
+
 The configured launch position is now course ENU **(-2.515, 1.1172) m**, heading
 **90 degrees**: 8 inches (0.2032 m) forward of the imported launch mark.
 Place the drone at that new position before starting the stack; this changes

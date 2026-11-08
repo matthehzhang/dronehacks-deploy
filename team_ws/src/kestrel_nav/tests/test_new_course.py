@@ -37,7 +37,7 @@ def test_prior_provenance_and_goal_resolution(active):
     assert doc['start']['xy'] == pytest.approx([
         manifest['start']['xy'][0], manifest['start']['xy'][1] + 8 * .0254])
     assert doc['start']['yaw_deg'] == manifest['start']['yaw_deg']
-    assert [s['name'] for s in doc['sequence']] == ['tunnel_entry', 'tunnel_exit', 'chicane', 'pad']
+    assert [s['name'] for s in doc['sequence']] == ['tunnel_entry', 'tunnel_exit', 'tunnel_clearance', 'chicane', 'pad']
     assert 'maze_exit' not in doc['derived']
     assert doc['vehicle']['radius_m'] + doc['vehicle']['margin_m'] == pytest.approx(.4140828452868319)
 
@@ -84,6 +84,41 @@ def test_surface_field_rejects_mismatched_or_modified_map(active):
     assert course.surface_clearance(doc, changed, .55, 1.05) is None
     changed.meta = dict(cmap.meta, world='modified geometry')
     assert course.surface_clearance(doc, changed, .55, 1.05) is None
+
+
+def test_tunnel_clearance_is_a_required_stop_before_window(active):
+    from coursenav.navplan import stops_and_legs, smooth_params_for
+    from coursenav.navigator import Navigator
+    from refnav import core
+
+    course, planner, doc, cmap = active
+    grids = course.plan_grids(cmap, doc)
+    plan = planner.plan(doc, *grids, start_xy=doc['start']['xy'], chicane='window', cmap=cmap)
+    route, legs, nav_legs = stops_and_legs(plan, doc['start']['xy'], np.deg2rad(doc['start']['yaw_deg']))
+    assert [leg['name'] for leg in nav_legs] == [
+        'tunnel_entry', 'tunnel_exit', 'tunnel_clearance', 'window_pre', 'window_post', 'pad']
+    stop = nav_legs[2]
+    assert stop['stop'] == pytest.approx([2.05, -1.85])
+    assert stop['path'] and legs[2]['hold']
+    assert 'align' not in legs[2] and 'tunnel' not in legs[2]
+    assert np.asarray(stop['goals'][-1]) == pytest.approx(stop['stop'])
+
+    mission = core.Mission(core.Params(route=route, legs=legs, track_mode='path', blend_turn_deg=30))
+    mission.targets = [(0, 0)] * len(route)
+    assert mission._stops_at_end(2)
+
+    need = doc['vehicle']['radius_m'] + doc['vehicle']['margin_m']
+    nav = Navigator(*grids, need, smooth_params_for(doc['navigation'], doc['refnav_params'], need),
+                    gate_lines=plan.get('gate_lines'))
+    # Initial planning and a replan must both end at the clearance stop, not the window.
+    start = np.asarray(nav_legs[1]['stop'])
+    for offset in [(0, 0), (.02, -.04)]:
+        path = nav.plan(start + offset, [np.asarray(g) for g in stop['goals']])
+        assert path.pts[-1] == pytest.approx(stop['stop'])
+        assert path.v[-1] == pytest.approx(0)
+    # Smoothing for the following leg starts at this stop rather than cutting across it.
+    path = nav.plan(np.asarray(stop['stop']), [np.asarray(g) for g in nav_legs[3]['goals']])
+    assert path.pts[0] == pytest.approx(stop['stop'])
 
 
 def test_packaged_assets_match_source():

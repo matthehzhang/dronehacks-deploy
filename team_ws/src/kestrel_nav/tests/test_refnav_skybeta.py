@@ -34,7 +34,7 @@ def test_group154_plans_new_course_from_the_declared_launch_mark():
     p, route, legs, doc = fly_course.plan_now(start['xy'], start['yaw_deg'])
     assert len(route) == len(legs) and route
     assert p['min_clearance_m'] >= doc['vehicle']['radius_m'] + doc['vehicle']['margin_m']
-    assert [s['name'] for s in doc['sequence']] == ['tunnel_entry', 'tunnel_exit', 'chicane', 'pad']
+    assert [s['name'] for s in doc['sequence']] == ['tunnel_entry', 'tunnel_exit', 'tunnel_clearance', 'chicane', 'pad']
 
 
 def test_landing_descent_triggers_px4_land_detector():
