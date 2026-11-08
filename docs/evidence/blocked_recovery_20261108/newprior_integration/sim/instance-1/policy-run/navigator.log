@@ -1,0 +1,15 @@
+[INFO] [1794131050.425805637] [coursenav_nav]: navigator: 5 legs (3 path legs), cruise 0.50 m/s, buffer 0.41 m
+[INFO] [1794131051.103828169] [coursenav_nav]: pre-planned leg 1: 5.66 m, 2 stop corners
+[INFO] [1794131051.169133603] [coursenav_nav]: pre-planned leg 3: 2.83 m, 0 stop corners
+[INFO] [1794131051.205158250] [coursenav_nav]: pre-planned leg 5: 1.71 m, 0 stop corners
+[INFO] [1794131051.243887346] [coursenav_nav]: pre-planned 3 path legs in 0.8 s
+[WARN] [1794131051.303805381] [coursenav_nav]: prior map dropped: local obstacles near prior surfaces are no longer treated as mapped
+[INFO] [1794131083.966189836] [coursenav_nav]: leg 1: path 5.53 m, 5 stop corners, est 23.0 s, 71 local obstacle cells, prior dropped
+[WARN] [1794131101.547923895] [coursenav_nav]: leg 1: no path (recovery start footprint is not certified free); refnav holds without one
+[WARN] [1794131101.948711042] [coursenav_nav]: recovery request 1: no observed-free rejoin beyond recovery lookahead
+[WARN] [1794131115.724932795] [coursenav_nav]: recovery request 2: no observed-free rejoin beyond recovery lookahead
+[WARN] [1794131123.743285879] [coursenav_nav]: recovery request 3: no observed-free rejoin beyond recovery lookahead
+[WARN] [1794131125.604484702] [coursenav_nav]: prior map placed: local obstacles near prior surfaces are again treated as mapped
+[WARN] [1794131127.903955767] [coursenav_nav]: recovery request 4: no observed-free rejoin beyond recovery lookahead
+[WARN] [1794131134.506375145] [coursenav_nav]: prior map dropped: local obstacles near prior surfaces are no longer treated as mapped
+[WARN] [1794131136.743642772] [coursenav_nav]: recovery request 5: no observed-free rejoin beyond recovery lookahead

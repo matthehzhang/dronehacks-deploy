@@ -1,0 +1,12 @@
+MemoryCurrent=668344320
+CPUUsageNSec=94541606000
+CPUQuotaPerSecUSec=618.100ms
+usage_usec 94544165
+user_usec 78974612
+system_usec 15569552
+nice_usec 57932000
+nr_periods 7593
+nr_throttled 7563
+throttled_usec 725780367
+nr_bursts 40
+burst_usec 33826

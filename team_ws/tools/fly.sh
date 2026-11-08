@@ -17,7 +17,7 @@ esac
 # a disarmed report is required (fails closed); FORCE=1 overrides when the state topic cannot be read.
 if docker ps --format '{{.Names}}' | grep -qx skybeta-stack && [ "${FORCE:-0}" != 1 ]; then
   st=$(docker exec skybeta-stack bash -lc \
-       'source skybeta_env.sh >/dev/null 2>&1; timeout 10 ros2 topic echo --once --full-length /skybeta/state' 2>/dev/null)
+       'source skybeta_env.sh >/dev/null 2>&1; timeout 10 ros2 topic echo --no-daemon --spin-time 2 --once --full-length /skybeta/state std_msgs/msg/String' 2>/dev/null)
   if printf '%s' "$st" | grep -q '"armed": true'; then echo "ARMED: not restarting. Land and disarm first."; exit 1; fi
   printf '%s' "$st" | grep -q '"armed": false' \
     || { echo "could not read /skybeta/state. If the drone is disarmed: FORCE=1 $0 $1"; exit 1; }

@@ -1,0 +1,1449 @@
+[
+  {
+    "instance": 1,
+    "tested_commit": "9b76afd",
+    "armed_wall": 1794131066.4057884,
+    "disarmed_wall": 1794131159.0290287,
+    "peak_truth_z": 0.8196242836208568,
+    "refnav": {
+      "phase": "done",
+      "why": "landed: navigator has no route for leg 1: recovery start footprint is not certified free; still blocked after hold, back-off and recheck",
+      "result": "landed: navigator has no route for leg 1: recovery start footprint is not certified free; still blocked after hold, back-off and recheck",
+      "started_t": 102.220816978,
+      "leg": 0,
+      "legs": 5,
+      "legs_done": 0,
+      "home": [
+        0.00589090958237648,
+        -0.0024304757826030254,
+        -0.04122517630457878,
+        1.5703816413879395
+      ],
+      "targets": [
+        [
+          -4.8264,
+          1.4552
+        ],
+        [
+          -4.8264,
+          -1.7687999999999995
+        ],
+        [
+          -2.7957,
+          -3.4599000000000006
+        ],
+        [
+          -1.5744000000000005,
+          -3.0146
+        ],
+        [
+          -0.47280000000000044,
+          -1.7065000000000001
+        ]
+      ],
+      "setpoint": [
+        -0.010753773152828217,
+        0.554573655128479,
+        -0.7412251763045788,
+        2.6788778801393036
+      ],
+      "clearance_m": null,
+      "stop_m": 0.95,
+      "v_cmd": 0.0,
+      "depth_age_s": 0.254,
+      "corridor_age_s": null,
+      "corridor_coverage": 1.0,
+      "depth_valid_frac": 0.912,
+      "depth_reject": null,
+      "health_bad_s": 0.0,
+      "recover": null,
+      "recovery_request": null,
+      "path_s": null,
+      "path_pid": null,
+      "plan_reply": {
+        "state": "failed",
+        "id": 5,
+        "t": 140.420810866,
+        "reason": "no observed-free rejoin beyond recovery lookahead"
+      },
+      "prior_state": null,
+      "leg_blocks": 1,
+      "tunnel": false,
+      "align": null,
+      "depth_frames": 335,
+      "obstacle_stops": 0,
+      "depth_holds": 0,
+      "unconfirmed_obstacles": 0,
+      "depth_unusable": 0,
+      "depth_future": 0,
+      "depth_stale": 0,
+      "depth_out_of_order": 0,
+      "corridor_unobserved": 0,
+      "corrections": 0,
+      "recoveries": 0,
+      "replan_resumes": 0,
+      "blended_turns": 0,
+      "path_waits": 0,
+      "alignments": 0,
+      "tunnel_ticks": 0,
+      "tube_holds": 0,
+      "tube_ticks": 0,
+      "retreats": 0,
+      "plan_stops": 1,
+      "rejects": {
+        "no_camera_info": 1
+      }
+    },
+    "grader": {
+      "phase": "over",
+      "reason": "crash_ground_contact",
+      "t_sim": 159.191641196,
+      "elapsed_s": 31.17499501200001,
+      "penalty_s": 0.0,
+      "run_time_s": 31.17499501200001,
+      "touches": 0,
+      "checkpoints_cleared": [],
+      "next_checkpoint": {
+        "index": 1,
+        "name": "start_leg"
+      },
+      "via_window": false,
+      "over_walls_pending": false,
+      "ever_over_walls": false,
+      "return_completed": false,
+      "armed": false,
+      "landed": true,
+      "xyz": [
+        -0.323,
+        1.467,
+        0.146
+      ],
+      "max_z": 0.82,
+      "provisional_points": 0.0,
+      "n_pose": 12344,
+      "environment": {
+        "layout": "DIVERSE01",
+        "selection_seed": 1049038789930006439,
+        "episode_index": 0,
+        "episode_id": "04709ebf53ed45a58f3e08ed52c8ae9a"
+      }
+    },
+    "skybeta": {
+      "stamp": 159.204,
+      "px4_link": true,
+      "armed": false,
+      "landed": true,
+      "nav_state": 14,
+      "nav_state_name": "OFFBOARD",
+      "offboard_active": true,
+      "odom_enu": [
+        0.5582753567318417,
+        -0.009628828189112672,
+        0.011204849097082895
+      ],
+      "origin_enu": [
+        -0.008905918387572742,
+        -0.004546707851717226,
+        -0.009916465549964623
+      ],
+      "local_enu": [
+        0.5591332316398621,
+        -0.006968343630433083,
+        0.08484482765197754
+      ],
+      "envelope_ok": true,
+      "setpoint_mode": "hold",
+      "clamped": [],
+      "frozen": false,
+      "envelope": {
+        "min_altitude_m": 0.3,
+        "max_altitude_m": 3.0,
+        "max_speed_mps": 1.5
+      }
+    },
+    "localizer": {
+      "scans": 721,
+      "updates": 12,
+      "empty_scans": 0,
+      "no_odom_match": 9,
+      "beams_depth": 42,
+      "resets": 0,
+      "vio_ok": true,
+      "ready": true,
+      "height_m": 0.136,
+      "ess": 457,
+      "scans_skipped": 709,
+      "scan_fit": [
+        42,
+        0.23809523809523808
+      ],
+      "cluster_frac": 1.0,
+      "live_map": {
+        "scans_in": 721,
+        "scans_gated": 584,
+        "known_cells": 833,
+        "occupied": 90,
+        "landmarks": 62,
+        "conflicts": 45
+      },
+      "local_map": {
+        "scans_in": 721,
+        "occupied": 83,
+        "known": 1313,
+        "recentres": 0,
+        "centre": [
+          -2.5,
+          0.9
+        ]
+      },
+      "prior": {
+        "state": "dropped",
+        "fit": 0.238,
+        "t": 158.49997464,
+        "has_evidence": true,
+        "drops": 2,
+        "changed_t": 137.316644696,
+        "drop_fit": 0.3,
+        "restore_fit": 0.35,
+        "max_fit_gap_s": 0.5,
+        "last_rejection": null
+      },
+      "t": 158.5,
+      "x": -2.551,
+      "y": 1.472,
+      "yaw_deg": 20.2,
+      "sigma_xy": 0.054,
+      "sigma_yaw_deg": 1.08
+    },
+    "phase_transitions": [
+      {
+        "wall": 1794131055.708944,
+        "phase": "wait",
+        "why": "waiting for PX4 position and heading",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": null,
+        "depth_valid_frac": null,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131057.4841702,
+        "phase": "wait",
+        "why": "estimator healthy for only 0.8/3 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.233,
+        "depth_valid_frac": 0.912,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131058.624634,
+        "phase": "wait",
+        "why": "estimator healthy for only 1.3/3 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.312,
+        "depth_valid_frac": 0.912,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131059.784805,
+        "phase": "wait",
+        "why": "estimator healthy for only 1.8/3 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.183,
+        "depth_valid_frac": 0.913,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131060.887638,
+        "phase": "wait",
+        "why": "estimator healthy for only 2.3/3 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.1,
+        "depth_valid_frac": 0.913,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131061.985485,
+        "phase": "wait",
+        "why": "estimator healthy for only 2.8/3 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.212,
+        "depth_valid_frac": 0.91,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131063.1084008,
+        "phase": "wait",
+        "why": "waiting for 3 s of continuously usable depth",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.275,
+        "depth_valid_frac": 0.912,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131064.1857955,
+        "phase": "arm",
+        "why": "waiting for 3 s of continuously usable depth",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.204,
+        "depth_valid_frac": 0.913,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131068.505308,
+        "phase": "climb",
+        "why": "waiting for 3 s of continuously usable depth",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.25,
+        "depth_valid_frac": 0.911,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131082.908686,
+        "phase": "turn",
+        "why": "leg 1/5",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.146,
+        "depth_valid_frac": 0.914,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131084.6250405,
+        "phase": "go",
+        "why": "leg 1/5",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": 0.254,
+        "depth_age_s": 0.254,
+        "depth_valid_frac": 0.914,
+        "corridor_coverage": 1.0
+      },
+      {
+        "wall": 1794131085.466439,
+        "phase": "turn",
+        "why": "path corner on leg 1: stop and turn",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.329,
+        "depth_valid_frac": 0.914,
+        "corridor_coverage": 1.0
+      },
+      {
+        "wall": 1794131086.5241854,
+        "phase": "check",
+        "why": "path corner on leg 1: stop and turn",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.371,
+        "depth_valid_frac": 0.913,
+        "corridor_coverage": 1.0
+      },
+      {
+        "wall": 1794131087.6873083,
+        "phase": "go",
+        "why": "path corner on leg 1: stop and turn",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": 0.192,
+        "depth_age_s": 0.192,
+        "depth_valid_frac": 0.914,
+        "corridor_coverage": 1.0
+      },
+      {
+        "wall": 1794131096.3081355,
+        "phase": "turn",
+        "why": "path corner on leg 1: stop and turn",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.337,
+        "depth_valid_frac": 0.914,
+        "corridor_coverage": 1.0
+      },
+      {
+        "wall": 1794131101.3085268,
+        "phase": "check",
+        "why": "path corner on leg 1: stop and turn",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.237,
+        "depth_valid_frac": 0.914,
+        "corridor_coverage": 1.0
+      },
+      {
+        "wall": 1794131102.3281372,
+        "phase": "blocked",
+        "why": "navigator has no route for leg 1: recovery start footprint is not certified free; holding up to 4 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": {
+          "id": 1,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.5734923073403054,
+          "require_detour": false
+        },
+        "plan_reply": {
+          "state": "failed",
+          "id": 1,
+          "t": 122.904147002,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "corridor_age_s": null,
+        "depth_age_s": 0.275,
+        "depth_valid_frac": 0.914,
+        "corridor_coverage": 1.0
+      },
+      {
+        "wall": 1794131110.989545,
+        "phase": "recovery_scan",
+        "why": "bounded stationary depth scan for an observed-free detour",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": {
+          "id": 1,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.5734923073403054,
+          "require_detour": false
+        },
+        "plan_reply": {
+          "state": "failed",
+          "id": 1,
+          "t": 126.941646356,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "corridor_age_s": null,
+        "depth_age_s": 0.35,
+        "depth_valid_frac": 0.914,
+        "corridor_coverage": 1.0
+      },
+      {
+        "wall": 1794131127.6493156,
+        "phase": "backoff",
+        "why": "still blocked: backing off up to 0.20 m",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": {
+          "id": 4,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.5734923073403054,
+          "require_detour": false
+        },
+        "plan_reply": {
+          "state": "pending",
+          "id": 4,
+          "t": 134.41664516
+        },
+        "corridor_age_s": null,
+        "depth_age_s": 0.137,
+        "depth_valid_frac": 0.913,
+        "corridor_coverage": 1.0
+      },
+      {
+        "wall": 1794131136.6245182,
+        "phase": "recheck",
+        "why": "rechecking for 2 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": {
+          "id": 5,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.5734923073403054,
+          "require_detour": false
+        },
+        "plan_reply": {
+          "state": "pending",
+          "id": 5,
+          "t": 138.462477846
+        },
+        "corridor_age_s": null,
+        "depth_age_s": 0.287,
+        "depth_valid_frac": 0.901,
+        "corridor_coverage": 1.0
+      },
+      {
+        "wall": 1794131141.0659912,
+        "phase": "land",
+        "why": "navigator has no route for leg 1: recovery start footprint is not certified free; still blocked after hold, back-off and recheck",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": {
+          "state": "failed",
+          "id": 5,
+          "t": 140.420810866,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "corridor_age_s": null,
+        "depth_age_s": 0.25,
+        "depth_valid_frac": 0.904,
+        "corridor_coverage": 1.0
+      },
+      {
+        "wall": 1794131159.9082441,
+        "phase": "done",
+        "why": "landed: navigator has no route for leg 1: recovery start footprint is not certified free; still blocked after hold, back-off and recheck",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": {
+          "state": "failed",
+          "id": 5,
+          "t": 140.420810866,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "corridor_age_s": null,
+        "depth_age_s": 0.204,
+        "depth_valid_frac": 0.913,
+        "corridor_coverage": 1.0
+      }
+    ],
+    "prior_transitions": [
+      {
+        "wall": 1794130930.0100856,
+        "state": "unknown",
+        "fit": null,
+        "t": null,
+        "has_evidence": false,
+        "drops": 0,
+        "changed_t": null,
+        "drop_fit": 0.3,
+        "restore_fit": 0.35,
+        "max_fit_gap_s": 0.5,
+        "last_rejection": null
+      },
+      {
+        "wall": 1794130937.4261417,
+        "state": "dropped",
+        "fit": 0.188,
+        "t": 49.008325492,
+        "has_evidence": true,
+        "drops": 1,
+        "changed_t": 49.008325492,
+        "drop_fit": 0.3,
+        "restore_fit": 0.35,
+        "max_fit_gap_s": 0.5,
+        "last_rejection": null
+      },
+      {
+        "wall": 1794131125.6040063,
+        "state": "placed",
+        "fit": 0.439,
+        "t": 133.287478674,
+        "has_evidence": true,
+        "drops": 1,
+        "changed_t": 133.287478674,
+        "drop_fit": 0.3,
+        "restore_fit": 0.35,
+        "max_fit_gap_s": 0.5,
+        "last_rejection": null
+      },
+      {
+        "wall": 1794131134.5063972,
+        "state": "dropped",
+        "fit": 0.214,
+        "t": 137.316644696,
+        "has_evidence": true,
+        "drops": 2,
+        "changed_t": 137.316644696,
+        "drop_fit": 0.3,
+        "restore_fit": 0.35,
+        "max_fit_gap_s": 0.5,
+        "last_rejection": null
+      }
+    ],
+    "manual_land_intervention": false,
+    "navigator_evidence": {
+      "max_prior_cleared_cells": 14,
+      "max_prior_confirmed_cells": 42,
+      "published_plan_modes": [
+        "fused"
+      ],
+      "recovery_request_ids": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "recovery_ready_replies": 0,
+      "failure_reasons": [
+        "no observed-free rejoin beyond recovery lookahead",
+        "prior trust state changed",
+        "recovery start footprint is not certified free"
+      ],
+      "max_airborne_prior_cleared_cells": 14,
+      "max_airborne_prior_confirmed_cells": 42
+    },
+    "scorecard": {
+      "phase": "over",
+      "reason": "crash_ground_contact",
+      "t_start": 111.679148798,
+      "t_end": 142.85414381,
+      "run_time_s": 31.17499501200001,
+      "penalty_s": 0.0,
+      "touches": 0,
+      "near_misses": 0,
+      "min_clearance_m": 0.5425,
+      "touch_log": [],
+      "score": {
+        "run_points": 0.0,
+        "checkpoint_points": 0.0,
+        "time_bonus": 0.0,
+        "window_bonus": 0.0,
+        "return_multiplier": 1.0,
+        "finished": false,
+        "below_walls_finish": false,
+        "run_time_s": 31.17499501200001,
+        "checkpoints": [],
+        "notes": []
+      },
+      "events": [
+        {
+          "t": 106.871,
+          "event": "armed"
+        },
+        {
+          "t": 109.8,
+          "event": "airborne"
+        },
+        {
+          "t": 111.679,
+          "event": "start",
+          "xyz": [
+            -0.324,
+            2.12,
+            0.3
+          ]
+        },
+        {
+          "t": 142.854,
+          "event": "ground_contact",
+          "other": "pose_rule",
+          "at": [
+            -0.323,
+            1.465,
+            0.163
+          ]
+        },
+        {
+          "t": 142.854,
+          "event": "over",
+          "reason": "crash_ground_contact",
+          "run_time_s": 31.17499501200001
+        }
+      ],
+      "geometry_source": "/home/matthew/dronehacks-sim/layouts/built/DIVERSE01/course_geometry.json",
+      "config": {
+        "start_xy_m": 0.3,
+        "start_z_m": 0.3,
+        "touch_penalty_s": 5.0,
+        "touch_debounce_s": 1.0,
+        "clearance_margin_m": 0.02,
+        "clearance_action": "touch",
+        "ground_contact_from_pose": true,
+        "rest_z_m": 0.146,
+        "time_limit_s": 180.0,
+        "time_limit_includes_penalties": false,
+        "fastest_finish_s": 60.0,
+        "fastest_to_cp_s": [
+          10.0,
+          25.0,
+          40.0,
+          50.0,
+          60.0
+        ],
+        "return_radius_m": 0.5,
+        "course_margin_m": 0.3
+      },
+      "model_name": "sky_beta_0",
+      "environment": {
+        "episode_id": "04709ebf53ed45a58f3e08ed52c8ae9a",
+        "layout": "DIVERSE01",
+        "pool": [
+          "DIVERSE01"
+        ],
+        "selection_seed": 1049038789930006439,
+        "episode_index": 0,
+        "observer": "browser3d",
+        "catalog_sha256": "762208e71a9da60f73276fa705b630ca42a7892668550f622b4f77e897c7d202",
+        "assets": {
+          "name": "DIVERSE01",
+          "tier": "wild",
+          "generator_seed": 918246141,
+          "files": {
+            "world.sdf": "4b83ea013895b870fa9d28540804847dd6367efcb31050aba188b2ab837ffa55",
+            "course_geometry.json": "790c5332f1d3ce5c28b4ecaeabcc35c37c073723b33c581783decc5600743fd1",
+            "course_surface_pts.npz": "b834ef0ed67012b2440e345f7c3c8843c689cc4f72499d38a7ee78c15ae9f67b"
+          },
+          "layout_sha256": "aa33d31303239abf0fff28e92bad9a18e3ca8497cfd1b7adc65c27dfc33f7d40"
+        }
+      },
+      "wall_time": "2026-11-08T01:45:46"
+    },
+    "startup": {
+      "batch_to_first_refnav_status_s": 235.59027433395386,
+      "map_ready_wall_duration_s": 68.8,
+      "navigator_ready_wall_duration_s": 56.0,
+      "fly_start_to_refnav_wall_s": 194.8
+    }
+  },
+  {
+    "instance": 2,
+    "tested_commit": "9b76afd",
+    "armed_wall": 1794131036.7186012,
+    "disarmed_wall": 1794131102.3934546,
+    "peak_truth_z": 0.8069026693080418,
+    "refnav": {
+      "phase": "done",
+      "why": "landed: navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+      "result": "landed: navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+      "started_t": 90.04165226,
+      "leg": 0,
+      "legs": 5,
+      "legs_done": 0,
+      "home": [
+        0.00547223212197423,
+        0.0011847359128296375,
+        -0.034612540155649185,
+        1.5708575248718262
+      ],
+      "targets": [
+        [
+          -4.8264,
+          1.4552
+        ],
+        [
+          -4.8264,
+          -1.7687999999999997
+        ],
+        [
+          -2.7957,
+          -3.4599
+        ],
+        [
+          -1.5744000000000005,
+          -3.0146
+        ],
+        [
+          -0.47280000000000044,
+          -1.7065
+        ]
+      ],
+      "setpoint": [
+        0.006909704301506281,
+        0.018658816814422607,
+        -0.7346125401556493,
+        1.5708575248718262
+      ],
+      "clearance_m": null,
+      "stop_m": 0.95,
+      "v_cmd": 0.0,
+      "depth_age_s": 0.312,
+      "corridor_age_s": null,
+      "corridor_coverage": 0.98,
+      "depth_valid_frac": 0.898,
+      "depth_reject": null,
+      "health_bad_s": 0.0,
+      "recover": null,
+      "recovery_request": null,
+      "path_s": null,
+      "path_pid": null,
+      "plan_reply": {
+        "state": "failed",
+        "id": 5,
+        "t": 115.34164821200001,
+        "reason": "no observed-free rejoin beyond recovery lookahead"
+      },
+      "prior_state": null,
+      "leg_blocks": 1,
+      "tunnel": false,
+      "align": null,
+      "depth_frames": 244,
+      "obstacle_stops": 0,
+      "depth_holds": 0,
+      "unconfirmed_obstacles": 0,
+      "depth_unusable": 0,
+      "depth_future": 0,
+      "depth_stale": 0,
+      "depth_out_of_order": 0,
+      "corridor_unobserved": 0,
+      "corrections": 0,
+      "recoveries": 0,
+      "replan_resumes": 0,
+      "blended_turns": 0,
+      "path_waits": 0,
+      "alignments": 0,
+      "tunnel_ticks": 0,
+      "tube_holds": 0,
+      "tube_ticks": 0,
+      "retreats": 0,
+      "plan_stops": 1,
+      "rejects": {
+        "no_tf": 2
+      }
+    },
+    "grader": {
+      "phase": "over",
+      "reason": "crash_ground_contact",
+      "t_sim": 159.599974464,
+      "elapsed_s": 18.89999697600001,
+      "penalty_s": 0.0,
+      "run_time_s": 18.89999697600001,
+      "touches": 0,
+      "checkpoints_cleared": [],
+      "next_checkpoint": {
+        "index": 1,
+        "name": "start_leg"
+      },
+      "via_window": false,
+      "over_walls_pending": false,
+      "ever_over_walls": false,
+      "return_completed": false,
+      "armed": false,
+      "landed": true,
+      "xyz": [
+        -1.41,
+        1.931,
+        0.146
+      ],
+      "max_z": 0.807,
+      "provisional_points": 0.0,
+      "n_pose": 12384,
+      "environment": {
+        "layout": "DIVERSE02",
+        "selection_seed": 1049038789930006439,
+        "episode_index": 1,
+        "episode_id": "be7fa2f68b3849ca891044d3d12d24f3"
+      }
+    },
+    "skybeta": {
+      "stamp": 159.604,
+      "px4_link": true,
+      "armed": false,
+      "landed": true,
+      "nav_state": 14,
+      "nav_state_name": "OFFBOARD",
+      "offboard_active": true,
+      "odom_enu": [
+        0.015483976551625244,
+        0.02123421669540087,
+        -0.02450105843104361
+      ],
+      "origin_enu": [
+        -0.008905918387572742,
+        -0.004546707851717226,
+        -0.009916465549964623
+      ],
+      "local_enu": [
+        0.01706400327384472,
+        0.0055908747017383575,
+        0.08071128278970718
+      ],
+      "envelope_ok": true,
+      "setpoint_mode": "hold",
+      "clamped": [],
+      "frozen": false,
+      "envelope": {
+        "min_altitude_m": 0.3,
+        "max_altitude_m": 3.0,
+        "max_speed_mps": 1.5
+      }
+    },
+    "localizer": {
+      "scans": 805,
+      "updates": 0,
+      "empty_scans": 0,
+      "no_odom_match": 7,
+      "beams_depth": 30,
+      "resets": 0,
+      "vio_ok": true,
+      "ready": true,
+      "height_m": 0.131,
+      "ess": 600,
+      "scans_skipped": 805,
+      "scan_fit": [
+        13,
+        0.0
+      ],
+      "cluster_frac": 1.0,
+      "live_map": {
+        "scans_in": 805,
+        "scans_gated": 805,
+        "known_cells": 0,
+        "occupied": 0,
+        "landmarks": 0,
+        "conflicts": 0
+      },
+      "local_map": {
+        "scans_in": 805,
+        "occupied": 42,
+        "known": 848,
+        "recentres": 0,
+        "centre": [
+          -2.55,
+          0.9
+        ]
+      },
+      "prior": {
+        "state": "dropped",
+        "fit": 0.0,
+        "t": 159.358307836,
+        "has_evidence": true,
+        "drops": 1,
+        "changed_t": 47.091659132,
+        "drop_fit": 0.3,
+        "restore_fit": 0.35,
+        "max_fit_gap_s": 0.5,
+        "last_rejection": null
+      },
+      "t": 159.358,
+      "x": -2.515,
+      "y": 0.951,
+      "yaw_deg": 89.93,
+      "sigma_xy": 0.08,
+      "sigma_yaw_deg": 2.24
+    },
+    "phase_transitions": [
+      {
+        "wall": 1794131028.092627,
+        "phase": "wait",
+        "why": "waiting for PX4 position and heading",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": null,
+        "depth_valid_frac": null,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131028.8947175,
+        "phase": "wait",
+        "why": "estimator healthy for only 0.5/3 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.246,
+        "depth_valid_frac": 0.897,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131030.0708206,
+        "phase": "wait",
+        "why": "estimator healthy for only 1.0/3 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.154,
+        "depth_valid_frac": 0.896,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131031.1928656,
+        "phase": "wait",
+        "why": "estimator healthy for only 1.5/3 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.275,
+        "depth_valid_frac": 0.896,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131032.3130665,
+        "phase": "wait",
+        "why": "estimator healthy for only 2.0/3 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.312,
+        "depth_valid_frac": 0.898,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131033.4510922,
+        "phase": "wait",
+        "why": "estimator healthy for only 2.5/3 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.2,
+        "depth_valid_frac": 0.897,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131034.552557,
+        "phase": "wait",
+        "why": "estimator healthy for only 3.0/3 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.304,
+        "depth_valid_frac": 0.898,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131035.3535495,
+        "phase": "arm",
+        "why": "waiting for 3 s of continuously usable depth",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.2,
+        "depth_valid_frac": 0.897,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131038.993588,
+        "phase": "climb",
+        "why": "waiting for 3 s of continuously usable depth",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.225,
+        "depth_valid_frac": 0.897,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131051.990965,
+        "phase": "turn",
+        "why": "leg 1/5",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": null,
+        "depth_age_s": 0.25,
+        "depth_valid_frac": 0.89,
+        "corridor_coverage": null
+      },
+      {
+        "wall": 1794131053.351043,
+        "phase": "go",
+        "why": "leg 1/5",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": null,
+        "corridor_age_s": 0.196,
+        "depth_age_s": 0.196,
+        "depth_valid_frac": 0.89,
+        "corridor_coverage": 0.98
+      },
+      {
+        "wall": 1794131054.7331362,
+        "phase": "blocked",
+        "why": "navigator has no route for leg 1: awaiting bounded planner retry; holding up to 4 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": {
+          "id": 1,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "plan_reply": {
+          "state": "failed",
+          "id": 1,
+          "t": 101.92081702600001,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "corridor_age_s": 0.804,
+        "depth_age_s": 0.208,
+        "depth_valid_frac": 0.889,
+        "corridor_coverage": 0.98
+      },
+      {
+        "wall": 1794131062.4336653,
+        "phase": "recovery_scan",
+        "why": "bounded stationary depth scan for an observed-free detour",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": {
+          "id": 1,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "plan_reply": {
+          "state": "failed",
+          "id": 1,
+          "t": 105.420816466,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "corridor_age_s": 4.271,
+        "depth_age_s": 0.212,
+        "depth_valid_frac": 0.892,
+        "corridor_coverage": 0.98
+      },
+      {
+        "wall": 1794131079.872313,
+        "phase": "backoff",
+        "why": "still blocked: backing off up to 0.00 m",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": {
+          "id": 4,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "plan_reply": {
+          "state": "pending",
+          "id": 4,
+          "t": 113.304148538
+        },
+        "corridor_age_s": 12.092,
+        "depth_age_s": 0.212,
+        "depth_valid_frac": 0.892,
+        "corridor_coverage": 0.98
+      },
+      {
+        "wall": 1794131081.3914945,
+        "phase": "recheck",
+        "why": "rechecking for 2 s",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": {
+          "id": 5,
+          "leg": 0,
+          "observed_only": true,
+          "reference_pid": 1,
+          "reference_progress_s": 0.0,
+          "require_detour": false
+        },
+        "plan_reply": {
+          "state": "failed",
+          "id": 5,
+          "t": 113.920815106,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "corridor_age_s": null,
+        "depth_age_s": 0.25,
+        "depth_valid_frac": 0.883,
+        "corridor_coverage": 0.98
+      },
+      {
+        "wall": 1794131084.5102313,
+        "phase": "land",
+        "why": "navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": {
+          "state": "failed",
+          "id": 5,
+          "t": 115.34164821200001,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "corridor_age_s": null,
+        "depth_age_s": 0.171,
+        "depth_valid_frac": 0.881,
+        "corridor_coverage": 0.98
+      },
+      {
+        "wall": 1794131102.1328325,
+        "phase": "done",
+        "why": "landed: navigator has no route for leg 1: awaiting bounded planner retry; still blocked after hold, back-off and recheck",
+        "leg": 0,
+        "legs_done": 0,
+        "recoveries": 0,
+        "recovery_request": null,
+        "plan_reply": {
+          "state": "failed",
+          "id": 5,
+          "t": 115.34164821200001,
+          "reason": "no observed-free rejoin beyond recovery lookahead"
+        },
+        "corridor_age_s": null,
+        "depth_age_s": 0.212,
+        "depth_valid_frac": 0.898,
+        "corridor_coverage": 0.98
+      }
+    ],
+    "prior_transitions": [
+      {
+        "wall": 1794130925.1527016,
+        "state": "unknown",
+        "fit": null,
+        "t": null,
+        "has_evidence": false,
+        "drops": 0,
+        "changed_t": null,
+        "drop_fit": 0.3,
+        "restore_fit": 0.35,
+        "max_fit_gap_s": 0.5,
+        "last_rejection": null
+      },
+      {
+        "wall": 1794130932.877356,
+        "state": "dropped",
+        "fit": 0.0,
+        "t": 47.091659132,
+        "has_evidence": true,
+        "drops": 1,
+        "changed_t": 47.091659132,
+        "drop_fit": 0.3,
+        "restore_fit": 0.35,
+        "max_fit_gap_s": 0.5,
+        "last_rejection": null
+      }
+    ],
+    "manual_land_intervention": false,
+    "navigator_evidence": {
+      "max_prior_cleared_cells": 0,
+      "max_prior_confirmed_cells": 0,
+      "published_plan_modes": [
+        "fused"
+      ],
+      "recovery_request_ids": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "recovery_ready_replies": 0,
+      "failure_reasons": [
+        "no observed-free rejoin beyond recovery lookahead"
+      ],
+      "max_airborne_prior_cleared_cells": 0,
+      "max_airborne_prior_confirmed_cells": 0
+    },
+    "scorecard": {
+      "phase": "over",
+      "reason": "crash_ground_contact",
+      "t_start": 98.724984204,
+      "t_end": 117.62498118,
+      "run_time_s": 18.89999697600001,
+      "penalty_s": 0.0,
+      "touches": 0,
+      "near_misses": 0,
+      "min_clearance_m": 0.5466,
+      "touch_log": [],
+      "score": {
+        "run_points": 0.0,
+        "checkpoint_points": 0.0,
+        "time_bonus": 0.0,
+        "window_bonus": 0.0,
+        "return_multiplier": 1.0,
+        "finished": false,
+        "below_walls_finish": false,
+        "run_time_s": 18.89999697600001,
+        "checkpoints": [],
+        "notes": []
+      },
+      "events": [
+        {
+          "t": 93.962,
+          "event": "armed"
+        },
+        {
+          "t": 96.804,
+          "event": "airborne"
+        },
+        {
+          "t": 98.725,
+          "event": "start",
+          "xyz": [
+            -1.513,
+            1.921,
+            0.3
+          ]
+        },
+        {
+          "t": 117.625,
+          "event": "ground_contact",
+          "other": "pose_rule",
+          "at": [
+            -1.409,
+            1.93,
+            0.166
+          ]
+        },
+        {
+          "t": 117.625,
+          "event": "over",
+          "reason": "crash_ground_contact",
+          "run_time_s": 18.89999697600001
+        }
+      ],
+      "geometry_source": "/home/matthew/dronehacks-sim/layouts/built/DIVERSE02/course_geometry.json",
+      "config": {
+        "start_xy_m": 0.3,
+        "start_z_m": 0.3,
+        "touch_penalty_s": 5.0,
+        "touch_debounce_s": 1.0,
+        "clearance_margin_m": 0.02,
+        "clearance_action": "touch",
+        "ground_contact_from_pose": true,
+        "rest_z_m": 0.146,
+        "time_limit_s": 180.0,
+        "time_limit_includes_penalties": false,
+        "fastest_finish_s": 60.0,
+        "fastest_to_cp_s": [
+          10.0,
+          25.0,
+          40.0,
+          50.0,
+          60.0
+        ],
+        "return_radius_m": 0.5,
+        "course_margin_m": 0.3
+      },
+      "model_name": "sky_beta_0",
+      "environment": {
+        "episode_id": "be7fa2f68b3849ca891044d3d12d24f3",
+        "layout": "DIVERSE02",
+        "pool": [
+          "DIVERSE02"
+        ],
+        "selection_seed": 1049038789930006439,
+        "episode_index": 1,
+        "observer": "browser3d",
+        "catalog_sha256": "762208e71a9da60f73276fa705b630ca42a7892668550f622b4f77e897c7d202",
+        "assets": {
+          "name": "DIVERSE02",
+          "tier": "wild",
+          "generator_seed": 918247045,
+          "files": {
+            "world.sdf": "ccdb4b0384b218f41cb70e79fc71709c75749951206535592489e5413990dbce",
+            "course_geometry.json": "d7da62140ab335597cf14daf8b3c939043d34ab3561e15f01573963599b3e138",
+            "course_surface_pts.npz": "e046e300c97fa10cdf49093e836e25360774a5757d5923391fbe537e021ecadd"
+          },
+          "layout_sha256": "fb2ae6c0213ffc781a853b85eccfcec3f435a0fca9c2f543546d9101e6a468f9"
+        }
+      },
+      "wall_time": "2026-11-08T01:44:49"
+    },
+    "startup": {
+      "batch_to_first_refnav_status_s": 207.97395730018616,
+      "map_ready_wall_duration_s": 60.5,
+      "navigator_ready_wall_duration_s": 47.0,
+      "fly_start_to_refnav_wall_s": 167.2
+    }
+  }
+]

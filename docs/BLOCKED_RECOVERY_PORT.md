@@ -231,3 +231,18 @@ and their non-commandable recovery references were prepared. Laptop suite: 545 p
 focused integration: 49 passed. Patch replay reproduces the runtime and the prior assets remain
 unchanged. The two diverse comparison flights are in progress; these checks do not yet establish
 successful mismatch flight. Evidence: `evidence/blocked_recovery_20261108/newprior_integration/`.
+
+
+The 9b76afd comparison flights have finished. Both entered bounded recovery and issued all five
+requests, unlike c52cb7c, but neither found a certified detour. DIVERSE01 cleared 14 prior cells and
+confirmed 42; DIVERSE02 cleared none. Both landed and naturally disarmed, with zero checkpoints
+and no manual intervention. The limiting errors were no observed-free rejoin beyond the recovery
+lookahead, and on DIVERSE01 an uncertified start footprint. This version is not validated for
+successful mismatch flight; exact evidence is under `newprior_integration/sim/`.
+
+The real device launcher subsequently reported missing /skybeta/state despite a running policy.
+The underlying CLI error was the ROS daemon XMLRPC `RuntimeError: !rclpy.ok()`. Direct reads with
+`ros2 topic echo --no-daemon --spin-time 2 --once --full-length /skybeta/state std_msgs/msg/String`
+succeeded. The existing device fly.sh was patched only at that read, keeping its disarmed check.
+A backup was saved outside team_ws and bash syntax validation passed. No stack restart occurred.
+Live telemetry then showed arm phase, healthy estimator, fresh depth, PX4 linked, disarmed/landed.

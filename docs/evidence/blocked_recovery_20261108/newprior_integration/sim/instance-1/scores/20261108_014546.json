@@ -1,0 +1,106 @@
+{
+ "phase": "over",
+ "reason": "crash_ground_contact",
+ "t_start": 111.679148798,
+ "t_end": 142.85414381,
+ "run_time_s": 31.17499501200001,
+ "penalty_s": 0.0,
+ "touches": 0,
+ "near_misses": 0,
+ "min_clearance_m": 0.5425,
+ "touch_log": [],
+ "score": {
+  "run_points": 0.0,
+  "checkpoint_points": 0.0,
+  "time_bonus": 0.0,
+  "window_bonus": 0.0,
+  "return_multiplier": 1.0,
+  "finished": false,
+  "below_walls_finish": false,
+  "run_time_s": 31.17499501200001,
+  "checkpoints": [],
+  "notes": []
+ },
+ "events": [
+  {
+   "t": 106.871,
+   "event": "armed"
+  },
+  {
+   "t": 109.8,
+   "event": "airborne"
+  },
+  {
+   "t": 111.679,
+   "event": "start",
+   "xyz": [
+    -0.324,
+    2.12,
+    0.3
+   ]
+  },
+  {
+   "t": 142.854,
+   "event": "ground_contact",
+   "other": "pose_rule",
+   "at": [
+    -0.323,
+    1.465,
+    0.163
+   ]
+  },
+  {
+   "t": 142.854,
+   "event": "over",
+   "reason": "crash_ground_contact",
+   "run_time_s": 31.17499501200001
+  }
+ ],
+ "geometry_source": "/home/matthew/dronehacks-sim/layouts/built/DIVERSE01/course_geometry.json",
+ "config": {
+  "start_xy_m": 0.3,
+  "start_z_m": 0.3,
+  "touch_penalty_s": 5.0,
+  "touch_debounce_s": 1.0,
+  "clearance_margin_m": 0.02,
+  "clearance_action": "touch",
+  "ground_contact_from_pose": true,
+  "rest_z_m": 0.146,
+  "time_limit_s": 180.0,
+  "time_limit_includes_penalties": false,
+  "fastest_finish_s": 60.0,
+  "fastest_to_cp_s": [
+   10.0,
+   25.0,
+   40.0,
+   50.0,
+   60.0
+  ],
+  "return_radius_m": 0.5,
+  "course_margin_m": 0.3
+ },
+ "model_name": "sky_beta_0",
+ "environment": {
+  "episode_id": "04709ebf53ed45a58f3e08ed52c8ae9a",
+  "layout": "DIVERSE01",
+  "pool": [
+   "DIVERSE01"
+  ],
+  "selection_seed": 1049038789930006439,
+  "episode_index": 0,
+  "observer": "browser3d",
+  "catalog_sha256": "762208e71a9da60f73276fa705b630ca42a7892668550f622b4f77e897c7d202",
+  "assets": {
+   "name": "DIVERSE01",
+   "tier": "wild",
+   "generator_seed": 918246141,
+   "files": {
+    "world.sdf": "4b83ea013895b870fa9d28540804847dd6367efcb31050aba188b2ab837ffa55",
+    "course_geometry.json": "790c5332f1d3ce5c28b4ecaeabcc35c37c073723b33c581783decc5600743fd1",
+    "course_surface_pts.npz": "b834ef0ed67012b2440e345f7c3c8843c689cc4f72499d38a7ee78c15ae9f67b"
+   },
+   "layout_sha256": "aa33d31303239abf0fff28e92bad9a18e3ca8497cfd1b7adc65c27dfc33f7d40"
+  }
+ },
+ "wall_time": "2026-11-08T01:45:46"
+}

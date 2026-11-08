@@ -18,5 +18,34 @@
   },
   "prior_assets": "unchanged from c52cb7c",
   "native": "PASS main workspace build + ROS constructor/preplanning; see device/9b76afd",
-  "dual_sim": "starting exact9b76afd on DIVERSE01/DIVERSE02 with original prior"
+  "dual_sim": {
+    "status": "FAILED_COMPLETION",
+    "policy_commit": "9b76afd",
+    "worlds": [
+      "DIVERSE01",
+      "DIVERSE02"
+    ],
+    "grader_duration_s": [
+      31.175,
+      18.9
+    ],
+    "checkpoints": [
+      0,
+      0
+    ],
+    "recovery_requests_each": 5,
+    "certified_detours_each": 0,
+    "maximum_cleared_cells": [
+      14,
+      0
+    ],
+    "maximum_confirmed_cells": [
+      42,
+      0
+    ],
+    "natural_disarm": true,
+    "manual_intervention": false,
+    "reason": "No observed-free rejoin; first world also lacked certified start footprint",
+    "evidence": "sim/"
+  }
 }

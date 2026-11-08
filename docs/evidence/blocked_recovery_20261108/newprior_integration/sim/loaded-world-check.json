@@ -1,0 +1,68 @@
+[
+  {
+    "instance": 1,
+    "episode": "04709ebf53ed45a58f3e08ed52c8ae9a",
+    "policy_commit": "9b76afd",
+    "verified_policy_files": 158,
+    "world_path": "/home/matthew/dronehacks-sim/runs/episodes/04709ebf53ed45a58f3e08ed52c8ae9a/world.sdf",
+    "world_sha256": "49dec44162dfc70ce6b704a43bee885c59f44709bab2d9af88d04b6c0e1bacb9",
+    "collision_geometry_sha256": "cd466fe180e490d54a298e359168d8f6f20f80caf36b7a307d3539c6e86bea3e",
+    "selection": {
+      "episode_id": "04709ebf53ed45a58f3e08ed52c8ae9a",
+      "layout": "DIVERSE01",
+      "pool": [
+        "DIVERSE01"
+      ],
+      "selection_seed": 1049038789930006439,
+      "episode_index": 0,
+      "observer": "browser3d",
+      "catalog_sha256": "762208e71a9da60f73276fa705b630ca42a7892668550f622b4f77e897c7d202",
+      "assets": {
+        "name": "DIVERSE01",
+        "tier": "wild",
+        "generator_seed": 918246141,
+        "files": {
+          "world.sdf": "4b83ea013895b870fa9d28540804847dd6367efcb31050aba188b2ab837ffa55",
+          "course_geometry.json": "790c5332f1d3ce5c28b4ecaeabcc35c37c073723b33c581783decc5600743fd1",
+          "course_surface_pts.npz": "b834ef0ed67012b2440e345f7c3c8843c689cc4f72499d38a7ee78c15ae9f67b"
+        },
+        "layout_sha256": "aa33d31303239abf0fff28e92bad9a18e3ca8497cfd1b7adc65c27dfc33f7d40"
+      }
+    },
+    "scene.json_sha256": "6f5788f2fb5a9c7254c884281d9eab364a517a022c7ceaee2a89329a8dfc10af",
+    "course.json_sha256": "d142d286dd955213831553c62d7ea238af3f7a6725688cbfaf131d85e061a4ae"
+  },
+  {
+    "instance": 2,
+    "episode": "be7fa2f68b3849ca891044d3d12d24f3",
+    "policy_commit": "9b76afd",
+    "verified_policy_files": 158,
+    "world_path": "/home/matthew/dronehacks-sim/runs/episodes/be7fa2f68b3849ca891044d3d12d24f3/world.sdf",
+    "world_sha256": "a71e1e98ec21dbf9253b71573af325ee6de4603be39963d4c1ce3a7c6f5a91c1",
+    "collision_geometry_sha256": "38422fa9ccec8712e17e9fe353f472335a1a59999129dddfa77be50e7ebf5100",
+    "selection": {
+      "episode_id": "be7fa2f68b3849ca891044d3d12d24f3",
+      "layout": "DIVERSE02",
+      "pool": [
+        "DIVERSE02"
+      ],
+      "selection_seed": 1049038789930006439,
+      "episode_index": 1,
+      "observer": "browser3d",
+      "catalog_sha256": "762208e71a9da60f73276fa705b630ca42a7892668550f622b4f77e897c7d202",
+      "assets": {
+        "name": "DIVERSE02",
+        "tier": "wild",
+        "generator_seed": 918247045,
+        "files": {
+          "world.sdf": "ccdb4b0384b218f41cb70e79fc71709c75749951206535592489e5413990dbce",
+          "course_geometry.json": "d7da62140ab335597cf14daf8b3c939043d34ab3561e15f01573963599b3e138",
+          "course_surface_pts.npz": "e046e300c97fa10cdf49093e836e25360774a5757d5923391fbe537e021ecadd"
+        },
+        "layout_sha256": "fb2ae6c0213ffc781a853b85eccfcec3f435a0fca9c2f543546d9101e6a468f9"
+      }
+    },
+    "scene.json_sha256": "c7929baeb222e764d650793f9e353d009d398f6a0cc9c47c0f77b2fdec48720c",
+    "course.json_sha256": "8d0d8009e3320be759950511d049cfa0c8bd9c612c179fbac99e45e3c94a5b5e"
+  }
+]
