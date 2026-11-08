@@ -20,7 +20,7 @@ import numpy as np
 
 def opening_target(pts, height, cruise, lateral_m, clearance_m, alt_min, alt_max,
                    x_min=0.3, x_max=2.5, slab_m=0.15, min_pts=6, floor_band_m=0.12,
-                   max_gap_m=1.3, behind_m=0.3, min_through=6):
+                   max_gap_m=1.3, behind_m=0.3, min_through=15):
     """-> (target height above the floor, info dict) or (None, info) when no opening is confirmed."""
     info = {}
     if pts is None or len(pts) == 0 or not np.isfinite(height):
