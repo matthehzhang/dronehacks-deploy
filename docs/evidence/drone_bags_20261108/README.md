@@ -1,21 +1,22 @@
-# Drone recordings pulled on 2026-11-08
+# Two most recent ROS bags from the 2026-11-08 pull
 
-The archive contains all 45 bag files copied from `skybeta-14` over USB-C,
-plus their available metadata and accompanying run logs (389 files total).
-Original directory paths are preserved under `dronehacks-bags-2026-11-08/`.
-The source files on the drone were retained. No recordings were repaired or reindexed.
-Some source recordings have no `metadata.yaml`; the archive preserves them as found.
+This archive now contains only the two newest bags by remote file modification time
+within the original 43-bag USB-C pull:
 
-Sources include `team_ws/runs`, `team_ws/flight_logs`, `team_ws/bags`,
-`depth_bench/runs`, and the `matthew930am_ref` evidence recording.
+- `20261107-235044_group154_OvyGUo/bag/bag_0.mcap` (14,360,576 bytes).
+- `20261107-234611_group154_fmlluu/bag/bag_0.mcap` (46,792,532 bytes), with its `metadata.yaml`.
 
-The ZIP is stored in Git LFS. From the repository root:
+The first recording had no metadata file on the drone. Both are preserved unchanged;
+no recording was repaired or reindexed. Their hashes match the verified USB pull.
+The previous all-recordings archive is replaced in this branch's current tree;
+older commits retain their historical contents. Source recordings on the drone remain.
+
+The ZIP is stored in Git LFS:
 
 ```sh
 git lfs pull --include="docs/evidence/drone_bags_20261108/*.zip"
 unzip docs/evidence/drone_bags_20261108/dronehacks-bags-2026-11-08.zip
 ```
 
-`manifest.json` lists every archived file, its size and SHA-256 checksum,
-as well as the archive checksum. The USB copy was checksum-verified against
-the drone, and the ZIP passed its integrity check before this commit.
+`manifest.json` records selection timestamps, file sizes and SHA-256 checksums.
+The ZIP integrity check and extracted-file hash verification passed.
