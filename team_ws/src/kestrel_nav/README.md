@@ -37,8 +37,9 @@ and disarm, a separate return layer holds the pad XY/yaw target, rearms, request
 Offboard and climbs vertically to **2.10 m above the original floor reference**.
 The climb's commanded target must finish and the measured height must remain
 within **5 cm for one second** before turning or translating toward the original
-launch position. It then flies directly home at 0.30 m/s, lands, and explicitly
-disarms again. The first landing latch is cleared before second takeoff; late
+launch position. It then follows a circular arc home at 0.30 m/s, lands, and explicitly
+disarms again. The arc has a 0.6096 m (2 ft) midpoint offset from the direct
+pad-to-launch chord, bending toward the room centre. The first landing latch is cleared before second takeoff; late
 outbound paths/corrections cannot change the return target. Recording spans both
 flights, including a delayed rearm on the pad.
 

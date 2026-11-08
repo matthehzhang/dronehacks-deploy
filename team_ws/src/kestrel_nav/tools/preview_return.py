@@ -10,6 +10,9 @@ from pathlib import Path
 import numpy as np
 
 import preview_path
+from fly_course import skybeta_return_spec
+from coursenav.course import load_course
+from refnav.skybeta_return import return_arc
 
 
 def main():
@@ -23,6 +26,9 @@ def main():
 
     start = np.asarray(data['start']['xy'])
     pad = np.asarray(data['nav_legs'][-1]['stop'])
+    spec = skybeta_return_spec(load_course())
+    points, _ = return_arc(pad[::-1], start[::-1], spec['arc_offset_m'], spec['arc_side'])
+    arc = points[:, ::-1]
     fig = plt.figure(figsize=(13, 7))
     top = fig.add_subplot(121)
     height = fig.add_subplot(122, projection='3d')
@@ -38,7 +44,9 @@ def main():
             z = new_z
         previous = np.asarray(record['stop_xy'])
     height.plot([pad[0]]*2, [pad[1]]*2, [z, .1], color='#2878c8', lw=2)
-    top.plot([pad[0], start[0]], [pad[1], start[1]], '--', color='#df7a23', lw=2.5)
+    top.plot(arc[:, 0], arc[:, 1], color='#df7a23', lw=2.5)
+    top.plot([pad[0], start[0]], [pad[1], start[1]], ':', color='#9ca6af', lw=1)
+    top.annotate('2 ft offset', arc[len(arc)//2], xytext=(8, 8), textcoords='offset points')
     for ax in (top, height):
         ax.scatter(*pad, *([.1] if ax is height else []), color='#df7a23', s=55)
         ax.scatter(*start, *([.1] if ax is height else []), color='#16805d', s=65, marker='*')
@@ -48,14 +56,14 @@ def main():
                  textcoords='offset points', fontsize=9)
     top.set_aspect('equal')
     top.set(xlabel='Course x / east (m)', ylabel='Course y / north (m)',
-            title='Blue: outbound | orange dashed: return')
+            title='Blue: outbound | orange: curved return')
     top.grid(alpha=.2)
     height.plot([pad[0]]*2, [pad[1]]*2, [.1, 2.1], color='#df7a23', lw=3)
-    height.plot([pad[0], start[0]], [pad[1], start[1]], [2.1, 2.1], color='#df7a23', lw=3)
+    height.plot(arc[:, 0], arc[:, 1], np.full(len(arc), 2.1), color='#df7a23', lw=3)
     height.plot([start[0]]*2, [start[1]]*2, [2.1, .1], color='#df7a23', lw=3)
     height.text(pad[0], pad[1], 2.2, 'Hold XY until 2.1 m\nsettles for 1 second', fontsize=9)
     height.set(xlabel='Course x (m)', ylabel='Course y (m)', zlabel='Height above floor (m)',
-               zlim=(0, 2.5), title='Return: up first, across second, down last')
+               zlim=(0, 2.5), title='Return: up first, curved transit, down last')
     height.view_init(elev=24, azim=35)
     fig.suptitle('Outbound completion first; return starts only after pad disarm', fontweight='bold')
     fig.text(.5, .025, 'Target geometry only. Return height 2.1 m is operator selected; actual arm/Offboard '

@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 
 from refnav import core as C, skybeta as S
-from refnav.skybeta_return import SkybetaReturnMission
+from refnav.skybeta_return import SkybetaReturnMission, return_arc
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -36,7 +36,8 @@ def feed(m, t):
     assert m.on_depth(t, np.full((64, 64), np.nan, np.float32), (64, 64, 32, 32),
                       rotation, (0, 0, 0), (1, 0, 0, 0), now=t)
     m.on_health(t, True)
-    if m.p.track_mode == 'path' and m.leg == 0 and m.targets:
+    if (m.p.track_mode == 'path' and m.leg == 0 and m.targets
+            and getattr(m, 'accepts_outbound_paths', True)):
         assert m.on_path(t, 0, [(0, 0), (.5, 0), (1.5, 0), (2, 0)], [0., .3, .3, 0.], pid=1)
 
 
@@ -154,6 +155,8 @@ def test_full_outbound_is_identical_then_return_rearms_climbs_lands_and_disarms(
     pad_disarm = return_arm = return_done = False
     previous_stage = 'outbound'
     climb_xy = None
+    arc_start = None
+    max_offset = 0.
     events = []
     for i in range(1, 2601):
         t, dt = i / 10, .1
@@ -183,6 +186,7 @@ def test_full_outbound_is_identical_then_return_rearms_climbs_lands_and_disarms(
                 assert m.stage == 'return' and out.phase == 'arm'
                 pad_disarm = True
                 climb_xy = tuple(v.pos[:2])
+                arc_start = np.array(v.pos[:2])
                 twist = returning.publish(t, out, v)
                 assert returning.land_xy is None  # first landing no longer owns the output
         else:
@@ -191,6 +195,10 @@ def test_full_outbound_is_identical_then_return_rearms_climbs_lands_and_disarms(
         if m.stage == 'return' and out.phase in ('arm', 'climb'):
             assert tuple(out.setpoint[:2]) == climb_xy
             assert out.velocity in (None, (0., 0.))
+        if m.stage == 'return' and out.phase == 'go':
+            u = -arc_start/np.linalg.norm(arc_start)
+            normal_axis = np.array([-u[1], u[0]])
+            max_offset = max(max_offset, abs(float((np.array(v.pos[:2])-arc_start)@normal_axis)))
         for command in commands:
             if getattr(command, 'processed', False):
                 continue
@@ -227,6 +235,7 @@ def test_full_outbound_is_identical_then_return_rearms_climbs_lands_and_disarms(
     assert sum(c.command == 400 and c.param1 == 0 for c in commands) >= 2
     assert any('RETURN HEIGHT READY' in e for e in events)
     assert any('RETURN COMPLETE' in e for e in events)
+    assert max_offset > .45
 
 
 def test_outbound_arm_commands_never_enable_return_control():
@@ -293,3 +302,19 @@ def test_return_height_validation_is_deferred_until_after_outbound_completion(va
     out = m.step(.1, v)
     assert out.phase == 'done' and m.result == 'complete'
     assert m.return_started is False
+
+
+@pytest.mark.parametrize('side', [-1, 1])
+def test_return_arc_is_continuously_curved_with_exact_two_foot_offset(side):
+    a, b = np.array([2., 1.]), np.array([0., 0.])
+    points, speeds = return_arc(a, b, side=side)
+    assert points[0] == pytest.approx(a) and points[-1] == pytest.approx(b)
+    u = (b-a)/np.linalg.norm(b-a)
+    normal = np.array([-u[1], u[0]])
+    offsets = (points-a)@normal
+    assert offsets[len(points)//2] == pytest.approx(side*.6096)
+    assert np.max(np.abs(offsets)) == pytest.approx(.6096)
+    assert speeds[0] == speeds[-1] == 0 and speeds.max() <= .3
+    d = np.diff(points, axis=0)
+    cross = d[:-1, 0]*d[1:, 1]-d[:-1, 1]*d[1:, 0]
+    assert np.all(cross*side < 0)
