@@ -23,6 +23,20 @@ class WindowVioHeight:
         self.last_down = self.last_px4_down = None
         self.source = 'px4'
         self.missing_logged = False
+        self.raw_down = None
+        self.return_offset = None
+
+    def begin_return(self, vehicle, launch_down):
+        """Called by the return mission's existing confirmed-touchdown transition.
+
+        Same floor/pad height as launch: align this PX4 ground sample to the
+        remembered launch Z. This changes our feedback, not PX4's estimator.
+        """
+        self.return_offset = launch_down - self.raw_down
+        self.active, self.source = False, 'px4_reanchored'
+        self.warn(f'!!!!!!!!!! RETURN HEIGHT REANCHORED: PX4 NED offset {self.return_offset:+.3f} m; '
+                  'pad contact uses original launch height; VIO height disabled for return !!!!!!!!!!')
+        return replace(vehicle, pos=(*vehicle.pos[:2], launch_down))
 
     def observe(self, now, stamp, up):
         if not all(math.isfinite(x) for x in (now, stamp, up)):
@@ -35,6 +49,10 @@ class WindowVioHeight:
     def vehicle(self, now, mission, vehicle, px4_received):
         if vehicle.pos is None:
             return vehicle
+        self.raw_down = vehicle.pos[2]
+        if self.return_offset is not None:
+            self.last_down = self.raw_down + self.return_offset
+            return replace(vehicle, pos=(*vehicle.pos[:2], self.last_down))
         legs = mission.p.legs
         windows = [i for i, leg in enumerate(legs)
                    if leg.get('align', {}).get('group') == 'window']
@@ -66,7 +84,7 @@ class WindowVioHeight:
                 return vehicle
             self.active = True
             self.warn(f'!!!!!!!!!! WINDOW VIO HEIGHT ACTIVE: fixed NED offset {self.offset:+.3f} m '
-                      f'from {len(self.samples)} steady samples; retaining VIO through pad approach and any return; '
+                      f'from {len(self.samples)} steady samples; retaining VIO through pad approach; '
                       'height target unchanged !!!!!!!!!!')
         if fresh:
             down = self.vio[2] + self.offset
@@ -88,4 +106,5 @@ class WindowVioHeight:
 
     def status(self):
         return dict(source=self.source, active=self.active, offset_ned_m=self.offset,
-                    calibration_samples=len(self.samples), down_m=self.last_down)
+                    calibration_samples=len(self.samples), down_m=self.last_down,
+                    return_offset_ned_m=self.return_offset)

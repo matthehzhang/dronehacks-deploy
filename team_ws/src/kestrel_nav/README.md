@@ -34,8 +34,19 @@ Neither case adds a mission hold or landing trigger. Status/trace records includ
 the height source and offset; raw PX4 local-position trace records are retained.
 Native PX4 output, automatic return, and diagnostics do not use this handoff.
 PX4 estimator parameters and its inner velocity controller are unchanged.
-On the skybeta disarm/rearm and touch-and-go branches, once activated, VIO
-height also remains active across the return mission's route replacement.
+On the skybeta disarm/rearm and touch-and-go branches, the existing confirmed
+pad-touchdown transition disables VIO height for the return. It aligns the
+current raw PX4 position Z with the remembered launch Z, then retains that fixed
+offset for the return's height checks and velocity commands. The return target
+keeps the original floor reference; the first return setpoint uses the new frame
+immediately. `!!!!!!!!!! RETURN HEIGHT REANCHORED ... !!!!!!!!!!` reports the
+offset, also recorded as `return_offset_ned_m` in status/trace. No extra wait,
+mission phase, landing trigger or FC parameter change is added. This assumes the
+pad and launch are on the same floor; it corrects a starting offset, not later
+PX4 drift or horizontal instability. It uses PX4 position Z, not `dist_bottom`
+or raw ToF. The user-measured ToF ground clearance is 0.06 m; this is sensor
+height, not the configured body-origin landed height, and is not used by this
+PX4-only re-anchor.
 This change has CPU regression coverage, but has not been flight validated.
 
 At the end, the skybeta launch disables the mission's landing timeout: the existing

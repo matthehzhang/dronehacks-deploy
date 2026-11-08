@@ -168,6 +168,8 @@ class RefNav(Node):
             from nav_msgs.msg import Odometry
             from .window_vio_height import WindowVioHeight
             self.window_vio_height = WindowVioHeight(self.get_logger().warning)
+            if self.skybeta_return_enabled:
+                self.mission.return_height_feedback = self.window_vio_height.begin_return
             self.create_subscription(Odometry, '/visual_slam/tracking/odometry',
                                      self._on_window_vio, qos_profile_sensor_data)
         self.create_subscription(VehicleLocalPosition, lpos_topic, self._on_lpos, PX4_QOS)
@@ -509,6 +511,10 @@ class RefNav(Node):
             vehicle = height.vehicle(now, self.mission, vehicle, self._lpos_received_ros_s)
         out = (self.mission.step(now, vehicle, wall_now=time.monotonic()) if self.return_enabled or diagnostic
                else self.mission.step(now, vehicle))
+        # The existing touchdown transition may have re-anchored height during
+        # step(). Publish its first return setpoint using that same height frame.
+        if height is not None and height.return_offset is not None:
+            vehicle = height.vehicle(now, self.mission, self.v, self._lpos_received_ros_s)
         if diagnostic and getattr(self.mission, 'protocol_tick', None) is not None:
             # Include the failed tick even when no experiment command publishes.
             # evaluated_phase in the snapshot predates a transition to FAULT.

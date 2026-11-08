@@ -70,6 +70,9 @@ class SkybetaReturnMission(C.Mission):
             raise ValueError('invalid return height/speed')
         points, speeds = return_arc(v.pos[:2], self.launch_pose[:2],
                                     self.spec.get('arc_offset_m', .6096), self.spec.get('arc_side', 1), speed)
+        height_feedback = getattr(self, 'return_height_feedback', None)
+        if height_feedback is not None:
+            v = height_feedback(v, self.launch_pose[2])
         target_d = self.launch_pose[2] + self.p.landed_z_m - height
         dn, de = self.launch_pose[0] - v.pos[0], self.launch_pose[1] - v.pos[1]
         c, s = math.cos(v.heading), math.sin(v.heading)
