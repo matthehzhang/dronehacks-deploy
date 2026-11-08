@@ -21,11 +21,9 @@ class EndOfRun:
         self.ground_since = None
         self.state_at = None
         self.last_message = None
-        self.return_in_progress = False
 
     def status(self, data, now):
         self.done = data.get('phase') == 'done'
-        self.return_in_progress = data.get('mission_stage') == 'return' and not self.done
         self.last_message = now
 
     def state(self, data, now):
@@ -42,7 +40,7 @@ class EndOfRun:
             self.ground_since = None
 
     def reason(self, now):
-        if (not self.return_in_progress and self.ground_since is not None and self.state_at is not None
+        if (self.ground_since is not None and self.state_at is not None
                 and now - self.state_at < 2 and now - self.ground_since >= 5):
             return 'run ended, disarmed and landed; five-second post-roll saved'
         if self.last_message is not None and now - self.last_message > 60:

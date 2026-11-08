@@ -46,17 +46,3 @@ def test_topic_filter_includes_policy_and_px4_but_no_images():
         assert re.fullmatch(TOPICS, topic)
     for topic in ('/oak/left/image_raw', '/kestrel_nav/depth', '/oak/points'):
         assert not re.fullmatch(TOPICS, topic)
-
-
-def test_pad_disarm_does_not_stop_recording_while_return_is_starting():
-    end = EndOfRun()
-    end.state({'armed': True, 'landed': False}, 0)
-    for t in range(1, 15):
-        end.status({'phase': 'arm', 'mission_stage': 'return'}, t)
-        end.state({'armed': False, 'landed': True}, t)
-        assert end.reason(t) is None
-    end.state({'armed': True, 'landed': False}, 15)
-    for t in range(16, 22):
-        end.status({'phase': 'done', 'mission_stage': 'finished'}, t)
-        end.state({'armed': False, 'landed': True}, t)
-    assert 'post-roll' in end.reason(21)

@@ -5,15 +5,15 @@ The flight interface owns motion setpoints, arming and mode changes. The
 pilot arms and switches to Position; skybeta_flight_interface enters Offboard (one attempt, needing a team
 setpoint within 1 s) and turns /skybeta/setpoint/twist (ENU world velocity + yaw rate, expires after 1 s,
 norm capped at 1.5 m/s) into PX4 setpoints. So:
-  * the pilot and interface start the outbound flight. Only the automatic return
-    sends its own Offboard/arm commands, after the outbound landing and disarm;
+  * refnav's "offboard" / "arm" commands are not sent: the pilot and the interface do them;
+    run refnav with accept_armed_start (the pilot arms on the mark) and a long arm_wait_s;
   * refnav's (n, e, d, yaw) setpoint + velocity feed-forward becomes a velocity command, the same loop
     PX4's position controller closes:  v = v_ff + kp * (sp - pos),  yawrate = yawspeed_ff + k_yaw * (yaw_sp - yaw);
     acceleration feed-forward cannot be carried by a twist and is dropped;
   * refnav's "land" (PX4 AUTO_LAND on the lab) has no interface equivalent: a 0.30 m/s descent with xy held
     where the landing started. After fresh PX4 touchdown confirmation, explicitly send a normal
     COMPONENT_ARM_DISARM command (param1=0, param2=0), retrying until PX4 reports disarmed.
-    The return additionally uses normal mode/arm commands for its second takeoff.
+    The direct command publisher is restricted to this normal landing disarm.
 Frames: PX4 local NED (refnav) <-> the interface's ENU world frame (it applies enu_to_ned: (y, x, -z)).
 """
 import math
@@ -77,24 +77,20 @@ class SkybetaOutput:
         self.centred_since = None
         self.descending = False
         self.disarm_sent_t = None
-        self.return_control_active = False
-
-    def _vehicle_command(self, command_id, param1=0., param2=0.):
-        command = self.VehicleCommand()
-        command.timestamp = self.node._sys_us()
-        command.command = command_id
-        command.param1, command.param2 = float(param1), float(param2)
-        command.target_system = command.source_system = getattr(self.node, 'px4_system_id', 1)
-        command.target_component = command.source_component = 1
-        command.from_external = True
-        self.command_pub.publish(command)
 
     def _disarm(self, now):
         """Normal PX4-checked disarm only; never use the force-disarm magic value."""
         previous = getattr(self, 'disarm_sent_t', None)
         if previous is not None and now - previous < 1.0:
             return
-        self._vehicle_command(self.VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM)
+        command = self.VehicleCommand()
+        command.timestamp = self.node._sys_us()
+        command.command = self.VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM
+        command.param1, command.param2 = 0.0, 0.0
+        command.target_system = command.source_system = getattr(self.node, 'px4_system_id', 1)
+        command.target_component = command.source_component = 1
+        command.from_external = True
+        self.command_pub.publish(command)
         self.disarm_sent_t = now
         self.node.get_logger().warning(
             "!!!!!!!!!! DISARM COMMAND SENT: PX4 reports landed; waiting for DISARMED confirmation !!!!!!!!!!")
@@ -131,22 +127,6 @@ class SkybetaOutput:
 
     def publish(self, now, out, v):
         """One tick of refnav output -> at most one twist. Returns what was published (for the trace)."""
-        returning = getattr(self.node.mission, 'stage', None) == 'return'
-        if returning and not getattr(self, 'return_control_active', False):
-            # A landing latch must not consume the new takeoff's hold/climb commands
-            # or immediately send another disarm when its motors start again.
-            self.land_xy = self.land_yaw = self.land_t0 = self.centred_since = None
-            self.descending = self.disarm_wait_logged = False
-            self.disarm_sent_t = None
-            self.return_control_active = True
-        if returning and self.node.mission.phase == 'arm':
-            if 'offboard' in out.commands:
-                self._vehicle_command(self.VehicleCommand.VEHICLE_CMD_DO_SET_MODE, 1., 6.)
-            if 'arm' in out.commands:
-                self._vehicle_command(self.VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.)
-                self.node.get_logger().warning('!!!!!!!!!! RETURN ARM COMMAND SENT !!!!!!!!!!')
-        if returning and 'disarm' in out.commands and v.armed is True and v.landed is True:
-            self._disarm(now)
         if "land" in out.commands and v.pos is not None and self.land_xy is None:
             self._plan_landing(now, v)
         if self.land_xy is not None:

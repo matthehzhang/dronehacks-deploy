@@ -30,7 +30,6 @@ from launch_ros.actions import Node
 ROOT = Path(__file__).resolve().parent.parent          # package source root (symlink install): fly_course.py lives here
 
 ARGUMENTS = [
-    ('return_home', 'true', 'after pad disarm, rearm and return above the barrier at 2.1 m'),
     ('max_altitude_m', '3.0', 'flight interface ceiling above the odometry origin'),
     ('min_altitude_m', '0.3', 'flight interface floor (pose setpoints only)'),
     ('max_speed_mps', '1.5', 'flight interface cap on a twist norm'),
@@ -100,10 +99,9 @@ def _nodes(context):
              '-p', ['landed_z_m:=', L('landed_z')]] + loc_start,
         cwd=str(ROOT), additional_env=env, output='screen', name='localizer')
     fly_env = dict(env)
-    fly_return = ['--skybeta-return'] if L('return_home').perform(context).lower() == 'true' else []
     fly = ExecuteProcess(
         cmd=['python3', str(ROOT / 'fly_course.py'), '--event-start', '--skip-preflight', '--no-own-localizer', '--no-return', '--start-from-mark',
-             '--chicane', L('chicane'), '--landed-z', L('landed_z'), '--localizer-timeout', L('localizer_timeout')] + fly_start + fly_return + ['--',
+             '--chicane', L('chicane'), '--landed-z', L('landed_z'), '--localizer-timeout', L('localizer_timeout')] + fly_start + ['--',
              '-p', 'px4_output:=skybeta', '-p', 'land_timeout_s:=0.0', '-p', ['depth_topic:=', L('depth_topic')],
              '-p', ['depth_info_topic:=', L('depth_info_topic')],
              '-p', ['arm_wait_s:=', L('arm_wait_s')], '-p', ['wait_s:=', L('wait_s')],
