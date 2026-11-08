@@ -25,6 +25,7 @@ ARGUMENTS = [
     ('auto_offboard_on_arm', 'true', 'enter Offboard once when the pilot arms, then switches to Position'),
     ('odometry_topic', '/visual_slam/tracking/odometry', 'ENU pose source'),
     # --- live mission ---
+    ('adaptive_maze', 'false', 'Enable adaptive maze mapping for supervised sim tests'),
     ('mission', 'true', 'start safe_mission'),
     ('chicane', 'auto', 'auto | window | gate_b'),
     ('start_x', 'nan', 'start pose in the COURSE frame; nan = course-file prior (launch mark)'),
@@ -81,7 +82,7 @@ def generate_launch_description():
         output='screen', emulate_tty=True,
         condition=IfCondition(LaunchConfiguration('mission')),
         parameters=[{k: LaunchConfiguration(k) for k in (
-            'chicane', 'start_x', 'start_y', 'start_yaw_deg', 'cruise_z_m', 'landed_z_m', 'descend_to_z_m',
+            'adaptive_maze', 'chicane', 'start_x', 'start_y', 'start_yaw_deg', 'cruise_z_m', 'landed_z_m', 'descend_to_z_m',
             'v_cap', 'v_gate_window', 'turn_rate_deg', 'land_vz', 'receipt_clock', 'gate_requires_measurement', 'time_limit_s', 'depth_topic', 'depth_info_topic', 'mono_topic',
             'mono_info_topic', 'camera_from_tf', 'camera_x', 'camera_y', 'camera_z', 'camera_pitch', 'min_altitude_m',
             'odom_max_age_s', 'tracking_max_age_s', 'depth_max_age_s', 'state_max_age_s', 'land_max_age_s',

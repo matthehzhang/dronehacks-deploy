@@ -160,6 +160,9 @@ class SafeMission(LiveMission):
         self.pad_source = "CAD"
         self.land_yaw = None
         self.pad_ok_since = None
+        self._map_transform = None
+        self._retry_goal = None
+        self._retry_count = 0
 
     # ------------------------------------------------------------------ gate geometry from the plan
     def load_doc(self, course_file=None):
@@ -370,6 +373,15 @@ class SafeMission(LiveMission):
         return dict(a=xy.copy(), b=np.asarray(target, float), dir=d, heading=math.atan2(d[1], d[0]),
                     v=sp.v_escape, gate=None, line_pt=xy.copy(), flow=False, tube=0.0, escape=True)
 
+    def _start_path_hold(self, now, reason):
+        goal = self.replanner.k
+        if self.grid.p.adaptive:
+            if goal != self._retry_goal:
+                self._retry_goal, self._retry_count = goal, 0
+            self._retry_count += 1
+        self._set("HOLD", now, reason)
+        self.hold_since = now
+
     def _no_progress(self, now, xy, cmd, why):
         """Stop. The same refusal a few times in a row (no progress between them) -> HOLD, which
         replans every hold_recheck_s and gives up after blocked_abort_s."""
@@ -377,8 +389,7 @@ class SafeMission(LiveMission):
         self._stop(now, xy, "BRAKE", why)
         if self.no_progress >= self.sp.no_progress_max:
             self.no_progress = 0
-            self._set("HOLD", now, f"no progress: {why}")
-            self.hold_since = now
+            self._start_path_hold(now, f"no progress: {why}")
         return self._cmd(cmd, np.zeros(2), 0.0, why)
 
     def _tube_speed(self, a, b, cap):
@@ -587,8 +598,7 @@ class SafeMission(LiveMission):
                 self._phase("ALIGN", now)
                 return self._align_step(now, obs, pose_c, cmd)
             if nxt == "BLOCKED":
-                self._set("HOLD", now, rp.last_reason or "no path")
-                self.hold_since = now
+                self._start_path_hold(now, rp.last_reason or "no path")
                 return self._cmd(cmd, self._hold_vel(xy), 0.0, rp.last_reason)
             self.seg = nxt
             self._phase("TURN", now, f"to {rp.goal.name} {math.degrees(wrap(nxt['heading'] - pose_c[2])):+.0f} deg")
@@ -621,7 +631,8 @@ class SafeMission(LiveMission):
             left = np.array([-d[1], d[0]])
             remaining = float((seg["b"] - xy) @ d)
             # live checks: the chord ahead on the live grid, the depth scan in the body corridor
-            if seg["gate"] is None and seg.get("chord_clear_at_go") and self._chord_blocked(xy, seg["b"]):
+            if (seg["gate"] is None and (self.grid.p.adaptive or seg.get("chord_clear_at_go"))
+                    and self._chord_blocked(xy, seg["b"])):
                 return self._no_progress(now, xy, cmd, "segment blocked on the live grid")
             if now - self.t_phase > 1.0:
                 self.no_progress = 0
@@ -753,7 +764,20 @@ class SafeMission(LiveMission):
         cmd.pose_course = pose_c
         self._update_velocity_odom(now, obs.odom_xyz[:2])
         xy = np.asarray(pose_c[:2], float)
-        if sp.live_grid and new_scan and self.scan_nav is not None and self.state in ("FLY", "PAD", "HOLD", "CLIMB"):
+        if self.grid.p.adaptive and self.replanner.k > self.adaptive_exit_index:
+            self.grid.p.adaptive = False
+            self.grid.reset_evidence(now)
+            if self.state == "FLY":
+                self._stop(now, xy, "BRAKE", "maze exit reached; restore downstream planning grid")
+        if self.grid.p.adaptive:
+            if (self._map_transform is None or math.dist(self.T[:2], self._map_transform[:2]) > .05
+                    or abs(wrap(self.T[2] - self._map_transform[2])) > math.radians(2)):
+                self.grid.reset_evidence(now)
+                self._map_transform = self.T
+            if now - self.grid._last_build >= self.grid.p.rebuild_every_s:
+                self.grid.rebuild(now)
+        if (sp.live_grid and (self.adaptive_exit_index is None or self.grid.p.adaptive)
+                and new_scan and self.scan_nav is not None and self.state in ("FLY", "PAD", "HOLD", "CLIMB")):
             self.grid.integrate(pose_c, self.scan_nav, now)
         if now - self.t_offboard > p.time_limit_s and self.state in ("FLY", "PAD"):
             self._stop(now, xy, "BRAKE", "time limit")
@@ -809,7 +833,20 @@ class SafeMission(LiveMission):
                 self.gate_retry_at = None
                 self._set("FLY", now, "re-measuring the opening")
                 self._phase("SETTLE", now)
-            recheck = (self.state == "HOLD" and self.hold_since is not None and now - self.t_state >= p.hold_recheck_s
+            exhausted = (self.grid.p.adaptive and self._retry_goal == rp.k and self._retry_count >= 3)
+            if (self.grid.p.adaptive and not exhausted and self.state == "HOLD" and not depth_wait
+                    and rp.goal is not None and not rp.goal.is_gate_leg and rp.k == self._retry_goal):
+                # Look to either side while holding position so an opening outside the original
+                # path's view can produce evidence. Always turn to the chosen path before advancing.
+                dt_hold = now - self.hold_since
+                if math.isfinite(dt_hold):
+                    sweep_phase = dt_hold % 8.0
+                    direction = -1 if 2.0 <= sweep_phase < 6.0 else 1
+                    cmd.yaw_rate = direction * min(sp.turn_rate, math.radians(15))
+            # Give both sides a look before accepting another route on an adaptive hold.
+            sweep_s = 8.0 if self.grid.p.adaptive and rp.k == self._retry_goal else 0.0
+            recheck = (not exhausted and self.state == "HOLD" and self.hold_since is not None
+                       and now - self.hold_since >= sweep_s and now - self.t_state >= p.hold_recheck_s
                        and now - self.hold_since < p.blocked_abort_s and now - self.t_offboard <= p.time_limit_s
                        and getattr(self, "gate_retry_at", None) is None)
             if recheck:
@@ -819,7 +856,7 @@ class SafeMission(LiveMission):
                     self._phase("SETTLE", now)
                 else:
                     self.t_state = now
-            elif (self.state == "HOLD" and self.hold_since is not None and now - self.hold_since >= p.blocked_abort_s
+            elif (self.state == "HOLD" and self.hold_since is not None and (exhausted or now - self.hold_since >= p.blocked_abort_s)
                   and getattr(self, "gate_retry_at", None) is None):
                 # blocked for good: land straight down where it is rather than burn the clock in the air
                 self.land_here = xy.copy()
@@ -875,4 +912,6 @@ class SafeMission(LiveMission):
                   seg=None if self.seg is None else dict(b=[round(float(v), 3) for v in self.seg["b"]],
                                                          v=self.seg["v"], gate=self.seg["gate"]),
                   gate_refused=getattr(self, "gate_refused", None))
+        if self.grid.p.adaptive:
+            st.update(adaptive_maze=True, retry_goal=self._retry_goal, retry_count=self._retry_count)
         return st

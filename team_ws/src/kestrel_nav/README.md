@@ -227,3 +227,28 @@ interface hold remain authoritative, and verify node shutdown does not recall a
 launch pose. Never restart VIO or inject sensor failures in flight for this check.
 Local tests use ROS transport doubles and an offline kinematic simulator; neither
 qualifies the deployed ROS graph, aircraft dynamics, or an autonomous landing.
+
+### Adaptive maze trial (SITL)
+
+On the Group154 adaptive branch, rebuild the team overlay and start the SAFE
+mission with the adaptive option. Use the normal simulator arm/Offboard flow
+once the stack reports healthy and this is the only mission publisher.
+
+```bash
+ros2 launch kestrel_nav safe.launch.py adaptive_maze:=true allow_mode_request:=true
+```
+
+Use the same course file and checkpoint goals for the original and modified
+maze worlds. The first stage skips generated maze via points. It gathers
+recent flight-band depth evidence from the VIO-based pose even when matching
+against the published map fails. Only course groups marked
+`adaptive_obstacle_groups` are eligible for clearing. The enclosure,
+keep-outs and gate policy remain in force. The downstream mission restores
+the baseline grid after the maze exit. A blocked non-gate goal gets a
+stationary look to both sides and a bounded replan budget.
+
+Record mission status, live depth and camera info, VIO, PX4 status and
+setpoints. Compare the `live_map` counters (including cleared prior cells),
+goal progress, and whether the terminal state was a pad landing or an abort.
+The depth map is planar, and this option is experimental. The field bag did
+not capture raw depth, so it cannot validate the modified layout by replay.

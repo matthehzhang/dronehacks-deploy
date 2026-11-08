@@ -5,7 +5,8 @@ rule 6.4 allows a preloaded map built from the published layout. The LIVE layer 
 coursenav.occgrid.LiveGrid: log-odds occupancy filled from this run's depth scans only, empty at
 every launch (rule 6.5: nothing carried between runs).
 
-Combined occupancy = prior band | confidently-occupied live cells | outside the net.
+Combined occupancy uses the prior band, live depth, and the enclosure boundary.
+Adaptive mode can clear tagged prior surfaces with recent, repeated depth evidence.
 Blocked = combined inflated by (vehicle radius + margin) | the prior keep-outs (boulders).
 Clearance = metres from each cell to the nearest combined obstacle.
 
@@ -16,7 +17,7 @@ nothing outside it is ever marked free.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 from scipy import ndimage
@@ -37,12 +38,14 @@ class NavParams:
     novel_min_m: float = 0.22         # a live obstacle counts only if no prior surface lies within this:
                                       # returns the map already explains are the map's walls, seen through a
                                       # start-pose error or VIO drift, and must not thicken them
+    adaptive: bool = False
+    evidence_age_s: float = 8.0
     rebuild_every_s: float = 0.5      # inflation/EDT recompute cadence while scans arrive
 
 
 class NavGrid:
     def __init__(self, cmap: CourseMap, doc, params: NavParams = None):
-        self.p = params or NavParams()
+        self.p = replace(params) if params is not None else NavParams()
         self.doc = doc
         self.obst, self.prior_blocked, self.prior_clearance = plan_grids(cmap, doc)
         v = doc["vehicle"]
@@ -58,6 +61,20 @@ class NavGrid:
                                novel_min_m=self.p.novel_min_m, min_landmark_cells=3)
         self.live = LiveGrid(self.obst, occ_params)
         self._last_build = -math.inf
+        self.last_seen = np.full(self.obst.occ.shape, -math.inf) if self.p.adaptive else None
+        if self.p.adaptive:
+            band = doc.get("plan_band_m", .25)
+            z = doc["cruise_z_m"]
+            prefixes = tuple(doc.get("adaptive_obstacle_groups", ()))
+            mutable = cmap.band(z - band, z + band, only_prefixes=prefixes)
+            fixed = cmap.band(z - band, z + band, exclude_prefixes=prefixes)
+            self.mutable = mutable & ~fixed & ~self.outside
+            self.keepout = np.zeros_like(mutable)
+            for item in doc.get("keepout", []):
+                cells = cmap.band(item["zlo"], item["zhi"], only_prefixes=item["groups"])
+                if cells.any():
+                    self.keepout |= ndimage.distance_transform_edt(~cells) * cmap.res < item["radius_m"]
+
         self._dirty = True
         self.blocked = None
         self.clearance = None
@@ -84,21 +101,57 @@ class NavGrid:
     def integrate(self, pose, scan: Scan, now: float) -> bool:
         """Add one level-body scan taken at course pose (x, y, yaw). Returns True if something changed."""
         scan = self.fence_clip(pose, scan)
-        ok = self.live.integrate(pose, scan)
+        if self.last_seen is not None and scan is not None and len(scan):
+            free, occupied = self.live.beam_cells(pose, scan)
+            self.expire(now)
+            self.live.scans_in += 1
+            self.live.update_cells(free, occupied)
+            self.last_seen.flat[free] = now
+            self.last_seen.flat[occupied] = now
+            ok = bool(len(free) or len(occupied))
+        else:
+            ok = self.live.integrate(pose, scan)
         if ok:
             self._dirty = True
         if self._dirty and now - self._last_build >= self.p.rebuild_every_s:
             self.rebuild(now=now)
         return ok
 
+    def expire(self, now):
+        """Discard old evidence even when new depth is empty or absent."""
+        if self.last_seen is None:
+            return
+        expired = np.isfinite(self.last_seen) & (now - self.last_seen > self.p.evidence_age_s)
+        if expired.any():
+            self.live.L[expired] = 0
+            self.live.seen[expired] = 0
+            self.last_seen[expired] = -math.inf
+            self._dirty = True
+
+    def reset_evidence(self, now):
+        self.live.L.fill(0)
+        self.live.seen.fill(0)
+        self.last_seen.fill(-math.inf)
+        self.rebuild(now, force=True)
+
     def rebuild(self, now: float = 0.0, force: bool = False):
+        self.expire(now)
         if not (self._dirty or force):
             return
-        occ = self.obst.occ | self.live.landmarks() | self.outside
+        if self.p.adaptive:
+            # Only tagged, removable geometry may be contradicted. A real return always wins.
+            free = self.mutable & self.live.free() & (self.live.seen >= 4)
+            occ = (self.obst.occ & ~free) | self.live.occupied() | self.outside
+        else:
+            occ = self.obst.occ | self.live.landmarks() | self.outside
         dist = ndimage.distance_transform_edt(~occ) * self.obst.res
         self.blocked = Grid2D(self.prior_blocked.occ | (dist < self.inflate_m), self.obst.origin, self.obst.res)
         self.blocked_hard = Grid2D(dist < self.hard_inflate_m, self.obst.origin, self.obst.res)
         self.clearance = np.minimum(self.prior_clearance, dist)
+        if self.p.adaptive:
+            self.blocked.occ[:] = self.keepout | (dist < self.inflate_m)
+            self.blocked_hard.occ[:] |= self.keepout
+            self.clearance = np.where(self.keepout, 0., dist)
         self.combined = Grid2D(occ, self.obst.origin, self.obst.res)
         self._last_build = now
         self._dirty = False
@@ -154,4 +207,7 @@ class NavGrid:
         return Grid2D(occ, self.obst.origin, self.obst.res)
 
     def live_stats(self):
-        return self.live.stats()
+        stats = self.live.stats()
+        if self.p.adaptive:
+            stats["cleared_prior_cells"] = int(np.count_nonzero(self.mutable & ~self.combined.occ))
+        return stats

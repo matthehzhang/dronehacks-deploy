@@ -1,6 +1,7 @@
 {
   "schema": "coursenav-course/1",
   "frame": "course ENU = published OBJ source frame (metres, x east, y north, z up, origin floor centre)",
+  "adaptive_obstacle_groups": ["M1 maze divider", "M2 maze divider", "M3 maze divider"],
   "obj": "course/dronehacks-course-v3.obj",
   "map": "maps/course_v3.npz",
   "start": {

@@ -115,13 +115,16 @@ class LiveGrid:
             self.scans_gated += 1
             return False
         free, occ = self.beam_cells(pose, scan)
+        self.update_cells(free, occ)
+        return True
+
+    def update_cells(self, free, occ):
         flat, seen = self.L.reshape(-1), self.seen.reshape(-1)
         flat[free] += self.p.l_free
         flat[occ] += self.p.l_occ
         np.clip(flat, self.p.l_min, self.p.l_max, out=flat)
         touched = np.concatenate([free, occ])
         seen[touched] = np.minimum(seen[touched].astype(np.int32) + 1, 65535)
-        return True
 
     # ------------------------------------------------------------------ products
     def probability(self):

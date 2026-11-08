@@ -21,6 +21,7 @@ import numpy as np
 import rclpy
 
 from .live_mission import LiveMissionNode
+from .livenav.navgrid import NavParams
 from .livenav.replanner import ReplanParams
 from .coursenav.scan import level_from_px4_q
 from .livenav.pad import level_cam_rotation
@@ -47,7 +48,9 @@ class SafeMissionNode(LiveMissionNode):
 
     def make_mission(self, mp, fp, course_file):
         dp = self.declare_parameter
+        adaptive = bool(dp('adaptive_maze', False).value)
         sp = SafeParams(
+            live_grid=adaptive,
             v_cap=float(dp('v_cap', SafeParams.v_cap).value),
             v_gate=float(dp('v_gate_window', SafeParams.v_gate).value),
             turn_rate=math.radians(float(dp('turn_rate_deg', math.degrees(SafeParams.turn_rate)).value)),
@@ -61,7 +64,7 @@ class SafeMissionNode(LiveMissionNode):
         if not 0 < sp.land_vz < 0.25:
             raise ValueError('land_vz must be below PX4 LNDMC_Z_VEL_MAX (0.25 m/s)')
         self.sp = sp
-        return SafeMission(mp, None, ReplanParams(), sp, course_file=course_file)
+        return SafeMission(mp, NavParams(adaptive=adaptive), ReplanParams(), sp, course_file=course_file)
 
     def announce_mission(self, mp, fp):
         plan, sp = self.mission.plan, self.sp
