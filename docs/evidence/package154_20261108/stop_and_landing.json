@@ -1,0 +1,724 @@
+{
+  "run": "run_20261108T103950",
+  "trace": {
+    "phases": {
+      "wait": 101,
+      "arm": 662,
+      "climb": 87,
+      "turn": 20,
+      "check": 95,
+      "go": 303,
+      "done": 32
+    },
+    "go_start": 1794134460.870575,
+    "go_end": 1794134475.9675546,
+    "v_cmd_range": [
+      0,
+      0
+    ],
+    "status_first": {
+      "phase": "go",
+      "why": "new A* route: face path before checking fresh depth",
+      "result": null,
+      "started_t": 1794134412.635176,
+      "leg": 0,
+      "legs": 6,
+      "legs_done": 0,
+      "home": [
+        0.007583793252706528,
+        -0.0017207663040608168,
+        -0.013795966282486916,
+        1.5718224048614502
+      ],
+      "targets": [
+        [
+          -0.015,
+          0.436
+        ],
+        [
+          -4.8264,
+          1.4552000000000003
+        ],
+        [
+          -4.8264,
+          -1.7688
+        ],
+        [
+          -2.7957,
+          -3.4599
+        ],
+        [
+          -1.5744000000000005,
+          -3.0146
+        ],
+        [
+          -0.47280000000000044,
+          -1.7065000000000001
+        ]
+      ],
+      "setpoint": [
+        -0.0995246022939682,
+        -0.12753570079803467,
+        -0.713795966282487,
+        1.1971089374511434
+      ],
+      "clearance_m": null,
+      "stop_m": 0.95,
+      "v_cmd": 0,
+      "depth_age_s": 0.132,
+      "corridor_age_s": 0.132,
+      "corridor_coverage": 0.93,
+      "depth_valid_frac": 0.814,
+      "depth_reject": null,
+      "health_bad_s": 0,
+      "recover": null,
+      "tunnel": false,
+      "align": null,
+      "depth_frames": 369,
+      "obstacle_stops": 0,
+      "depth_holds": 0,
+      "unconfirmed_obstacles": 0,
+      "depth_unusable": 0,
+      "depth_future": 0,
+      "depth_stale": 0,
+      "depth_out_of_order": 0,
+      "corridor_unobserved": 0,
+      "corrections": 0,
+      "recoveries": 0,
+      "blended_turns": 0,
+      "path_waits": 0,
+      "alignments": 0,
+      "tunnel_ticks": 0,
+      "tube_holds": 0,
+      "tube_ticks": 0,
+      "retreats": 0,
+      "rejects": {
+        "no_camera_info": 1,
+        "no_attitude": 9
+      }
+    },
+    "status_last": {
+      "phase": "go",
+      "why": "new A* route: face path before checking fresh depth",
+      "result": null,
+      "started_t": 1794134412.635176,
+      "leg": 0,
+      "legs": 6,
+      "legs_done": 0,
+      "home": [
+        0.007583793252706528,
+        -0.0017207663040608168,
+        -0.013795966282486916,
+        1.5718224048614502
+      ],
+      "targets": [
+        [
+          -0.015,
+          0.436
+        ],
+        [
+          -4.8264,
+          1.4552000000000003
+        ],
+        [
+          -4.8264,
+          -1.7688
+        ],
+        [
+          -2.7957,
+          -3.4599
+        ],
+        [
+          -1.5744000000000005,
+          -3.0146
+        ],
+        [
+          -0.47280000000000044,
+          -1.7065000000000001
+        ]
+      ],
+      "setpoint": [
+        -0.0995246022939682,
+        -0.12753570079803467,
+        -0.713795966282487,
+        1.1963188155440436
+      ],
+      "clearance_m": null,
+      "stop_m": 0.95,
+      "v_cmd": 0,
+      "depth_age_s": 0.196,
+      "corridor_age_s": 0.196,
+      "corridor_coverage": 0.9,
+      "depth_valid_frac": 0.8,
+      "depth_reject": null,
+      "health_bad_s": 0,
+      "recover": null,
+      "tunnel": false,
+      "align": null,
+      "depth_frames": 485,
+      "obstacle_stops": 0,
+      "depth_holds": 0,
+      "unconfirmed_obstacles": 0,
+      "depth_unusable": 0,
+      "depth_future": 0,
+      "depth_stale": 0,
+      "depth_out_of_order": 0,
+      "corridor_unobserved": 0,
+      "corrections": 0,
+      "recoveries": 0,
+      "blended_turns": 0,
+      "path_waits": 0,
+      "alignments": 0,
+      "tunnel_ticks": 0,
+      "tube_holds": 0,
+      "tube_ticks": 0,
+      "retreats": 0,
+      "rejects": {
+        "no_camera_info": 1,
+        "no_attitude": 9
+      }
+    },
+    "final_tick": {
+      "event": "tick",
+      "ros_s": 1794134477.5676088,
+      "wall_ns": 1794134477567720000,
+      "monotonic_ns": 204164096431,
+      "dropped": 0,
+      "phase": "done",
+      "leg": 0,
+      "vehicle": {
+        "pos": [
+          -0.1551380306482315,
+          -0.11641665548086166,
+          -0.11106063425540924
+        ],
+        "heading": 1.179918646812439,
+        "pos_ok": true,
+        "q": [
+          0.8308632373809814,
+          -0.004721628502011299,
+          -0.0028805939946323633,
+          0.5564492344856262
+        ],
+        "armed": true,
+        "nav_state": 2,
+        "landed": false,
+        "vel": [
+          -0.0028421662282198668,
+          0.005779718514531851,
+          -0.017061039805412292
+        ],
+        "rng": 0.18786951899528503
+      },
+      "output": {
+        "phase": "done",
+        "setpoint": null,
+        "velocity": null,
+        "accel": null,
+        "yawspeed": null,
+        "stream": false,
+        "commands": [],
+        "events": []
+      },
+      "published_trajectory": null,
+      "lpos_received_ros_s": 1794134477.543668,
+      "lpos_timestamp": 1794134477549778,
+      "path": null,
+      "path_s": 0.033473752642351855,
+      "path_stop_done": -1
+    }
+  },
+  "bag_events": [
+    {
+      "t": 1794134440.032,
+      "topic": "/fmu/out/failsafe_flags",
+      "mode_req_angular_velocity": 8311934,
+      "mode_req_attitude": 8310910,
+      "mode_req_local_alt": 8257662,
+      "mode_req_local_position": 7995448,
+      "mode_req_local_position_relaxed": 262212,
+      "mode_req_global_position": 56,
+      "mode_req_mission": 8,
+      "mode_req_offboard_signal": 16384,
+      "mode_req_home_position": 32,
+      "mode_req_wind_and_flight_time_compliance": 2621464,
+      "mode_req_prevent_arming": 3944480,
+      "mode_req_manual_control": 33863,
+      "mode_req_other": 2139095040,
+      "angular_velocity_invalid": false,
+      "attitude_invalid": false,
+      "local_altitude_invalid": false,
+      "local_position_invalid": false,
+      "local_position_invalid_relaxed": false,
+      "local_velocity_invalid": false,
+      "global_position_invalid": true,
+      "auto_mission_missing": true,
+      "offboard_control_signal_lost": false,
+      "home_position_invalid": true,
+      "manual_control_signal_lost": false,
+      "gcs_connection_lost": true,
+      "battery_warning": 0,
+      "battery_low_remaining_time": false,
+      "battery_unhealthy": false,
+      "geofence_breached": false,
+      "mission_failure": false,
+      "vtol_fixed_wing_system_failure": false,
+      "wind_limit_exceeded": false,
+      "flight_time_limit_exceeded": false,
+      "local_position_accuracy_low": false,
+      "navigator_failure": false,
+      "fd_critical_failure": false,
+      "fd_esc_arming_failure": false,
+      "fd_imbalanced_prop": false,
+      "fd_motor_failure": false
+    },
+    {
+      "t": 1794134440.053,
+      "topic": "/fmu/out/vehicle_land_detected",
+      "landed": true,
+      "ground_contact": true,
+      "maybe_landed": true,
+      "freefall": false
+    },
+    {
+      "t": 1794134440.053,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 1,
+      "nav_state": 1,
+      "nav_state_user_intention": 1,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 2
+    },
+    {
+      "t": 1794134440.154,
+      "topic": "/fmu/out/manual_control_setpoint",
+      "valid": true,
+      "sticks_moving": false,
+      "throttle": -1,
+      "data_source": 1
+    },
+    {
+      "t": 1794134444.996,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 2,
+      "nav_state": 1,
+      "nav_state_user_intention": 1,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 2
+    },
+    {
+      "t": 1794134445.116,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 1,
+      "nav_state": 1,
+      "nav_state_user_intention": 1,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 2
+    },
+    {
+      "t": 1794134447.605,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 2,
+      "nav_state": 1,
+      "nav_state_user_intention": 1,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 2
+    },
+    {
+      "t": 1794134449.153,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 1,
+      "nav_state": 1,
+      "nav_state_user_intention": 1,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 2
+    },
+    {
+      "t": 1794134449.517,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 2,
+      "nav_state": 1,
+      "nav_state_user_intention": 1,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 2
+    },
+    {
+      "t": 1794134450.652,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 2,
+      "nav_state": 2,
+      "nav_state_user_intention": 2,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 2
+    },
+    {
+      "t": 1794134450.74,
+      "topic": "/fmu/in/vehicle_command",
+      "command": 176,
+      "param1": 1,
+      "param2": 6,
+      "source_system": 14,
+      "source_component": 1,
+      "from_external": true
+    },
+    {
+      "t": 1794134450.763,
+      "topic": "/fmu/out/vehicle_command_ack",
+      "command": 176,
+      "from_external": false,
+      "result": 0
+    },
+    {
+      "t": 1794134450.764,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 2,
+      "nav_state": 14,
+      "nav_state_user_intention": 14,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 2
+    },
+    {
+      "t": 1794134451.666,
+      "topic": "/fmu/out/vehicle_land_detected",
+      "landed": false,
+      "ground_contact": true,
+      "maybe_landed": false,
+      "freefall": false
+    },
+    {
+      "t": 1794134451.684,
+      "topic": "/fmu/out/vehicle_land_detected",
+      "landed": false,
+      "ground_contact": false,
+      "maybe_landed": false,
+      "freefall": false
+    },
+    {
+      "t": 1794134468.011,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.6882189512252808,
+      "vz": -0.03110525943338871,
+      "dist_bottom": 0.7601872682571411,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134469.02,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.7051133513450623,
+      "vz": -0.004958733916282654,
+      "dist_bottom": 0.7793843746185303,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134470.03,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.7030895352363586,
+      "vz": -0.00937413889914751,
+      "dist_bottom": 0.7764607667922974,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134471.047,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.6956958770751953,
+      "vz": -0.020061573013663292,
+      "dist_bottom": 0.7656732797622681,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134472.068,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.7009000182151794,
+      "vz": -0.0159397441893816,
+      "dist_bottom": 0.7751539349555969,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134473.076,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.7019604444503784,
+      "vz": -0.009350576438009739,
+      "dist_bottom": 0.7786141037940979,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134474.088,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.7018392086029053,
+      "vz": -0.00331503595225513,
+      "dist_bottom": 0.77839595079422,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134475.1,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.6977747082710266,
+      "vz": -0.02379843033850193,
+      "dist_bottom": 0.7731270790100098,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134475.455,
+      "topic": "/fmu/out/manual_control_setpoint",
+      "valid": true,
+      "sticks_moving": false,
+      "throttle": -0.9780439734458923,
+      "data_source": 1
+    },
+    {
+      "t": 1794134475.965,
+      "topic": "/fmu/out/manual_control_setpoint",
+      "valid": true,
+      "sticks_moving": false,
+      "throttle": -0.8962076306343079,
+      "data_source": 1
+    },
+    {
+      "t": 1794134476.01,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 2,
+      "nav_state": 2,
+      "nav_state_user_intention": 2,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 2
+    },
+    {
+      "t": 1794134476.106,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.7023922801017761,
+      "vz": -0.006643379107117653,
+      "dist_bottom": 0.7794312238693237,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134476.53,
+      "topic": "/fmu/out/manual_control_setpoint",
+      "valid": true,
+      "sticks_moving": true,
+      "throttle": -1,
+      "data_source": 1
+    },
+    {
+      "t": 1794134477.071,
+      "topic": "/fmu/out/manual_control_setpoint",
+      "valid": true,
+      "sticks_moving": false,
+      "throttle": -1,
+      "data_source": 1
+    },
+    {
+      "t": 1794134477.108,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.1771041750907898,
+      "vz": 0.45415154099464417,
+      "dist_bottom": 0.36373984813690186,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134478.117,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.07228285074234009,
+      "vz": 0.003473584307357669,
+      "dist_bottom": 0.1374623328447342,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134478.158,
+      "topic": "/fmu/out/manual_control_setpoint",
+      "valid": true,
+      "sticks_moving": true,
+      "throttle": -1,
+      "data_source": 1
+    },
+    {
+      "t": 1794134478.898,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 2,
+      "nav_state": 1,
+      "nav_state_user_intention": 1,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 2
+    },
+    {
+      "t": 1794134479.118,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.0108730997890234,
+      "vz": 0.0272400863468647,
+      "dist_bottom": 0.09853287041187286,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134479.169,
+      "topic": "/fmu/out/manual_control_setpoint",
+      "valid": true,
+      "sticks_moving": false,
+      "throttle": -1,
+      "data_source": 1
+    },
+    {
+      "t": 1794134480.12,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": 0.004382682964205742,
+      "vz": 0.022407544776797295,
+      "dist_bottom": 0.08641697466373444,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134481.135,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.003901067655533552,
+      "vz": 0.01217865664511919,
+      "dist_bottom": 0.0885927677154541,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134481.178,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 2,
+      "nav_state": 0,
+      "nav_state_user_intention": 0,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 2
+    },
+    {
+      "t": 1794134482.094,
+      "topic": "/fmu/out/vehicle_land_detected",
+      "landed": false,
+      "ground_contact": true,
+      "maybe_landed": false,
+      "freefall": false
+    },
+    {
+      "t": 1794134482.152,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.013453589752316475,
+      "vz": 0.0045797741040587425,
+      "dist_bottom": 0.09284967184066772,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134483.087,
+      "topic": "/fmu/out/vehicle_land_detected",
+      "landed": false,
+      "ground_contact": true,
+      "maybe_landed": true,
+      "freefall": false
+    },
+    {
+      "t": 1794134483.169,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.022709021344780922,
+      "vz": -0.001288806670345366,
+      "dist_bottom": 0.09874218702316284,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134484.089,
+      "topic": "/fmu/out/vehicle_land_detected",
+      "landed": true,
+      "ground_contact": true,
+      "maybe_landed": true,
+      "freefall": false
+    },
+    {
+      "t": 1794134484.179,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.025237983092665672,
+      "vz": -0.001315103960223496,
+      "dist_bottom": 0.10006432235240936,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134485.195,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.023936249315738678,
+      "vz": 0.0006113301496952772,
+      "dist_bottom": 0.09963295608758926,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134486.11,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 1,
+      "nav_state": 0,
+      "nav_state_user_intention": 0,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 6
+    },
+    {
+      "t": 1794134486.197,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.022505823522806168,
+      "vz": 0.0022941818460822105,
+      "dist_bottom": 0.09906335920095444,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134487.216,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.02122459001839161,
+      "vz": 0.0030798418447375298,
+      "dist_bottom": 0.0981612503528595,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134488.217,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.020674357190728188,
+      "vz": 0.0027422853745520115,
+      "dist_bottom": 0.09787788987159729,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134489.235,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.02065391093492508,
+      "vz": 0.004220000468194485,
+      "dist_bottom": 0.09787534177303314,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134490.236,
+      "topic": "/fmu/out/vehicle_local_position",
+      "z": -0.019703339785337448,
+      "vz": 0.0050416928716003895,
+      "dist_bottom": 0.09713922441005707,
+      "dist_bottom_valid": false
+    },
+    {
+      "t": 1794134490.714,
+      "topic": "/fmu/out/vehicle_status_v1",
+      "arming_state": 1,
+      "nav_state": 1,
+      "nav_state_user_intention": 1,
+      "failsafe": false,
+      "failsafe_and_user_took_over": false,
+      "latest_arming_reason": 2,
+      "latest_disarming_reason": 6
+    }
+  ]
+}
