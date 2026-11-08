@@ -134,7 +134,7 @@ class Params:
     wait_s: float = 300.0                       # nothing ready this long: give up without arming
     arm_wait_s: float = 30.0
     cmd_resend_s: float = 1.0
-    land_timeout_s: float = 60.0
+    land_timeout_s: float = 60.0                # <= 0: keep landing until disarm confirmation (skybeta launch)
     # ---- competition-profile options, all off by default (see the module docstring) ----
     accel_mps2: float = 0.0                     # > 0: velocity-profiled carrot + velocity feed-forward
     track_mode: str = "carrot"                  # "carrot" (default): a target point slides along the leg on its own
@@ -959,8 +959,9 @@ class Mission:
                 out.commands.append("land")
             if self.land_auto_seen and v.armed is False:
                 why = self.land_reason or ""
+                out.events.append("!!!!!!!!!! LANDING CONFIRMED: PX4 reports DISARMED !!!!!!!!!!")
                 self._end(now, out, "complete" if why == "route complete" else f"landed: {why}")
-            elif now - self.t_phase > p.land_timeout_s:
+            elif p.land_timeout_s > 0 and now - self.t_phase > p.land_timeout_s:
                 self._end(now, out, f"landed: {self.land_reason}; landing not confirmed within {p.land_timeout_s:.0f} s")
 
         if self.phase != "go":

@@ -102,7 +102,7 @@ def _nodes(context):
     fly = ExecuteProcess(
         cmd=['python3', str(ROOT / 'fly_course.py'), '--event-start', '--skip-preflight', '--no-own-localizer', '--no-return', '--start-from-mark',
              '--chicane', L('chicane'), '--landed-z', L('landed_z'), '--localizer-timeout', L('localizer_timeout')] + fly_start + ['--',
-             '-p', 'px4_output:=skybeta', '-p', ['depth_topic:=', L('depth_topic')],
+             '-p', 'px4_output:=skybeta', '-p', 'land_timeout_s:=0.0', '-p', ['depth_topic:=', L('depth_topic')],
              '-p', ['depth_info_topic:=', L('depth_info_topic')],
              '-p', ['arm_wait_s:=', L('arm_wait_s')], '-p', ['wait_s:=', L('wait_s')],
              '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'path_turn_hold:=true'],

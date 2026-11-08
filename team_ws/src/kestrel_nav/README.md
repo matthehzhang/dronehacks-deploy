@@ -18,6 +18,19 @@ alignment, detected-obstacle responses and camera-stream-loss handling are uncha
 This adds no automatic-landing trigger, velocity-validity requirement or continuous
 height veto during crossing. Holding XY still allows feedback to counter drift.
 
+At the end, the skybeta launch disables the mission's landing timeout: the existing
+0.30 m/s landing descent continues until PX4 reports disarmed. During that descent,
+a fresh PX4 `landed=true` report triggers an explicit normal
+`VEHICLE_CMD_COMPONENT_ARM_DISARM` command (`param1=0`, `param2=0`), retried once
+per second while still landed and armed. The adapter publishes this command on
+the version-resolved PX4 vehicle-command topic; motion still uses the flight
+interface. Landing disarm is the only direct vehicle command from this adapter.
+It prints `DISARM COMMAND SENT`, then waits for actual PX4 disarm confirmation.
+It then prints `LANDING CONFIRMED: PX4 reports DISARMED` and finishes. At 60 seconds without
+confirmation it prints `DISARM NOT CONFIRMED` and keeps landing. PX4 owns the
+normal disarm acceptance; a command being sent does not mark the mission complete.
+No force-disarm command is added. This has not been flight validated.
+
 The user-supplied approximate window bounds **1.00-1.80 m** override alignment
 geometry only. The old OBJ/voxel window is **0.305-1.219 m** and remains unchanged;
 the horizontal planner still uses the existing cruise band. The old map shows

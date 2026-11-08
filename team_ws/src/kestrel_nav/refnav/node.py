@@ -130,8 +130,8 @@ class RefNav(Node):
                                   VehicleCommand, VehicleLandDetected, VehicleLocalPosition, VehicleStatus)
         self._OCM, self._TSP, self._CMD = OffboardControlMode, TrajectorySetpoint, VehicleCommand
         # px4_output: "direct" (FlyX lab: this node owns /fmu/in, arms and sets Offboard) or "skybeta" (the
-        # drone: /fmu/in is the organizer flight interface's; the pilot arms, the interface enters Offboard,
-        # setpoints go to /skybeta/setpoint/twist; see SkybetaOutput). Default unchanged.
+        # drone: the pilot arms, the interface enters Offboard, motion uses /skybeta/setpoint/twist;
+        # SkybetaOutput sends only the explicit landing disarm on /fmu/in/vehicle_command).
         self.px4_output = str(self.declare_parameter("px4_output", "direct").value)
         if self.px4_output not in ("direct", "skybeta"):
             raise ValueError("px4_output must be direct or skybeta")
@@ -148,7 +148,7 @@ class RefNav(Node):
                                                             ep["vehicle_land_detected"])
             except Exception as e:                          # noqa: BLE001
                 self.get_logger().warning(f"skybeta topic resolver unavailable ({e}); using _v1 names")
-            self.get_logger().info(f"skybeta output: twist only, no /fmu/in; PX4 topics {lpos_topic}, "
+            self.get_logger().info(f"skybeta output: twist motion plus explicit checked disarm after touchdown; PX4 topics {lpos_topic}, "
                                    f"{status_topic_px4}, {land_topic}")
         else:
             self.sky = None
@@ -308,6 +308,7 @@ class RefNav(Node):
         if not self._return_observe('status', m.timestamp * 1e-6):
             return
         self.v.armed = m.arming_state == 2
+        self.px4_system_id = int(getattr(m, 'system_id', 1)) or 1
         self.v.nav_state = int(m.nav_state)
 
     def _on_land(self, m):
@@ -320,6 +321,7 @@ class RefNav(Node):
         if not accepted:
             return
         self.v.landed = bool(m.landed)
+        self._land_received_ros_s = self._now()
 
     def _return_observe(self, name, stamp, **data):
         if not self.return_enabled and not getattr(self, 'diagnostic_enabled', False):
@@ -483,8 +485,8 @@ class RefNav(Node):
             self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
         if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
                 and self.mission.phase == "land"):
-            # skybeta: no AUTO_LAND exists; the interface descent + PX4's auto-disarm (COM_DISARM_LAND) IS the
-            # landing, so the disarm after it confirms touchdown like AUTO_LAND -> disarmed does on the lab
+            # skybeta: no AUTO_LAND exists. After the interface descent, actual PX4 disarm status
+            # confirms completion, whether our checked command or PX4 auto-disarm performed it.
             self.mission.land_auto_seen = True
         out = (self.mission.step(now, self.v, wall_now=time.monotonic()) if self.return_enabled or diagnostic
                else self.mission.step(now, self.v))

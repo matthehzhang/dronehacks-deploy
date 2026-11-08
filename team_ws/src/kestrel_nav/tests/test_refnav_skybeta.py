@@ -76,3 +76,138 @@ def test_path_leg_turn_without_a_path_keeps_heading():
     m.step(1.0, v)
     assert abs(m.sp[3]) < 1e-9 and m.leg_heading == 0.0       # heading kept, no swing toward the stop
     assert m.phase in ("turn", "check")
+
+
+def test_landing_descent_continues_past_sixty_seconds_until_disarmed():
+    from types import SimpleNamespace as NS
+    from refnav import skybeta as sk, core as C
+
+    sent, warnings = [], []
+    m = C.Mission(C.Params(land_timeout_s=0.0))
+    m.phase, m.t_phase, m.land_reason = 'land', 0.0, 'route complete'
+    m.sp, m.home = [0, 0, -1.3, 0], (0, 0, 0, 0)
+    adapter = sk.SkybetaOutput.__new__(sk.SkybetaOutput)
+    adapter.node = NS(mission=m, get_logger=lambda: NS(info=lambda _: None, warning=warnings.append))
+    adapter.land_xy, adapter.land_yaw = None, None
+    adapter._send = lambda *args: sent.append(args) or args
+    v = C.Vehicle(pos=(0, 0, -1.3), heading=0, armed=True, nav_state=C.NAV_OFFBOARD,
+                  pos_ok=True, vel=(0, 0, 0), landed=False)
+    for t in (0.0, 10.0, 61.0, 90.0):
+        out = m.step(t, v)
+        assert m.phase == 'land' and m.result is None
+        adapter.publish(t, out, v)
+    assert sent[-1][2] == pytest.approx(-sk.LAND_VZ)
+    assert len(warnings) == 1 and 'DISARM NOT CONFIRMED' in warnings[0]
+    # Touchdown alone must not stop the descent command while PX4 is still armed.
+    v.landed = True
+    out = m.step(91.0, v)
+    adapter.publish(91.0, out, v)
+    assert m.phase == 'land' and sent[-1][2] == pytest.approx(-sk.LAND_VZ)
+    # Same disarm acknowledgement used in RefNav._tick for the skybeta adapter.
+    v.armed = False
+    m.land_auto_seen = True
+    out = m.step(92.0, v)
+    assert m.phase == 'done' and m.result == 'complete'
+    assert any('PX4 reports DISARMED' in event for event in out.events)
+    count = len(sent)
+    assert adapter.publish(92.0, out, v) is None
+    assert len(sent) == count
+
+
+def test_drone_launch_waits_for_disarm_instead_of_using_the_landing_timeout():
+    text = (ROOT / 'launch/refnav_skybeta.launch.py').read_text()
+    assert "'land_timeout_s:=0.0'" in text
+
+
+def disarming_adapter():
+    from types import SimpleNamespace as NS
+    from refnav import skybeta as sk
+
+    class Command(NS):
+        VEHICLE_CMD_COMPONENT_ARM_DISARM = 400
+
+    sent, warnings = [], []
+    node = NS(mission=NS(targets=[], home=(0, 0, 0, 0)), px4_system_id=20,
+              _land_received_ros_s=None, _sys_us=lambda: 123456789,
+              get_logger=lambda: NS(info=lambda _: None, warning=warnings.append))
+    adapter = sk.SkybetaOutput.__new__(sk.SkybetaOutput)
+    adapter.node, adapter.VehicleCommand = node, Command
+    adapter.land_xy, adapter.land_yaw, adapter.disarm_sent_t = None, None, None
+    adapter.command_pub = NS(publish=sent.append)
+    adapter._send = lambda *args: args
+    v = NS(pos=(0, 0, -.01), heading=0, vel=(0, 0, 0), armed=True, landed=False)
+    return adapter, node, v, sent, warnings
+
+
+def test_explicit_normal_disarm_after_touchdown_retries_until_px4_disarmed():
+    from types import SimpleNamespace as NS
+
+    adapter, node, v, sent, warnings = disarming_adapter()
+    out = NS(commands=['land'], stream=False, setpoint=None)
+    adapter.publish(0., out, v)
+    assert sent == []  # low estimated height does not disarm an airborne vehicle
+    v.landed, node._land_received_ros_s = True, 1.
+    adapter.publish(1., out, v)
+    assert len(sent) == 1
+    command = sent[0]
+    assert command.command == 400 and command.param1 == 0 and command.param2 == 0
+    assert command.timestamp == 123456789
+    assert command.target_system == command.source_system == 20
+    assert command.target_component == command.source_component == 1
+    assert command.from_external is True
+    assert 'DISARM COMMAND SENT' in warnings[-1]
+    adapter.publish(1.5, out, v)
+    assert len(sent) == 1
+    node._land_received_ros_s = 2.
+    adapter.publish(2., out, v)
+    assert len(sent) == 2
+    v.armed = False
+    assert adapter.publish(2.1, out, v) is None
+    assert len(sent) == 2
+
+
+@pytest.mark.parametrize('landed, age', [(False, 0.), (None, 0.), (True, 1.1), (True, -.1)])
+def test_disarm_not_sent_for_missing_false_stale_or_future_touchdown(landed, age):
+    from types import SimpleNamespace as NS
+
+    adapter, node, v, sent, _ = disarming_adapter()
+    out = NS(commands=['land'], stream=False, setpoint=None)
+    adapter.publish(0., out, v)
+    v.landed, node._land_received_ros_s = landed, 2. - age
+    adapter.publish(2., out, v)
+    assert sent == []
+
+
+def test_no_disarm_before_landing_or_after_bounce():
+    from types import SimpleNamespace as NS
+
+    adapter, node, v, sent, _ = disarming_adapter()
+    v.landed, node._land_received_ros_s = True, 0.
+    adapter.publish(0., NS(commands=[], stream=False, setpoint=None), v)
+    assert sent == []
+    adapter.publish(.1, NS(commands=['land'], stream=False, setpoint=None), v)
+    assert len(sent) == 1
+    v.landed, node._land_received_ros_s = False, 2.
+    adapter.publish(2., NS(commands=[], stream=False, setpoint=None), v)
+    assert len(sent) == 1
+
+
+def test_disarm_publisher_uses_resolved_px4_command_topic(monkeypatch):
+    import types
+    from types import SimpleNamespace as NS
+    from refnav import skybeta as sk
+
+    geometry = types.ModuleType('geometry_msgs.msg')
+    geometry.TwistStamped = NS
+    px4 = types.ModuleType('px4_msgs.msg')
+    px4.VehicleCommand = type('VehicleCommand', (), {'VEHICLE_CMD_COMPONENT_ARM_DISARM': 400})
+    topics = types.ModuleType('skybeta_flight_interface.topics')
+    topics.resolve_endpoints = lambda: {'vehicle_command': '/fmu/in/vehicle_command_v7'}
+    for package, child in [('geometry_msgs', geometry), ('px4_msgs', px4), ('skybeta_flight_interface', topics)]:
+        monkeypatch.setitem(sys.modules, package, types.ModuleType(package))
+        monkeypatch.setitem(sys.modules, child.__name__, child)
+    bindings = []
+    node = NS(create_publisher=lambda cls, topic, qos: bindings.append((cls, topic, qos)) or NS(publish=lambda _: None))
+    adapter = sk.SkybetaOutput(node)
+    assert adapter.VehicleCommand is px4.VehicleCommand
+    assert (px4.VehicleCommand, '/fmu/in/vehicle_command_v7', 10) in bindings

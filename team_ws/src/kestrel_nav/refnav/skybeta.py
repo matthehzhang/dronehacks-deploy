@@ -1,7 +1,7 @@
 """refnav on the skybeta drone: refnav.core's output, unchanged, published through the organizer's flight
 interface instead of /fmu/in. Added for deploy branch kestral_nav934am; not part of upstream group119.
 
-The skybeta rules (deploy README): competitors never publish /fmu/in, never arm, never change mode. The
+The flight interface owns motion setpoints, arming and mode changes. The
 pilot arms and switches to Position; skybeta_flight_interface enters Offboard (one attempt, needing a team
 setpoint within 1 s) and turns /skybeta/setpoint/twist (ENU world velocity + yaw rate, expires after 1 s,
 norm capped at 1.5 m/s) into PX4 setpoints. So:
@@ -11,7 +11,9 @@ norm capped at 1.5 m/s) into PX4 setpoints. So:
     PX4's position controller closes:  v = v_ff + kp * (sp - pos),  yawrate = yawspeed_ff + k_yaw * (yaw_sp - yaw);
     acceleration feed-forward cannot be carried by a twist and is dropped;
   * refnav's "land" (PX4 AUTO_LAND on the lab) has no interface equivalent: a 0.30 m/s descent with xy held
-    where the landing started, until PX4's land detector disarms (COM_DISARM_LAND); "disarm" is not sent.
+    where the landing started. After fresh PX4 touchdown confirmation, explicitly send a normal
+    COMPONENT_ARM_DISARM command (param1=0, param2=0), retrying until PX4 reports disarmed.
+    The direct command publisher is restricted to this normal landing disarm.
 Frames: PX4 local NED (refnav) <-> the interface's ENU world frame (it applies enu_to_ned: (y, x, -z)).
 """
 import math
@@ -57,14 +59,41 @@ def twist_from_setpoint(sp, vel_ff, yawspeed_ff, pos, heading):
 class SkybetaOutput:
     def __init__(self, node):
         from geometry_msgs.msg import TwistStamped
+        from px4_msgs.msg import VehicleCommand
         self.node = node
         self.TwistStamped = TwistStamped
+        self.VehicleCommand = VehicleCommand
         self.pub = node.create_publisher(TwistStamped, "/skybeta/setpoint/twist", 10)
+        try:
+            from skybeta_flight_interface.topics import resolve_endpoints
+            command_topic = resolve_endpoints()['vehicle_command']
+        except ImportError:
+            version = getattr(VehicleCommand, 'MESSAGE_VERSION', 0)
+            command_topic = '/fmu/in/vehicle_command' + (f'_v{version}' if version else '')
+        self.command_pub = node.create_publisher(VehicleCommand, command_topic, 10)
         self.land_xy = None                     # NED (n, e) held during the landing descent
         self.land_yaw = None
         self.land_t0 = None
         self.centred_since = None
         self.descending = False
+        self.disarm_sent_t = None
+
+    def _disarm(self, now):
+        """Normal PX4-checked disarm only; never use the force-disarm magic value."""
+        previous = getattr(self, 'disarm_sent_t', None)
+        if previous is not None and now - previous < 1.0:
+            return
+        command = self.VehicleCommand()
+        command.timestamp = self.node._sys_us()
+        command.command = self.VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM
+        command.param1, command.param2 = 0.0, 0.0
+        command.target_system = command.source_system = getattr(self.node, 'px4_system_id', 1)
+        command.target_component = command.source_component = 1
+        command.from_external = True
+        self.command_pub.publish(command)
+        self.disarm_sent_t = now
+        self.node.get_logger().warning(
+            "!!!!!!!!!! DISARM COMMAND SENT: PX4 reports landed; waiting for DISARMED confirmation !!!!!!!!!!")
 
     def _send(self, vx, vy, vz, wz):
         t = self.TwistStamped()
@@ -81,6 +110,7 @@ class SkybetaOutput:
         the start heading faced along one). Elsewhere (an abort): straight down where it is."""
         m = self.node.mission
         self.land_t0, self.centred_since, self.descending = now, None, False
+        self.disarm_sent_t = None
         targets = getattr(m, "targets", None) or []
         home = getattr(m, "home", None)
         if targets and math.dist(v.pos[:2], targets[-1]) <= PAD_SNAP_M and home is not None and v.heading is not None:
@@ -102,6 +132,14 @@ class SkybetaOutput:
         if self.land_xy is not None:
             if v.armed is False or v.pos is None:
                 return None
+            if now - self.land_t0 >= 60.0 and not getattr(self, 'disarm_wait_logged', False):
+                self.disarm_wait_logged = True
+                self.node.get_logger().warning(
+                    "!!!!!!!!!! DISARM NOT CONFIRMED: PX4 has not reported disarmed; continuing landing !!!!!!!!!!")
+            landed_t = getattr(self.node, '_land_received_ros_s', None)
+            if (self.descending and v.armed is True and getattr(v, 'landed', None) is True
+                    and landed_t is not None and 0 <= now - landed_t <= 1.0):
+                self._disarm(now)
             sp = (self.land_xy[0], self.land_xy[1], v.pos[2], self.land_yaw)
             vx, vy, _, wz = twist_from_setpoint(sp, None, None, v.pos, v.heading)
             if not self.descending:
