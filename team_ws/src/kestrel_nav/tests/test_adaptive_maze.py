@@ -51,3 +51,22 @@ def test_observed_opening_replaces_old_wall_and_expires(side):
 
     g.rebuild(12.)
     assert rp.plan(start, 12.) is None
+
+
+def test_bootstrap_never_routes_through_the_prior_maze(monkeypatch):
+    from kestrel_nav.coursenav import planner
+    from kestrel_nav.livenav.safe import SafeMission, SafeParams
+
+    original = planner.astar
+    start_calls = []
+
+    def record_start(grid, clear, start, goal, *args, **kwargs):
+        start_calls.append(np.asarray(start))
+        return original(grid, clear, start, goal, *args, **kwargs)
+
+    monkeypatch.setattr(planner, "astar", record_start)
+    mission = SafeMission(nav_params=NavParams(adaptive=True), safe_params=SafeParams(live_grid=True))
+    assert mission.goals[0].name == "maze_exit"
+    assert start_calls and all(math.dist(p, mission.plan["start_course"][:2]) > .3 for p in start_calls)
+    assert {"tunnel_exit", "window_post"} <= mission.align_meta.keys()
+    assert mission.replanner.path is None

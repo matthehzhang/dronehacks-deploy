@@ -239,7 +239,9 @@ ros2 launch kestrel_nav safe.launch.py adaptive_maze:=true allow_mode_request:=t
 ```
 
 Use the same course file and checkpoint goals for the original and modified
-maze worlds. The first stage skips generated maze via points. It gathers
+maze worlds. Startup plans only from the semantic maze exit onward, so it
+does not require a route through the old maze. During the first stage A*
+searches from the current pose to the exit on the evolving map. It gathers
 recent flight-band depth evidence from the VIO-based pose even when matching
 against the published map fails. Only course groups marked
 `adaptive_obstacle_groups` are eligible for clearing. The enclosure,

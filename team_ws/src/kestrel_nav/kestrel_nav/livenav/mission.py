@@ -107,16 +107,7 @@ class LiveMission:
         self.replan_params = replan_params or ReplanParams()
         self.plan = self._plan_course()
         self.goals = goals_from_plan(self.plan)
-        self.adaptive_exit_index = None
-        if self.grid.p.adaptive:
-            exit_index = next((i for i, g in enumerate(self.goals) if g.name == "maze_exit"), None)
-            if exit_index is None:
-                raise ValueError("adaptive maze requires a maze_exit checkpoint")
-            # The prior's intermediate maze vertices are route suggestions.
-            maze_goals = [g for g in self.goals[:exit_index]
-                          if not (g.name.startswith("via") and g.name[3:].isdigit())]
-            self.adaptive_exit_index = len(maze_goals)
-            self.goals = maze_goals + self.goals[exit_index:]
+        self.adaptive_exit_index = 0 if self.grid.p.adaptive else None
         self.pad_xy_map = np.asarray(self.doc["sequence"][-1]["xy"], float)
         centres = [w for w in self.plan['waypoints'] if w.get('part') == 'centre']
         lines = self.plan['gate_lines']

@@ -185,6 +185,8 @@ class SafeMission(LiveMission):
         doc = self.doc
         sx, sy = doc["start"]["xy"] if self.p.start_xy is None else self.p.start_xy
         start = np.array([float(sx), float(sy)])
+        if self.grid.p.adaptive:
+            return self._plan_after_maze(start)
         free = start
         if self.grid.is_blocked(start):
             free = self.grid.nearest_free(start, max_m=0.3)
@@ -198,6 +200,31 @@ class SafeMission(LiveMission):
             self.p.start_xy = keep
         plan["start_course"] = (float(start[0]), float(start[1]), plan["start_course"][2])
         plan["start_plan_xy"] = [round(float(v), 3) for v in free]
+        return plan
+
+    def _plan_after_maze(self, start):
+        """Bootstrap downstream checks without solving the prior's maze."""
+        from ..coursenav import planner
+
+        doc, grid = self.doc, self.grid
+        if not doc["sequence"] or doc["sequence"][0]["name"] != "maze_exit":
+            raise ValueError("adaptive maze requires maze_exit as the first checkpoint")
+        exit_xy = list(doc["sequence"][0]["xy"])
+        downstream = dict(doc, sequence=doc["sequence"][1:])
+        args = (downstream, grid.obst, grid.prior_blocked, grid.prior_clearance)
+        if self.p.chicane == "auto":
+            result = planner.plan_options(*args, start_xy=exit_xy, cmap=self.cmap)
+            plan = result["plan"]
+            plan["reason"] = result["reason"]
+        else:
+            plan = planner.plan(*args, start_xy=exit_xy, chicane=self.p.chicane, cmap=self.cmap)
+            plan["reason"] = "forced"
+        # The exit and launch are semantic references. Only the navigator can
+        # generate a traversable route between them once the mission is running.
+        plan["waypoints"][0].update(name="maze_exit", mode="cruise")
+        plan["waypoints"].insert(0, {"name": "start", "mode": "takeoff", "xy": start.tolist()})
+        yaw = doc["start"]["yaw_deg"] if self.p.start_yaw_deg is None else self.p.start_yaw_deg
+        plan["start_course"] = (*map(float, start), math.radians(yaw))
         return plan
 
     def _align_meta(self):
