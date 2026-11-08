@@ -3,3 +3,5 @@
 # die on $'\r'.
 * text=auto eol=lf
 *.px4 binary
+
+docs/evidence/drone_bags_20261108/*.zip filter=lfs diff=lfs merge=lfs -text
