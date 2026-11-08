@@ -129,12 +129,12 @@ def test_final_goal_moves_only_along_vertical_map_axis(active):
     geo = semantics.Geometry(course.resolve(doc, 'obj'))
     pad = doc['sequence'][-1]
     spec = dict(pad['from'])
-    assert spec.pop('offset_xy_m') == [-0.2828, -1.0328]
+    assert spec.pop('offset_xy_m') == [-0.2121, -0.9621]
     original, original_radius = semantics.pad_center(geo, spec)
     shifted, shifted_radius = semantics.pad_center(geo, pad['from'])
-    assert shifted - original == pytest.approx([-0.2828, -1.0328])
+    assert shifted - original == pytest.approx([-0.2121, -0.9621])
     assert shifted_radius == pytest.approx(original_radius)
-    assert pad['xy'] == pytest.approx([-2.3250, -1.8253], abs=1e-4)
+    assert pad['xy'] == pytest.approx([-2.2543, -1.7546], abs=1e-4)
     assert pad['xy'] == pytest.approx(shifted, abs=.00005)
     assert doc['derived']['pad']['xy'] == pad['xy']
     assert pad['land']

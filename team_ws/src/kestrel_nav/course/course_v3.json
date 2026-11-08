@@ -78,9 +78,9 @@
       "from": {
         "feature": "pad_center",
         "group": "Landing pad 5 ft",
-        "offset_xy_m": [-0.2828, -1.0328]
+        "offset_xy_m": [-0.2121, -0.9621]
       },
-      "_note": "User-measured final landing goal: 0.75 m farther from the start along the vertical map axis (-course y), then 0.40 m diagonally toward -x/-y (south-west) after a flight landed on the pad's far edge, diagonally right of centre. Applies an offset to the imported pad centre; target (-2.3250, -1.8253) m. OBJ/voxel map and marking radius are unchanged."
+      "_note": "User-measured final landing goal: 0.75 m farther from the start along the vertical map axis (-course y), then 0.30 m diagonally toward -x/-y (south-west) after a flight landed on the pad's far edge, diagonally right of centre. Applies an offset to the imported pad centre; target (-2.2543, -1.7546) m. OBJ/voxel map and marking radius are unchanged."
     }
   ],
   "chicane_options": {

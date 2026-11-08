@@ -80,10 +80,10 @@ verify the real raised crossing. Preview the actual preprocessed route and heigh
 targets with `python tools/preview_window_height.py`; outputs go to
 `plans/window_height_review/`. These are target diagrams, not flight simulations.
 
-The final landing goal is now **(-2.3250, -1.8253) m**: 0.75 m farther from
-the start along the vertical map axis (-course y), then a further 0.40 m along
+The final landing goal is now **(-2.2543, -1.7546) m**: 0.75 m farther from
+the start along the vertical map axis (-course y), then a further 0.30 m along
 the -x/-y (south-west) diagonal after a flight landed on the pad's far edge,
-diagonally right of centre. The pad's `from.offset_xy_m=[-0.2828, -1.0328]`
+diagonally right of centre. The pad's `from.offset_xy_m=[-0.2121, -0.9621]`
 records this user-measured adjustment relative to the imported marking;
 OBJ/voxel geometry remains unchanged.
 
