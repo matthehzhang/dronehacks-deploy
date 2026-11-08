@@ -97,7 +97,8 @@ class LocNode(Node):
         # A frame with few returns adds little but cannot add free space: a beam without a return is unknown.
         # Below this only a dead or blinded camera (was .30: the sim's sparse stereo froze the map at the start).
         self.local_min_valid = float(dp('local_min_valid_frac', 0.05).value)
-        self._h_off, self._h_t = None, 0.
+        from refnav.height import AnchoredHeight
+        self._h = AnchoredHeight(10.0, float(dp('height_jump_m', 0.15).value), vio_stale_s=1e9)   # od z is capture-matched
         self.local_error = 'waiting for fresh calibrated depth and odometry'
         self.height = None                     # (stamp_wall, metres of the body origin above the floor)
         self.vio_ok = True
@@ -194,20 +195,14 @@ class LocNode(Node):
         return quat_to_mat(r.w, r.x, r.y, r.z), np.array([t.x, t.y, t.z])
 
     def _flight_height(self, z_vio):
-        """Body height above the floor: VIO z anchored to the rangefinder height and corrected
-        slowly (tau 10 s). The rangefinder alone reads a sill or object below as the floor rising."""
+        """Body height above the floor: VIO z anchored to the rangefinder height (refnav.height, tau 10 s).
+        The rangefinder alone reads a sill or object below as the floor rising: such jumps are disregarded."""
         now = time.monotonic()
         rf = self.height[1] if self.height is not None and 0 <= now - self.height[0] <= .5 else None
-        if rf is not None:
-            if self._h_off is None:
-                self._h_off = rf - z_vio
-            else:
-                dt = max(0., now - self._h_t)
-                self._h_off += min(1., dt/10.)*((rf - z_vio) - self._h_off)
-            self._h_t = now
-        if self._h_off is None:
+        h = self._h.update(now, rf, z_vio, now)
+        if self._h.off is None:
             return rf if rf is not None else .8
-        return z_vio + self._h_off
+        return h
 
     def _on_lpos_height(self, m):
         """dist_bottom while plausible (0.02-3 m; PX4 1.16 with range as the height reference may leave

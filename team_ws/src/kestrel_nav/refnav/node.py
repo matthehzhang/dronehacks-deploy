@@ -128,11 +128,10 @@ class RefNav(Node):
         # PX4's height reference here is the downward rangefinder (EKF2_HGT_REF 2), which reads a
         # window sill or any object below as the floor rising; VIO does not.
         from nav_msgs.msg import Odometry
+        from .height import AnchoredHeight
         self.height_tau_s = float(self.declare_parameter('height_tau_s', 10.0).value)
         self._vio = None                 # (receive time, z up)
-        self._z_off = None               # PX4 NED z - VIO NED z, slowly corrected
-        self._z_corr = 0.0               # last (robust z - PX4 z), carried over VIO gaps
-        self._z_t = None
+        self._height = AnchoredHeight(self.height_tau_s, float(self.declare_parameter('height_jump_m', 0.15).value))
         self.create_subscription(Odometry, self.declare_parameter('vio_topic', '/visual_slam/tracking/odometry').value,
                                  self._on_vio, qos_profile_sensor_data)
         path_topic = self.declare_parameter('path_topic', '/coursenav/path').value
@@ -210,19 +209,12 @@ class RefNav(Node):
             self._vio = (self._now(), z)
 
     def _robust_z(self, z_px4):
-        now = self._now()
-        if self._vio is None or not math.isfinite(z_px4) or now - self._vio[0] > 0.3:
-            return z_px4 + self._z_corr                  # VIO gap: keep the last correction
-        z_vio = -self._vio[1]                            # ENU up -> NED down
-        if self._z_off is None:
-            self._z_off = z_px4 - z_vio
-        else:
-            dt = max(0.0, now - (self._z_t or now))
-            self._z_off += min(1.0, dt / max(self.height_tau_s, 1e-3)) * ((z_px4 - z_vio) - self._z_off)
-        self._z_t = now
-        z = z_vio + self._z_off
-        self._z_corr = z - z_px4
-        return z
+        """PX4 NED z replaced by the VIO-anchored height (refnav.height): large PX4 height jumps, e.g. its
+        rangefinder reference over a window sill, are disregarded and the height is held through VIO gaps."""
+        vio = None if self._vio is None else -self._vio[1]          # ENU up -> NED down
+        z = self._height.update(self._now(), z_px4 if math.isfinite(z_px4) else None, vio,
+                                None if self._vio is None else self._vio[0])
+        return z if math.isfinite(z) else z_px4
 
     def _on_att(self, m):
         if not self._return_observe('attitude', m.timestamp * 1e-06):
