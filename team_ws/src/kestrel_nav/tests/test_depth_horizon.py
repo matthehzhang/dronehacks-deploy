@@ -136,7 +136,7 @@ def test_waypoint_intent_never_loads_origin_geometry(monkeypatch):
     from coursenav.waypoint_intent import plan_intent
     d=load_course(PROJECT/'course/course_depth_waypoints.json')
     p,route,legs,_=plan_intent(d,(-2.515,.914),90.)
-    assert len(route)==7 and all(not L.get('align') and not L.get('tunnel') for L in legs)
+    assert len(route)==6 and all(not L.get('align') and not L.get('tunnel') for L in legs)
     assert p['clearance_pending'] and legs[-1]['hold'] and p['waypoints'][-1]['land']
 
 

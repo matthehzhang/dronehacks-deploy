@@ -37,18 +37,11 @@
     {
       "name": "window",
       "xy": [
-        -0.4709,
-        -2.2719
-      ],
-      "land": false
-    },
-    {
-      "name": "window_post",
-      "xy": [
         -0.9406,
         -2.1006
       ],
-      "land": false
+      "land": false,
+      "note": "0.5 m past the window opening along its direction (centre (-0.4709, -2.2719) on the wall line): reaching it means the drone flew THROUGH the window. The old waypoint on the wall line made the planner stop and turn inside the opening, hovering over the sill (P06HF27 crash, 2026-11-08)."
     },
     {
       "name": "pad",
