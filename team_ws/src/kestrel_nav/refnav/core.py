@@ -778,9 +778,6 @@ class Mission:
             a_along = -a_b
         elif v_ref == v_ramp and v_ramp < min(cap, v_prof):
             a_along = a_up
-        elif p.geometry_speed and cap < p.speed_mps and v_ref == cap:
-            # A reduced live ceiling must not retain an accelerating map-profile slope.
-            a_along = 0.0
         a_along = self._consistent_accel(max(-a_b, min(a_up, a_along)), v_ref, v_along, dt, a_b)
         a_lat = v_ref ** 2 * kap
         if p.path_lat_accel_max_mps2 > 0:                       # never more than the navigator planned arcs for

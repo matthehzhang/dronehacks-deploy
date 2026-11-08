@@ -303,3 +303,35 @@ def test_altitude_is_centred_but_rate_limited_in_flight():
     m.depth_t = 2.4
     m.step(2.4, m.last_v)
     assert .7 < -m.sp[2] <= .7+.25*.5+1e-6    # two 0.25 s ticks toward 0.95 at <= 0.25 m/s
+
+
+def test_follower_flies_a_route_closed_loop_through_step():
+    """Kinematic closed loop: step() commands, a point-mass follows them; the route is completed."""
+    from refnav.core import Mission, Params, Vehicle
+    m = Mission(Params(track_mode='path', local_horizon=True, speed_mps=.5, accel_mps2=.5, brake_mps2=.4,
+                       arrive_m=.15, hold_s=.25))
+    m.phase = 'turn'; m.leg = 0; m.targets = [(2., 1.)]; m.waypoints_ne = [(2., 1.)]
+    m.sp = [0., 0., -.7, 0.]; m.home = [0., 0., 0., 0.]; m.leg_heading = 0.
+    m.t_started = 0.; m.t_phase = 0.; m.t_last = 0.
+    m.health.bad_for = lambda now: 0.; m.offboard_seen = False
+    pos, hdg, t = np.array([0., 0.]), 0., 0.
+    pts = [(0., 0.), (1., 0.), (2., 1.)]
+    s = [0., 1., 1.+math.sqrt(2)]
+    v = [0., .4, 0.]
+    dense = np.array([np.interp(np.linspace(0, s[-1], 40), s, np.array(pts)[:, k]) for k in (0, 1)]).T
+    vd = np.interp(np.linspace(0, s[-1], 40), s, v); vd[1:-1] = np.maximum(vd[1:-1], .2)
+    phases = set()
+    for k in range(1200):
+        t += .05
+        m.depth_t = t
+        m.on_path(t, 0, dense, vd, pid=1, terminal=True)
+        veh = Vehicle(pos=(pos[0], pos[1], -.7), heading=hdg, pos_ok=True, vel=(0., 0., 0.))
+        o = m.step(t, veh)
+        phases.add(m.phase)
+        hdg = m.sp[3]
+        if m.v_vec is not None and m.phase == 'go':
+            pos = pos + np.array(m.v_vec)*.05 + .3*(np.array(m.sp[:2])-pos)*.05
+        if m.phase in ('land', 'done'):
+            break
+    assert 'go' in phases and m.legs_done == 1 and m.phase in ('land', 'done')
+    assert np.linalg.norm(pos-(2., 1.)) < .2
