@@ -18,7 +18,19 @@
     "passed": 1,
     "seconds": 13.81
   },
-  "native_device": "pending",
+  "native_device": {
+    "status": "PASS",
+    "policy_commit": "c52cb7c",
+    "build": true,
+    "full_localizer_constructor_fits": [
+      0.35,
+      0.42
+    ],
+    "actual_ros_grid_free_probability": 12,
+    "actual_ros_expired_probability": -1,
+    "isolated_and_launcher_hash_verification_files_each": 153,
+    "activated": false
+  },
   "dual_gazebo": "pending final commit in diverse worlds",
   "sha256": {
     "refnav/core.py": "37017697dc093f63c9488e3e11d068233d1a5e1ab3c9f523761c695418ace843",
@@ -32,5 +44,15 @@
     "launch/refnav_skybeta.launch.py": "d3929979939687d12281559e7bfbaa23fa9e3aa32e852d979fbf991b2375d113",
     "course/new_course_origin.obj": "ef86d5ea34edb7d655551ad2faf5bedff6c916425013aeb4e03e927e0b46809b",
     "maps/course_new_origin.npz": "f58cd51c411b58d3ecfc2509486ed58558adffa8c0d0ae9d827b6c1e60236f9c"
+  },
+  "policy_commit": "c52cb7c",
+  "patch_replay": {
+    "result": "PASS",
+    "verified_runtime_files": 9,
+    "unchanged_prior_assets": [
+      "course/new_course_origin.obj",
+      "maps/course_new_origin.npz",
+      "course/course_new_origin.json"
+    ]
   }
 }

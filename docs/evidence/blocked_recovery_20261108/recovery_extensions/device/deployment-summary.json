@@ -1,0 +1,28 @@
+{
+  "result": "PASS",
+  "utc": "2026-11-08T09:08:43.458610+00:00",
+  "ssh_alias": "dronehacks",
+  "host": "skybeta-14",
+  "architecture": "aarch64",
+  "branch": "cram304",
+  "commit": "c52cb7c7fc0f8686bdd36a5769e76cfe9a34d0ea",
+  "source": "git archive exact commit",
+  "backup": "/home/dronehacks/policies/_replaced/blocked-recovery-before-c52cb7c",
+  "isolated_package": "/home/dronehacks/team_ws/policies/blocked-recovery/src/kestrel_nav",
+  "saved_launcher_package": "/home/dronehacks/policies/group154_blocked_recovery/kestrel_nav",
+  "checks": [
+    "native colcon symlink build",
+    "complete ROS localizer constructors at fit0.35 and0.42",
+    "native ROS OccupancyGrid publish/subscribe: fresh12, aged9s unknown-1",
+    "ObservedFree import",
+    "ROS launch argument resolution",
+    "153 files SHA256 equal at isolated and launcher paths",
+    "map SHA256 matches commit",
+    "fly.sh SHA256 unchanged"
+  ],
+  "diagnostic_domain": 77,
+  "localhost_only": true,
+  "activated": false,
+  "stack_restarted": false,
+  "arming_or_flight_commanded": false
+}

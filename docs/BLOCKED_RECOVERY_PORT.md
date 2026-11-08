@@ -154,9 +154,8 @@ crash and remove required Sky Beta adapters. The original prior map assets are u
 
 Development and Gazebo results must be distinguished: the additional diverse-world batch is
 being restarted using the exact final `cram304` commit, with the original policy prior unchanged.
-The hardware launcher still selects the previously staged baseline until the new version is
-explicitly transferred after validation. Do not interpret earlier native/Gazebo evidence as tests
-of these extensions.
+The hardware launcher staging now contains `cram304` policy commit `c52cb7c`. It was not
+activated or flown by the agent. Do not interpret earlier Gazebo evidence as tests of these extensions.
 
 
 Local validation of the recovery extensions: full deployment suite 476 passed / 2 xfailed;
@@ -165,3 +164,14 @@ copied-install package test 1 passed, including the new observed-free module and
 The dynamic controller harness completes a supplied detour after turn/check/go. That is not a
 claim of full Gazebo course completion. Exact commands and source hashes are in
 `evidence/blocked_recovery_20261108/recovery_extensions/validation.json`.
+
+
+The `cram304` package was transferred via `ssh dronehacks` after the local checks. The native ARM64
+build, full ROS localizer constructors at fit thresholds 0.35 and 0.42, actual OccupancyGrid
+publication/subscription free-age check, observed-free import and launch argument checks passed.
+The sensor-observed free cell published probability 12; the same evidence aged nine seconds
+published unknown (-1). All 153 committed package files match in both the isolated workspace and
+`~/policies/group154_blocked_recovery/kestrel_nav`. The map hash and existing `fly.sh` are unchanged.
+Previous copies are backed up under `~/policies/_replaced/blocked-recovery-before-c52cb7c/`.
+No hardware stack restart, arming or flight was performed. Native evidence is in
+`evidence/blocked_recovery_20261108/recovery_extensions/device/`.

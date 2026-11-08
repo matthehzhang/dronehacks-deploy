@@ -1,0 +1,70 @@
+[INFO] [1794128873.559698280] [coursenav_loc]: height from /fmu/out/vehicle_local_position dist_bottom (fallback landed_z_m - z)
+[INFO] [1794128873.562152663] [coursenav_loc]: shadow localizer: prior [-2.515  0.914  1.571] sigma (0.05, 0.03490658503988659); depth /camera/depth/image_raw; log /tmp/localizer-startup-72bopo43/coursenav_20261108T090753.csv
+{"result": "PASS", "fit": 0.35, "restore_fit": 0.35, "course": "/root/team_ws/policies/blocked-recovery/src/kestrel_nav/course/course_new_origin.json", "domain": 77, "live_map": true, "local_map": true}
+[INFO] [1794128882.698797306] [coursenav_loc]: height from /fmu/out/vehicle_local_position dist_bottom (fallback landed_z_m - z)
+[INFO] [1794128882.701694608] [coursenav_loc]: shadow localizer: prior [-2.515  0.914  1.571] sigma (0.05, 0.03490658503988659); depth /camera/depth/image_raw; log /tmp/localizer-startup-um5p0fvv/coursenav_20261108T090802.csv
+{"result": "PASS", "fit": 0.42, "restore_fit": 0.42, "course": "/root/team_ws/policies/blocked-recovery/src/kestrel_nav/course/course_new_origin.json", "domain": 77, "live_map": true, "local_map": true}
+[INFO] [1794128891.832209886] [coursenav_loc]: height from /fmu/out/vehicle_local_position dist_bottom (fallback landed_z_m - z)
+[INFO] [1794128891.834795440] [coursenav_loc]: shadow localizer: prior [-2.515  0.914  1.571] sigma (0.05, 0.03490658503988659); depth /camera/depth/image_raw; log /tmp/blocked-free-probe-sjnj2o56/coursenav_20261108T090811.csv
+{"result": "PASS", "domain": 77, "observed_free_import": true, "native_ros_local_publish": [{"observation_age_s": 0.0, "published_probability": 12}, {"observation_age_s": 9.0, "published_probability": -1}]}
+Arguments (pass arguments as '<name>:=<value>'):
+
+    'max_altitude_m':
+        flight interface ceiling above the odometry origin
+        (default: '3.0')
+
+    'min_altitude_m':
+        flight interface floor (pose setpoints only)
+        (default: '0.3')
+
+    'max_speed_mps':
+        flight interface cap on a twist norm
+        (default: '1.5')
+
+    'auto_offboard_on_arm':
+        enter Offboard once when the pilot arms, then switches to Position
+        (default: 'true')
+
+    'chicane':
+        auto | window | gate_b
+        (default: 'auto')
+
+    'depth_topic':
+        depth image for refnav and the localizer (host_depth)
+        (default: '/kestrel_nav/depth')
+
+    'depth_info_topic':
+        
+        (default: '/kestrel_nav/depth/camera_info')
+
+    'depth_max_hz':
+        host_depth rate cap
+        (default: '8.0')
+
+    'depth_max_range_m':
+        host_depth range cap. refnav counts a corridor ray as OBSERVED if it returns any depth (its obstacle points stop at 6 m, the localizer's at 4 m): the hall beyond the see-through nets is 6-9 m away and at the old 6 m cap every such ray read unobserved
+        (default: '12.0')
+
+    'arm_wait_s':
+        refnav: how long the arm phase waits for the pilot to arm and switch to Position
+        (default: '600.0')
+
+    'wait_s':
+        refnav: how long it waits for readiness before giving up
+        (default: '900.0')
+
+    'landed_z':
+        landed body-origin height above the floor: PX4 dist_bottom 0.100 m on skybeta-14 (no distance_sensor topic there)
+        (default: '0.10')
+
+    'localizer_timeout':
+        fly_course: how long to wait for the localizer to converge on the mark
+        (default: '120.0')
+
+    'use_sim_time':
+        true only in a simulator that publishes /clock
+        (default: 'false')
+
+    'declared_heading_deg':
+        navigator: flight frame heading vs the VIO origin. 0 on skybeta (the organizer bridge permutes cuVSLAM's start-relative ENU odometry directly); 90 was the FlyX lab bridge
+        (default: '0.0')
