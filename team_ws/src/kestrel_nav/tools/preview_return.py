@@ -61,8 +61,8 @@ def main():
     height.plot([pad[0]]*3, [pad[1]]*3, [z, .1, target], color='#df7a23', lw=3)
     height.plot(arc[:, 0], arc[:, 1], np.full(len(arc), target), color='#df7a23', lw=3)
     height.plot([start[0]]*2, [start[1]]*2, [target, .1], color='#df7a23', lw=3)
-    height.text(pad[0], pad[1], target+.1, 'XY held until 2.1 m\nsettles for 1 second', fontsize=9)
-    height.set(xlabel='Course x (m)', ylabel='Course y (m)', zlabel='Body height above floor (m)', zlim=(0, 2.6),
+    height.text(pad[0], pad[1], target+.1, f'XY held until {target:.2f} m\nsettles for 1 second', fontsize=9)
+    height.set(xlabel='Course x (m)', ylabel='Course y (m)', zlabel='Body height above floor (m)', zlim=(0, target+.5),
                title='Touch -> up -> curved transit -> down -> disarm')
     height.view_init(elev=25, azim=35)
     fig.suptitle('Touch-and-go: no pad disarm, no rearm, no straight-line return', fontweight='bold')
