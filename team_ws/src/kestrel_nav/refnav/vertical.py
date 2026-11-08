@@ -75,9 +75,22 @@ class VerticalCentring:
         self.alt_min, self.alt_max = float(alt_min), float(alt_max)
         self.rate, self.hold_m, self.hold_s = float(rate_mps), float(hold_m), float(hold_s)
         self.target = float(cruise)
+        self.base = float(cruise)
+        self.probe_offsets = (.25, .45, -.2, 0.)   # altitudes tried when a full yaw sweep finds no route
+        self.probes = 0
         self.out = None
         self.held = None          # (target, opening NE point, heading, time seen)
         self.info = {}
+
+    def probe_next(self):
+        """A full yaw sweep found no route at this height: try the next probe altitude.
+
+        The new height becomes the cruise height (kept once a route is found there)."""
+        self.probes += 1
+        off = self.probe_offsets[(self.probes - 1) % len(self.probe_offsets)]
+        self.cruise = float(np.clip(self.base + off, self.alt_min, self.alt_max))
+        self.held = None
+        return self.cruise
 
     def observe(self, now, pts, height, pos_ne, heading):
         t, info = opening_target(pts, height, self.cruise, self.lateral_m, self.clearance_m,

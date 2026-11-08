@@ -94,6 +94,7 @@ class LocNode(Node):
         self.local_stamp = None
         self.local_height = None
         self.band_half_m = float(dp('band_half_m', 0.25).value)   # airframe vertical sweep + margin
+        self.band_reset_m = float(dp('band_reset_m', 0.15).value)
         self._h_off, self._h_t = None, 0.
         self.local_error = 'waiting for fresh calibrated depth and odometry'
         self.height = None                     # (stamp_wall, metres of the body origin above the floor)
@@ -291,7 +292,7 @@ class LocNode(Node):
             self.local_error = 'depth valid fraction below .30; local map not refreshed'
         nominal_body = compose(self.nominal,pose)
         self.pub_drift.publish(String(data=json.dumps(dict(stamp=t,delta=[0.,0.,0.],
-            nominal=nominal_body.tolist(),fixture=list(map(float,self.nominal)),
+            nominal=nominal_body.tolist(),fixture=list(map(float,self.nominal)),height_m=float(h),
             sigma_xy=None,accepted=0,rejected=0,resets=self.resets,uncorrected=True,
             source='vio_only_no_prior_matching'))))
         self._t_proc = self._scan_rate_now()
@@ -308,7 +309,12 @@ class LocNode(Node):
         # The band follows the aircraft (vertical centring changes height on purpose); walls
         # are vertical, so the map is kept. Surfaces outside the band are handled by the
         # vertical centring, not as 2-D walls. The floor is never in the band.
-        self.local_height = height
+        if self.local_height is None or abs(height-self.local_height) > self.band_reset_m:
+            # The flight band moved on purpose (centring/probing): obstacles mapped in the old band
+            # (e.g. a window sill) are not obstacles in this one. Height is sill-proof, so this
+            # never fires on a rangefinder step.
+            self.local = LocalGrid(self.local.p)
+            self.local_height = height
         scan = scan_from_points(points,height,max(.15,height-self.band_half_m),height+self.band_half_m,rmin=.3,rmax=12.)
         self.local.integrate(captured,compose(self.nominal,pose),scan)
         self.local_stamp = captured

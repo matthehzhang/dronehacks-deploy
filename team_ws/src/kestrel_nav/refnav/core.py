@@ -564,6 +564,10 @@ class Mission:
                         self.path_reorient = False
                         self._set('turn', now, out, 'sweep found a route: face it, then check fresh depth')
                     elif self.search_steps >= len(self.search_offsets):
+                        if self.vc is not None:
+                            # No route at this height in a whole sweep: probe another altitude.
+                            alt = self.vc.probe_next()
+                            out.events.append(f'search: no route after a full sweep; probing height {alt:.2f} m')
                         self._begin_sweep(v, self.search_cycles + 1)   # re-centre on the current bearing
                     else:
                         self.search_target = _wrap(self.search_center + self.search_offsets[self.search_steps])
@@ -905,6 +909,7 @@ class Mission:
                 "motion_limit": getattr(self,'motion_limit',None),
                 "horizon_reached": getattr(self,'horizon_reached',None),
                 "vertical": None if self.vc is None else dict(target_m=round(self.vc.target, 3),
+                    cruise_m=round(self.vc.cruise, 3), probes=self.vc.probes,
                     command_m=None if self.vc.out is None else round(self.vc.out, 3), opening=self.vc.info),
                 "search": (None if self.phase != 'search' or getattr(self, 'search_offsets', None) is None else
                            dict(centre_deg=round(math.degrees(self.search_center), 1),
