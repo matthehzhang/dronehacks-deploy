@@ -88,6 +88,37 @@ def test_heading_wraps_through_north():
     assert -180. <= centre <= 180.
 
 
+def test_after_a_hop_the_window_starts_from_the_current_position_not_the_block():
+    # Blocked at s0=1 on a route that runs north, then turns 90 deg right at n=3.
+    corners = [(0., 0.), (3., 0.), (3., 3.)]
+    m, v = blocked_on(corners, recovery_scan_route_m=1.5)
+    at_block = m._route_scan_centre(m.recover, v)
+    # a hop carried the aircraft to (2.6, 0.3), a step ahead and beside the route, still facing north
+    hopped = replace(v, pos=(2.6, .3, -1.))
+    m.recover.update(pos=hopped.pos[:2], yaw=0.)
+    after = m._route_scan_centre(m.recover, hopped)
+    # at the block the window [2, 3.5] m is mostly straight ahead; after the hop, with the window starting
+    # from the projected progress (s=2.6) it lies round the corner, to the right
+    assert abs(math.degrees(at_block)) < 25.
+    assert math.degrees(after) > 50.
+    # and the reference the navigator gets is still the original one
+    assert m.recover['old_path_s'] == 1.
+
+
+def test_window_never_starts_behind_the_block():
+    m, v = blocked_on(RIGHT_TURN, recovery_scan_route_m=1.5)
+    behind = replace(v, pos=(.3, 0., -1.))        # drifted back toward the leg start (s ~ 0.3 < s0 = 1)
+    got = m._route_scan_centre(m.recover, behind)
+    # expected: the window stays [s0 + 1, s0 + 2.5] = [2, 3.5], bearings taken from the drifted position
+    pts, _ = dense(RIGHT_TURN)
+    s = np.r_[0., np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))]
+    q = np.linspace(2., 3.5, 9)
+    d = np.stack([np.interp(q, s, pts[:, 0]) - .3, np.interp(q, s, pts[:, 1])], axis=1)
+    d /= np.linalg.norm(d, axis=1)[:, None]
+    want = math.atan2(d[:, 1].mean(), d[:, 0].mean())
+    assert got == pytest.approx(want, abs=1e-9)
+
+
 def test_no_reference_route_falls_back_to_heading():
     m, v = blocked_on(RIGHT_TURN, recovery_scan_route_m=1.5)
     m.recover['old_path'] = None

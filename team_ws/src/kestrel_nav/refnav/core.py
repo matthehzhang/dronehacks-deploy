@@ -1893,6 +1893,13 @@ class Mission:
         if len(s) < 2 or len(pts) != len(s):
             return home
         s0 = float(r.get("old_path_s") or 0.0)
+        # After a recovery hop the aircraft is no longer at the block: start the window from where it now
+        # projects onto the route (searched only ahead of the block, so a looping route cannot pull it back),
+        # never before the block itself. The bearing below is always taken from the current position.
+        ahead = (s >= s0) & (s <= s0 + 5.0)
+        if ahead.any():
+            dist = np.linalg.norm(pts[ahead] - np.asarray(v.pos[:2], float), axis=1)
+            s0 = max(s0, float(s[ahead][int(np.argmin(dist))]))
         a = s0 + max(1.0, self._stop_m(0.0))
         q = np.clip(np.linspace(a, a + p.recovery_scan_route_m, 9), 0.0, float(s[-1]))
         d = np.stack([np.interp(q, s, pts[:, 0]) - v.pos[0], np.interp(q, s, pts[:, 1]) - v.pos[1]], axis=1)
