@@ -494,7 +494,10 @@ class RefNav(Node):
             self._diagnostic_record('protocol_tick', now=now, source_stamp=now,
                                     evidence=self.mission.protocol_tick)
         for e in out.events:
-            self.get_logger().info(e)
+            if e.startswith("!!!!!!!!!!"):
+                self.get_logger().warning(e)
+            else:
+                self.get_logger().info(e)
         if self.mission.phase == "wait" and self.mission.t_phase is not None:
             if self._wait_log_t is None or now - self._wait_log_t >= 10.0:   # say why it is not flying, every 10 s
                 if self._wait_log_t is not None:

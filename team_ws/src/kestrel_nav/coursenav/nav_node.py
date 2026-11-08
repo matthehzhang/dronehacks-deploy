@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import math
 import time
+from dataclasses import asdict
 
 import numpy as np
 import rclpy
@@ -108,22 +109,41 @@ class NavNode(Node):
         cgroup 1.4 cores) the in-flight leg-1 plan never arrived in 40 s; unbudgeted it took 14-24 s."""
         from pathlib import Path
         cache = {}
+        records = []
         start = rd.get("start_xy")
         if start is not None:
             t0 = time.monotonic()
             prev = np.asarray(start, float)
             for j, L in enumerate(self.nav_legs):
+                record = {"leg": j, "name": L.get("name"), "start_xy": prev.tolist(),
+                          "stop_xy": L["stop"], "goals_xy": L["goals"],
+                          "path_leg": L["path"], "path": None}
+                records.append(record)
                 if L["path"]:
                     goals = [np.array(g, float) for g in L["goals"]]
                     try:
                         P = self.nav.plan(prev, goals, t=time.monotonic())
                         cache[j] = (prev.copy(), goals, P)
+                        record["path"] = {k: v.tolist() if isinstance(v, np.ndarray) else v
+                                          for k, v in asdict(P).items()}
+                        record.update(length_m=P.length, estimated_duration_s=P.duration())
                         self.get_logger().info(f"pre-planned leg {j + 1}: {P.length:.2f} m, {len(P.stops)} stop corners")
                     except PlanError as e:
+                        record["error"] = str(e)
                         self.get_logger().warning(f"pre-plan leg {j + 1} failed ({e}); it will be planned in flight")
                 prev = np.asarray(L["stop"], float)
             self.nav.path = None
             self.get_logger().info(f"pre-planned {len(cache)} path legs in {time.monotonic() - t0:.1f} s")
+        path_file = Path(route_file).with_name("preprocessed_paths.json")
+        path_file.write_text(json.dumps({
+            "frame": "course", "leg_index_base": 0,
+            "units": {"pts": "m", "s": "m", "kappa": "1/m", "heading": "rad",
+                      "v": "m/s", "clearance": "m", "tube": "m"},
+            "note": "Pre-takeoff snapshot; in-flight replanning may change the paths. "
+                    "Straight crossing legs have no smoothed path; stops are point indices.",
+            "legs": records,
+        }, indent=2), encoding="utf-8")
+        self.get_logger().info(f"preprocessed paths saved to {path_file}")
         Path(route_file).with_name("navigator_ready").write_text(json.dumps({"legs": sorted(cache)}))
         return cache
 

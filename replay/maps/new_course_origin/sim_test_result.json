@@ -1,0 +1,99 @@
+{
+  "physical_route_completed": true,
+  "official_course_pass": false,
+  "outcome": "Destination pad reached and vehicle disarmed; historical entrance scoring lines were missed",
+  "graded_elapsed_s": 78.72915407000002,
+  "official_reason": "landed_on_pad_before_checkpoint_4",
+  "touches": 0,
+  "near_misses": 0,
+  "official_min_physical_clearance_m": 0.0814,
+  "retained_planning_margin_m": 0.12,
+  "safety_qualified": false,
+  "replay_min_clearance": {
+    "t": 40.883326792,
+    "elapsed_s": 0.0,
+    "distance_m": 0.0813946481364739,
+    "piece": "col_barrier_1",
+    "xyz": [
+      -2.5167689222709395,
+      0.8252593793310657,
+      0.30151412818172263
+    ],
+    "outline_point": [
+      -2.381642945170961,
+      0.589389317749972,
+      0.33973106634410244
+    ],
+    "phase": "climb",
+    "leg": 0
+  },
+  "clearance_replay_sampling": "same sampled outline/surface checker at 10 Hz; independent bag replay may differ slightly from live sample scheduling",
+  "below_012m_samples": 8,
+  "clearance_samples": 700,
+  "localizer_truth_xy_error_m": {
+    "samples": 157,
+    "p50": 0.04249867022814291,
+    "p95": 0.16656255650999385,
+    "maximum": 0.1854812238086956,
+    "final": {
+      "t": 119.329,
+      "error_xy_m": 0.041387479611542606,
+      "reported_sigma_xy_m": 0.048,
+      "yaw_error_deg": 0.0475241703654984,
+      "reported_sigma_yaw_deg": 0.48
+    }
+  },
+  "localizer_truth_yaw_error_deg": {
+    "p95": 2.1087121732899914,
+    "maximum": 2.4761701577644373
+  },
+  "localizer_alignment": "PF last-estimate capture stamp compared with interpolated course-frame truth; 1 ms status rounding",
+  "estimated_frame_path_cross_track_m": {
+    "samples": 753,
+    "p95": 0.07692807146739616,
+    "maximum": 0.09810313503612232
+  },
+  "go_setpoint_distance_m": {
+    "p95": 0.092203724599388,
+    "maximum": 0.131311690876365,
+    "note": "Includes intentional trajectory lead; not purely lateral tracking error"
+  },
+  "last_drift": {
+    "stamp": 119.329147574,
+    "delta": [
+      0.026095654900970208,
+      0.019516056134741278,
+      -0.0017441340070569744
+    ],
+    "nominal": [
+      -2.0520056496257797,
+      -0.824484659584182,
+      1.57452746621186
+    ],
+    "fixture": [
+      -2.515,
+      0.914,
+      1.5707963267948966
+    ],
+    "sigma_xy": 0.01763871857078386,
+    "accepted": 765,
+    "rejected": 0,
+    "resets": 0
+  },
+  "minimum_by_phase_m": {
+    "align": 0.25500521099461615,
+    "check": 0.17576650202871819,
+    "climb": 0.0813946481364739,
+    "go": 0.17101715514842772,
+    "hold": 0.31176690710417526,
+    "land": 0.6491688388714195,
+    "turn": 0.186125600053869
+  },
+  "maximum_error_sample": {
+    "t": 52.342,
+    "error_xy_m": 0.1854812238086956,
+    "reported_sigma_xy_m": 0.068,
+    "yaw_error_deg": 0.47931016591618203,
+    "reported_sigma_yaw_deg": 2.05
+  }
+}

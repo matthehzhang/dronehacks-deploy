@@ -1,0 +1,19 @@
+{
+  "name": "topview_entrance",
+  "gap_m": 0.9144,
+  "vehicle_reach_m": 0.294082845,
+  "centre_slack_each_side_m": 0.163117155,
+  "extra_above_planning_margin_m": 0.04311715500000002,
+  "model": "dronehacks_topview_entrance",
+  "geometry": "maps/course_geometry.json",
+  "world": "world.sdf",
+  "limitations": [
+    "Team top view supersedes the previous, incorrect three upright-divider interpretation.",
+    "Panel placement is approximate; no full new_dronehacks_course.obj was available locally.",
+    "Partial entrance LiDAR cannot be registered confidently from floor features: only two feature inliers, with an invalid 2.03 scale fit. That registration was rejected.",
+    "M1 is horizontal; M2 is the angled lower-left panel; M3 is the angled tunnel approach panel. No invented central upright wall.",
+    "Team correction: M1 meets both the west and north boundaries. Centreline y=2.9972 puts its north face at y=3.048; west endpoint x=-3.048. Preserve its length and orientation. No north passage behind M1.",
+    "Old entrance checkpoint lines are unqualified references. Original tunnel, chicane and landing geometry are retained."
+  ],
+  "default_assets_modified": false
+}

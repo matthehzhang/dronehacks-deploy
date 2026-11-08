@@ -121,8 +121,8 @@ class Params:
     min_obstacle_px: int = 1200                 # an obstacle covers at least this many image pixels (~35 x 35):
                                                 # a 5 cm pole does out to ~4 m, sparse stereo junk does not
     depth_stride: int = 8                       # every n-th pixel of the depth image is used
-    min_valid_frac: float = 0.3                 # below this a frame is unusable (flight data: >= 0.76)
-    min_corridor_coverage: float = 0.6          # of the corridor's rays must return depth (flight data: >= 0.86)
+    min_valid_frac: float = 0.3                 # below this a frame is unusable; 0 accepts blank frames
+    min_corridor_coverage: float = 0.6          # corridor rays with depth; 0 bypasses observed-space gating
     depth_future_tol_s: float = 0.05            # a capture stamp later than now + this is refused
     depth_border_px: int = 24                   # image edge ignored (stereo matching is weakest there)
     confirm_frames: int = 2                     # an obstacle must be in this many consecutive frames to stop
@@ -569,6 +569,14 @@ class Mission:
     # ------------------------------------------------------------------ step
     def _set(self, phase, now, out, why=""):
         out.events.append(f"{self.phase} -> {phase}" + (f": {why}" if why else ""))
+        if phase != self.phase:
+            if phase == "land":
+                out.events.append(f"!!!!!!!!!! AUTO LAND: {why or self.land_reason or 'reason unavailable'} !!!!!!!!!!")
+            elif phase == "retreat":
+                out.events.append(f"!!!!!!!!!! AUTO LAND PENDING (retreat to clear floor): {why} !!!!!!!!!!")
+            elif phase == "done" and why.startswith("yielded:"):
+                out.events.append(f"!!!!!!!!!! CONTROL YIELDED: {why.removeprefix('yielded: ')}; "
+                                  "PX4/pilot owns the aircraft; external landing reason unavailable !!!!!!!!!!")
         if self.p.depth_lost_pause_static:
             paused_before, paused_after = self.phase in SILENCE_PAUSED, phase in SILENCE_PAUSED
             if paused_before and not paused_after:
@@ -1076,7 +1084,9 @@ class Mission:
         corridor: the largest of their clearances, so an obstacle counts only when every one of
         those frames shows it (a stereo false match lasts a frame; a wall does not go away). A frame
         whose rays through the corridor (at stop_m + lead_max_m ahead) mostly returned nothing has
-        observed nothing there and is not evidence of free space. None = unknown (do not move)."""
+        observed nothing there and is not evidence of free space. None = unknown (do not move).
+        With min_corridor_coverage=0, fresh frames count even without returns: only measured
+        obstacles block motion. Set both valid-pixel floors to 0 to also accept blank frames."""
         p = self.p
         bearing = _wrap(self.leg_heading - v.heading)        # positive = to the right (NED yaw)
         if self.frame is not None and self._judged_t != self.depth_t:

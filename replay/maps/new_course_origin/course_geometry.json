@@ -1,0 +1,1287 @@
+{
+  "source": "Top-view topology correction supplied by the team 2026-11-07; CAD panel dimensions, approximate placements. Full new OBJ unavailable.",
+  "frame": "ENU: x east, y north, z up",
+  "course_bounds": {
+    "min": [
+      -3.048,
+      -3.048,
+      0.0
+    ],
+    "max": [
+      3.048,
+      3.048,
+      3.048
+    ],
+    "half_xy_m": 3.048,
+    "height_m": 3.048
+  },
+  "wall_height_m": 1.7272,
+  "wall_thickness_m": 0.1016,
+  "net_height_m": 3.048,
+  "drone_radius_m": 0.294082845,
+  "launch_mark": {
+    "xy": [
+      -2.5,
+      0.9
+    ],
+    "mesh_centre_xy": [
+      -2.5146,
+      0.9144
+    ],
+    "note": "SPEC value; mesh centre differs by 1.5 cm"
+  },
+  "launch_mark_xy": [
+    -2.5,
+    0.9
+  ],
+  "spawn_pose": {
+    "xyz": [
+      -2.5,
+      0.9,
+      0.05
+    ],
+    "yaw_rad": 0.0
+  },
+  "checkpoints": [
+    {
+      "index": 1,
+      "id": 1,
+      "name": "first_corridor",
+      "stage": "first_corridor",
+      "points": 4,
+      "lines": [
+        {
+          "name": "corridor_end",
+          "p0": [
+            -3.048,
+            2.1209
+          ],
+          "p1": [
+            -1.9812,
+            2.1209
+          ],
+          "points": 4,
+          "direction_hint": [
+            0.0,
+            1.0
+          ],
+          "note": "Line placed at the north end of M1 (y=2.121), i.e. the physical end of the first corridor (west net x=-3.048 .. M1 x=-1.981). The floor guideline itself turns east at y~2.584; use alt_p0/alt_p1 if the judges mean the painted corner.",
+          "alt_p0": [
+            -3.048,
+            2.5844
+          ],
+          "alt_p1": [
+            -1.9812,
+            2.5844
+          ],
+          "forward": [
+            0.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "id": 2,
+      "name": "maze",
+      "stage": "maze",
+      "points": 7,
+      "lines": [
+        {
+          "name": "gate_a",
+          "p0": [
+            0.3048,
+            2.1209
+          ],
+          "p1": [
+            0.3048,
+            3.048
+          ],
+          "points": 7,
+          "direction_hint": [
+            1.0,
+            0.0
+          ],
+          "width_m": 0.9271,
+          "note": "M1 and M3 are attached to the barrier (south) and M2 to the north net, so the only maze exit is the gap north of M3; the floor guideline ends on top of M3 at x=0.33.",
+          "forward": [
+            1.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "id": 3,
+      "name": "tunnel",
+      "stage": "tunnel",
+      "points": 10,
+      "lines": [
+        {
+          "name": "tunnel_south_exit",
+          "p0": [
+            1.5749,
+            -0.3048
+          ],
+          "p1": [
+            3.0479,
+            -0.3048
+          ],
+          "points": 10,
+          "direction_hint": [
+            0.0,
+            -1.0
+          ],
+          "z_range": [
+            0.0254,
+            1.8542
+          ],
+          "note": "South mouth of the oval tube (58 in wide x 72 in tall, 60 in long along y); tube axis is north-south, entrance at y=1.219, exit at y=-0.305.",
+          "forward": [
+            0.0,
+            -1.0
+          ],
+          "z_min": 0.0254,
+          "z_max": 1.8542
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "id": 4,
+      "name": "chicane",
+      "stage": "chicane",
+      "points": 7,
+      "lines": [
+        {
+          "name": "gate_b",
+          "p0": [
+            -0.9754,
+            -0.6223
+          ],
+          "p1": [
+            -0.1951,
+            -1.5141
+          ],
+          "points": 7,
+          "direction_hint": [
+            -0.7526,
+            -0.6585
+          ],
+          "width_m": 1.1849,
+          "note": "Derived from the mesh: the only wall-free opening from the chicane pocket into the landing area is between the south end of A1 (x~-0.975, y=-0.622) and the north end of C2a where it meets C2b. The model also contains an \"Approach ring (stage 4 line)\" of radius ~1.0 m around the pad; see approach_ring.",
+          "forward": [
+            -0.7526,
+            -0.6585
+          ]
+        },
+        {
+          "name": "window",
+          "p0": [
+            -0.6273,
+            -2.7015
+          ],
+          "p1": [
+            -0.3146,
+            -1.8423
+          ],
+          "points": 7,
+          "bonus_points": 5,
+          "direction_hint": [
+            -0.9397,
+            0.342
+          ],
+          "z_range": [
+            0.3048,
+            1.2192
+          ],
+          "width_m": 0.9144,
+          "centre_xyz": [
+            -0.4709,
+            -2.2719,
+            0.762
+          ],
+          "note": "36 x 36 in opening cut in the C2a chicane wall, sill at 12 in (0.305 m), head at 48 in (1.219 m).",
+          "forward": [
+            -0.9397,
+            0.342
+          ],
+          "z_min": 0.3048,
+          "z_max": 1.2192,
+          "window": true
+        }
+      ],
+      "note": "Either line clears checkpoint 4; the window adds +5 run points."
+    },
+    {
+      "index": 5,
+      "id": 5,
+      "name": "landing",
+      "stage": "landing",
+      "points": 7,
+      "lines": [],
+      "pad": {
+        "name": "landing_pad",
+        "centre": [
+          -2.0422,
+          -0.7925
+        ],
+        "radii_m": [
+          0.2286,
+          0.508,
+          0.762
+        ],
+        "ring_names": [
+          "r9",
+          "r20",
+          "r30"
+        ],
+        "pad_square_m": 1.524,
+        "outer_ring_r_m": 0.762,
+        "points": 7,
+        "note": "Land + disarm with the WHOLE drone inside the r30 (0.762 m) ring. Pad centre from mesh = (-2.042,-0.793); SPEC rounds to (-2.0,-0.8).",
+        "centre_xy": [
+          -2.0422,
+          -0.7925
+        ]
+      }
+    }
+  ],
+  "pad": {
+    "center_xy": [
+      -2.0422,
+      -0.7925
+    ],
+    "centre_xy": [
+      -2.0422,
+      -0.7925
+    ],
+    "radii_m": [
+      0.2286,
+      0.508,
+      0.762
+    ]
+  },
+  "floor_patterns": [
+    "floor",
+    "ground"
+  ],
+  "pad_patterns": [
+    "landing_pad"
+  ],
+  "approach_ring": {
+    "centre": [
+      -2.0422,
+      -0.7925
+    ],
+    "radius_m": 1.0033,
+    "note": "Floor ring named \"Approach ring (stage 4 line)\" in the model, r~1.0 m around the pad centre. Not in the published rules text; kept as an alternative stage-4 definition."
+  },
+  "landing_pad": {
+    "name": "landing_pad",
+    "centre": [
+      -2.0422,
+      -0.7925
+    ],
+    "radii_m": [
+      0.2286,
+      0.508,
+      0.762
+    ],
+    "ring_names": [
+      "r9",
+      "r20",
+      "r30"
+    ],
+    "pad_square_m": 1.524,
+    "outer_ring_r_m": 0.762,
+    "points": 7,
+    "note": "Land + disarm with the WHOLE drone inside the r30 (0.762 m) ring. Pad centre from mesh = (-2.042,-0.793); SPEC rounds to (-2.0,-0.8).",
+    "centre_xy": [
+      -2.0422,
+      -0.7925
+    ]
+  },
+  "tunnel": {
+    "min": [
+      1.5749,
+      -0.3048,
+      0.0254
+    ],
+    "max": [
+      3.0479,
+      1.2192,
+      1.8542
+    ],
+    "axis": "y",
+    "inner_width_m": 1.461,
+    "inner_height_m": 1.816,
+    "entrance_north_y": 1.2192,
+    "exit_south_y": -0.3048,
+    "cradle_top_z": 0.2776,
+    "note": "Oval shell ~6 mm thick; bottom of oval at z=0.025 sits in three cradles. Top (1.854 m) is above the 1.727 m wall height."
+  },
+  "barrier": {
+    "y_centre": 0.4572,
+    "y_min": 0.4064,
+    "y_max": 0.508,
+    "x_from": -3.048,
+    "x_to_wall_end": 1.5748,
+    "x_to": 3.048,
+    "segments": [
+      {
+        "name": "Barrier 1",
+        "x0": -3.048,
+        "x1": -1.4351,
+        "height_m": 1.7272
+      },
+      {
+        "name": "Barrier 2",
+        "x0": -1.4351,
+        "x1": 0.1778,
+        "height_m": 1.7272
+      },
+      {
+        "name": "Barrier 3 (cut to 55 in)",
+        "x0": 0.1778,
+        "x1": 1.5748,
+        "height_m": 1.7272
+      }
+    ],
+    "tunnel_fills_x": [
+      1.5749,
+      3.0479
+    ],
+    "note": "\"Barrier 3 (cut to 55 in)\" is 55 in LONG (1.397 m) at full 68 in height, not a lowered section as COURSE_GEOMETRY.md guessed. The barrier line y=0.457 runs from the west net to x=1.575 where the tunnel takes over to the east net."
+  },
+  "boulders": [
+    {
+      "name": "Boulder 1",
+      "centre_xy": [
+        2.0117,
+        -2.4689
+      ],
+      "radius_m": 0.2286,
+      "height_m": 0.5334,
+      "collision": "col_boulder_1"
+    },
+    {
+      "name": "Boulder 3",
+      "centre_xy": [
+        0.7925,
+        -2.347
+      ],
+      "radius_m": 0.2286,
+      "height_m": 0.5334,
+      "collision": "col_boulder_3"
+    },
+    {
+      "name": "Boulder 4",
+      "centre_xy": [
+        -2.5603,
+        -2.4994
+      ],
+      "radius_m": 0.2286,
+      "height_m": 0.5334,
+      "collision": "col_boulder_4"
+    },
+    {
+      "name": "Boulder 5",
+      "centre_xy": [
+        -1.3411,
+        -2.3774
+      ],
+      "radius_m": 0.2286,
+      "height_m": 0.5334,
+      "collision": "col_boulder_5"
+    },
+    {
+      "name": "Boulder 2",
+      "centre_xy": [
+        2.5298,
+        -1.5545
+      ],
+      "radius_m": 0.2286,
+      "height_m": 0.5334,
+      "collision": "col_boulder_2"
+    }
+  ],
+  "boulder_radius_m": 0.2286,
+  "walls": {
+    "C2b chicane wall": {
+      "p0": [
+        -0.195,
+        -1.5139
+      ],
+      "p1": [
+        0.1568,
+        -0.5472
+      ],
+      "length_m": 1.0287,
+      "thickness_m": 0.1016,
+      "height_m": 1.7272,
+      "collision": "col_c2b_chicane_wall"
+    },
+    "Barrier 3 (cut to 55 in)": {
+      "p0": [
+        0.1778,
+        0.4572
+      ],
+      "p1": [
+        1.5748,
+        0.4572
+      ],
+      "length_m": 1.397,
+      "thickness_m": 0.1016,
+      "height_m": 1.7272,
+      "collision": "col_barrier_3_cut_to_55_in"
+    },
+    "Barrier 2": {
+      "p0": [
+        -1.4351,
+        0.4572
+      ],
+      "p1": [
+        0.1778,
+        0.4572
+      ],
+      "length_m": 1.6129,
+      "thickness_m": 0.1016,
+      "height_m": 1.7272,
+      "collision": "col_barrier_2"
+    },
+    "C1 chicane wall": {
+      "p0": [
+        0.9734,
+        -1.1285
+      ],
+      "p1": [
+        1.525,
+        0.3871
+      ],
+      "length_m": 1.6129,
+      "thickness_m": 0.1016,
+      "height_m": 1.7272,
+      "collision": "col_c1_chicane_wall"
+    },
+    "M1 maze divider": {
+      "p0": [
+        -3.048,
+        2.9972
+      ],
+      "p1": [
+        -1.4351,
+        2.9972
+      ],
+      "length_m": 1.6129,
+      "thickness_m": 0.1016,
+      "height_m": 1.7272,
+      "collision": "col_m1_maze_divider"
+    },
+    "C2a chicane wall (window)": {
+      "p0": [
+        -0.7468,
+        -3.0297
+      ],
+      "p1": [
+        -0.1951,
+        -1.5141
+      ],
+      "length_m": 1.6129,
+      "thickness_m": 0.1016,
+      "height_m": 1.7272,
+      "collision": "col_c2a_chicane_wall_window"
+    },
+    "Barrier 1": {
+      "p0": [
+        -3.048,
+        0.4572
+      ],
+      "p1": [
+        -1.4351,
+        0.4572
+      ],
+      "length_m": 1.6129,
+      "thickness_m": 0.1016,
+      "height_m": 1.7272,
+      "collision": "col_barrier_1"
+    },
+    "A1 approach wall": {
+      "p0": [
+        -0.9754,
+        0.4064
+      ],
+      "p1": [
+        -0.9754,
+        -0.6223
+      ],
+      "length_m": 1.0287,
+      "thickness_m": 0.1016,
+      "height_m": 1.7272,
+      "collision": "col_a1_approach_wall"
+    },
+    "M2 maze divider": {
+      "p0": [
+        -2.05,
+        1.02
+      ],
+      "p1": [
+        -0.549,
+        1.61
+      ],
+      "length_m": 1.6127929191312813,
+      "thickness_m": 0.1016,
+      "height_m": 1.7272,
+      "collision": "col_m2_maze_divider"
+    },
+    "M3 maze divider": {
+      "p0": [
+        0.05,
+        0.65
+      ],
+      "p1": [
+        1.551,
+        1.24
+      ],
+      "length_m": 1.6127929191312813,
+      "thickness_m": 0.1016,
+      "height_m": 1.7272,
+      "collision": "col_m3_maze_divider"
+    }
+  },
+  "maze": {
+    "guideline_path_xy": [],
+    "note": "Obsolete alternating slalom removed. First-section navigation is sensor-driven."
+  },
+  "voxel_map": {
+    "file": "scenarios/topview_entrance/maps/course_voxels_5cm.npz",
+    "shape": [
+      126,
+      126,
+      63
+    ],
+    "origin_xyz": [
+      -3.148,
+      -3.148,
+      0.0
+    ],
+    "voxel_m": 0.05,
+    "index_order": "x,y,z",
+    "contents": "walls, barrier, tunnel+cradles, boulders, net slabs (solid). Floor slab (z<0) and floor markings excluded."
+  },
+  "collision_index": [
+    {
+      "group": "Tube cradle 1",
+      "slug": "tube_cradle_1",
+      "category": "tunnel_cradle",
+      "visual": "vis_tube_cradle_1",
+      "collision": "col_tube_cradle_1",
+      "bounds_min": [
+        1.8034,
+        -0.3048,
+        0.0
+      ],
+      "bounds_max": [
+        2.8194,
+        -0.2794,
+        0.2776
+      ],
+      "faces": 196,
+      "watertight": true,
+      "kd": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    {
+      "group": "Landing pad cross",
+      "slug": "landing_pad_cross",
+      "category": "marking",
+      "visual": "vis_landing_pad_cross",
+      "collision": null,
+      "bounds_min": [
+        -2.1438,
+        -0.8941,
+        0.0013
+      ],
+      "bounds_max": [
+        -1.9406,
+        -0.6909,
+        0.0025
+      ],
+      "faces": 44,
+      "watertight": true,
+      "kd": [
+        0.121569,
+        0.121569,
+        0.121569
+      ]
+    },
+    {
+      "group": "C2b chicane wall",
+      "slug": "c2b_chicane_wall",
+      "category": "chicane",
+      "visual": "vis_c2b_chicane_wall",
+      "collision": "col_c2b_chicane_wall",
+      "bounds_min": [
+        -0.2428,
+        -1.5312,
+        0.0
+      ],
+      "bounds_max": [
+        0.2045,
+        -0.5298,
+        1.7272
+      ],
+      "faces": 12,
+      "watertight": true,
+      "kd": [
+        0.921569,
+        0.8,
+        0.654902
+      ]
+    },
+    {
+      "group": "Barrier 3 (cut to 55 in)",
+      "slug": "barrier_3_cut_to_55_in",
+      "category": "barrier",
+      "visual": "vis_barrier_3_cut_to_55_in",
+      "collision": "col_barrier_3_cut_to_55_in",
+      "bounds_min": [
+        0.1778,
+        0.4064,
+        0.0
+      ],
+      "bounds_max": [
+        1.5748,
+        0.508,
+        1.7272
+      ],
+      "faces": 12,
+      "watertight": true,
+      "kd": [
+        0.803922,
+        0.372549,
+        0.235294
+      ]
+    },
+    {
+      "group": "Barrier 2",
+      "slug": "barrier_2",
+      "category": "barrier",
+      "visual": "vis_barrier_2",
+      "collision": "col_barrier_2",
+      "bounds_min": [
+        -1.4351,
+        0.4064,
+        0.0
+      ],
+      "bounds_max": [
+        0.1778,
+        0.508,
+        1.7272
+      ],
+      "faces": 12,
+      "watertight": true,
+      "kd": [
+        0.803922,
+        0.372549,
+        0.235294
+      ]
+    },
+    {
+      "group": "Boulder 1",
+      "slug": "boulder_1",
+      "category": "boulder",
+      "visual": "vis_boulder_1",
+      "collision": "col_boulder_1",
+      "bounds_min": [
+        1.7831,
+        -2.6974,
+        -0.0
+      ],
+      "bounds_max": [
+        2.2403,
+        -2.2403,
+        0.5334
+      ],
+      "faces": 14628,
+      "watertight": true,
+      "kd": [
+        0.839216,
+        0.839216,
+        0.886275
+      ],
+      "collision_note": "decimated convex hull (388 faces, volume ratio to visual 0.993; visual mesh itself is convex, 14628 faces)"
+    },
+    {
+      "group": "C1 chicane wall",
+      "slug": "c1_chicane_wall",
+      "category": "chicane",
+      "visual": "vis_c1_chicane_wall",
+      "collision": "col_c1_chicane_wall",
+      "bounds_min": [
+        0.9256,
+        -1.1459,
+        0.0
+      ],
+      "bounds_max": [
+        1.5728,
+        0.4045,
+        1.7272
+      ],
+      "faces": 12,
+      "watertight": true,
+      "kd": [
+        0.921569,
+        0.8,
+        0.654902
+      ]
+    },
+    {
+      "group": "Tube oval 58 x 72 x 60",
+      "slug": "tube_oval_58_x_72_x_60",
+      "category": "tunnel",
+      "visual": "vis_tube_oval_58_x_72_x_60",
+      "collision": "col_tube_oval_58_x_72_x_60",
+      "bounds_min": [
+        1.5749,
+        -0.3048,
+        0.0254
+      ],
+      "bounds_max": [
+        3.0479,
+        1.2192,
+        1.8542
+      ],
+      "faces": 1552,
+      "watertight": true,
+      "kd": [
+        0.4,
+        0.4,
+        0.4
+      ]
+    },
+    {
+      "group": "M1 maze divider",
+      "slug": "m1_maze_divider",
+      "category": "maze",
+      "visual": "vis_m1_maze_divider",
+      "collision": "col_m1_maze_divider",
+      "bounds_min": [
+        -3.048,
+        2.9463999999999997,
+        0.0
+      ],
+      "bounds_max": [
+        -1.4350999999999998,
+        3.048,
+        1.7272
+      ],
+      "faces": 12,
+      "watertight": true,
+      "kd": [
+        0.921569,
+        0.8,
+        0.654902
+      ]
+    },
+    {
+      "group": "Guideline (zone 1)",
+      "slug": "guideline_zone_1",
+      "category": "marking",
+      "visual": "vis_guideline_zone_1",
+      "collision": null,
+      "bounds_min": [
+        -2.54,
+        0.889,
+        0.0
+      ],
+      "bounds_max": [
+        0.3302,
+        2.6098,
+        0.0013
+      ],
+      "faces": 52,
+      "watertight": true,
+      "kd": [
+        0.588235,
+        0.156863,
+        0.12549
+      ]
+    },
+    {
+      "group": "Tube cradle 3",
+      "slug": "tube_cradle_3",
+      "category": "tunnel_cradle",
+      "visual": "vis_tube_cradle_3",
+      "collision": "col_tube_cradle_3",
+      "bounds_min": [
+        1.8034,
+        1.1938,
+        0.0
+      ],
+      "bounds_max": [
+        2.8194,
+        1.2192,
+        0.2776
+      ],
+      "faces": 196,
+      "watertight": true,
+      "kd": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    {
+      "group": "Boulder 3",
+      "slug": "boulder_3",
+      "category": "boulder",
+      "visual": "vis_boulder_3",
+      "collision": "col_boulder_3",
+      "bounds_min": [
+        0.5639,
+        -2.5755,
+        -0.0
+      ],
+      "bounds_max": [
+        1.0211,
+        -2.1184,
+        0.5334
+      ],
+      "faces": 14628,
+      "watertight": true,
+      "kd": [
+        0.839216,
+        0.839216,
+        0.886275
+      ],
+      "collision_note": "decimated convex hull (380 faces, volume ratio to visual 0.992; visual mesh itself is convex, 14628 faces)"
+    },
+    {
+      "group": "C2a chicane wall (window)",
+      "slug": "c2a_chicane_wall_window",
+      "category": "chicane",
+      "visual": "vis_c2a_chicane_wall_window",
+      "collision": "col_c2a_chicane_wall_window",
+      "bounds_min": [
+        -0.7945,
+        -3.0471,
+        0.0
+      ],
+      "bounds_max": [
+        -0.1474,
+        -1.4967,
+        1.7272
+      ],
+      "faces": 32,
+      "watertight": true,
+      "kd": [
+        0.921569,
+        0.8,
+        0.654902
+      ]
+    },
+    {
+      "group": "Barrier 1",
+      "slug": "barrier_1",
+      "category": "barrier",
+      "visual": "vis_barrier_1",
+      "collision": "col_barrier_1",
+      "bounds_min": [
+        -3.048,
+        0.4064,
+        0.0
+      ],
+      "bounds_max": [
+        -1.4351,
+        0.508,
+        1.7272
+      ],
+      "faces": 12,
+      "watertight": true,
+      "kd": [
+        0.803922,
+        0.372549,
+        0.235294
+      ]
+    },
+    {
+      "group": "Landing pad ring r9",
+      "slug": "landing_pad_ring_r9",
+      "category": "marking",
+      "visual": "vis_landing_pad_ring_r9",
+      "collision": null,
+      "bounds_min": [
+        -2.2708,
+        -1.021,
+        0.0013
+      ],
+      "bounds_max": [
+        -1.8136,
+        -0.5639,
+        0.0025
+      ],
+      "faces": 760,
+      "watertight": true,
+      "kd": [
+        0.121569,
+        0.121569,
+        0.121569
+      ]
+    },
+    {
+      "group": "Boulder 4",
+      "slug": "boulder_4",
+      "category": "boulder",
+      "visual": "vis_boulder_4",
+      "collision": "col_boulder_4",
+      "bounds_min": [
+        -2.7889,
+        -2.7279,
+        -0.0
+      ],
+      "bounds_max": [
+        -2.3317,
+        -2.2708,
+        0.5334
+      ],
+      "faces": 14628,
+      "watertight": true,
+      "kd": [
+        0.839216,
+        0.839216,
+        0.886275
+      ],
+      "collision_note": "decimated convex hull (390 faces, volume ratio to visual 0.992; visual mesh itself is convex, 14628 faces)"
+    },
+    {
+      "group": "Boulder 5",
+      "slug": "boulder_5",
+      "category": "boulder",
+      "visual": "vis_boulder_5",
+      "collision": "col_boulder_5",
+      "bounds_min": [
+        -1.5697,
+        -2.606,
+        -0.0
+      ],
+      "bounds_max": [
+        -1.1125,
+        -2.1489,
+        0.5334
+      ],
+      "faces": 14628,
+      "watertight": true,
+      "kd": [
+        0.839216,
+        0.839216,
+        0.886275
+      ],
+      "collision_note": "decimated convex hull (392 faces, volume ratio to visual 0.993; visual mesh itself is convex, 14628 faces)"
+    },
+    {
+      "group": "Launch mark",
+      "slug": "launch_mark",
+      "category": "marking",
+      "visual": "vis_launch_mark",
+      "collision": null,
+      "bounds_min": [
+        -2.5908,
+        0.8383,
+        0.0013
+      ],
+      "bounds_max": [
+        -2.4384,
+        0.9905,
+        0.0025
+      ],
+      "faces": 232,
+      "watertight": true,
+      "kd": [
+        0.588235,
+        0.156863,
+        0.12549
+      ]
+    },
+    {
+      "group": "A1 approach wall",
+      "slug": "a1_approach_wall",
+      "category": "wall",
+      "visual": "vis_a1_approach_wall",
+      "collision": "col_a1_approach_wall",
+      "bounds_min": [
+        -1.0262,
+        -0.6223,
+        0.0
+      ],
+      "bounds_max": [
+        -0.9246,
+        0.4064,
+        1.7272
+      ],
+      "faces": 12,
+      "watertight": true,
+      "kd": [
+        0.921569,
+        0.8,
+        0.654902
+      ]
+    },
+    {
+      "group": "Boulder 2",
+      "slug": "boulder_2",
+      "category": "boulder",
+      "visual": "vis_boulder_2",
+      "collision": "col_boulder_2",
+      "bounds_min": [
+        2.3012,
+        -1.783,
+        -0.0
+      ],
+      "bounds_max": [
+        2.7584,
+        -1.3259,
+        0.5334
+      ],
+      "faces": 14628,
+      "watertight": true,
+      "kd": [
+        0.839216,
+        0.839216,
+        0.886275
+      ],
+      "collision_note": "decimated convex hull (394 faces, volume ratio to visual 0.992; visual mesh itself is convex, 14628 faces)"
+    },
+    {
+      "group": "Tube cradle 2",
+      "slug": "tube_cradle_2",
+      "category": "tunnel_cradle",
+      "visual": "vis_tube_cradle_2",
+      "collision": "col_tube_cradle_2",
+      "bounds_min": [
+        1.8034,
+        0.4445,
+        0.0
+      ],
+      "bounds_max": [
+        2.8194,
+        0.4699,
+        0.2776
+      ],
+      "faces": 196,
+      "watertight": true,
+      "kd": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    {
+      "group": "Landing pad ring r20",
+      "slug": "landing_pad_ring_r20",
+      "category": "marking",
+      "visual": "vis_landing_pad_ring_r20",
+      "collision": null,
+      "bounds_min": [
+        -2.5502,
+        -1.3005,
+        0.0013
+      ],
+      "bounds_max": [
+        -1.5342,
+        -0.2845,
+        0.0025
+      ],
+      "faces": 1152,
+      "watertight": true,
+      "kd": [
+        0.121569,
+        0.121569,
+        0.121569
+      ]
+    },
+    {
+      "group": "M2 maze divider",
+      "slug": "m2_maze_divider",
+      "category": "maze",
+      "visual": "vis_m2_maze_divider",
+      "collision": "col_m2_maze_divider",
+      "bounds_min": [
+        -2.068583910956246,
+        0.972721270601143,
+        0.0
+      ],
+      "bounds_max": [
+        -0.5304160890437535,
+        1.6572787293988565,
+        1.7272
+      ],
+      "faces": 12,
+      "watertight": true,
+      "kd": [
+        0.921569,
+        0.8,
+        0.654902
+      ]
+    },
+    {
+      "group": "Approach ring (stage 4 line)",
+      "slug": "approach_ring_stage_4_line",
+      "category": "marking",
+      "visual": "vis_approach_ring_stage_4_line",
+      "collision": null,
+      "bounds_min": [
+        -3.0455,
+        -1.7958,
+        0.0
+      ],
+      "bounds_max": [
+        -1.0389,
+        0.2108,
+        0.0013
+      ],
+      "faces": 1624,
+      "watertight": true,
+      "kd": [
+        0.45098,
+        0.45098,
+        0.45098
+      ]
+    },
+    {
+      "group": "Floor 20 x 20 ft",
+      "slug": "floor_20_x_20_ft",
+      "category": "floor",
+      "visual": "vis_floor_20_x_20_ft",
+      "collision": "col_floor_20_x_20_ft",
+      "bounds_min": [
+        -3.048,
+        -3.048,
+        -0.0064
+      ],
+      "bounds_max": [
+        3.048,
+        3.048,
+        0.0
+      ],
+      "faces": 12,
+      "watertight": true,
+      "kd": [
+        0.917647,
+        0.917647,
+        0.917647
+      ]
+    },
+    {
+      "group": "M3 maze divider",
+      "slug": "m3_maze_divider",
+      "category": "maze",
+      "visual": "vis_m3_maze_divider",
+      "collision": "col_m3_maze_divider",
+      "bounds_min": [
+        0.03141608904375415,
+        0.6027212706011433,
+        0.0
+      ],
+      "bounds_max": [
+        1.569583910956246,
+        1.2872787293988568,
+        1.7272
+      ],
+      "faces": 12,
+      "watertight": true,
+      "kd": [
+        0.921569,
+        0.8,
+        0.654902
+      ]
+    },
+    {
+      "group": "Landing pad ring r30",
+      "slug": "landing_pad_ring_r30",
+      "category": "marking",
+      "visual": "vis_landing_pad_ring_r30",
+      "collision": null,
+      "bounds_min": [
+        -2.8042,
+        -1.5544,
+        0.0013
+      ],
+      "bounds_max": [
+        -1.2802,
+        -0.0306,
+        0.0025
+      ],
+      "faces": 1416,
+      "watertight": true,
+      "kd": [
+        0.121569,
+        0.121569,
+        0.121569
+      ]
+    },
+    {
+      "group": "Landing pad 5 ft",
+      "slug": "landing_pad_5_ft",
+      "category": "marking",
+      "visual": "vis_landing_pad_5_ft",
+      "collision": null,
+      "bounds_min": [
+        -2.8042,
+        -1.5544,
+        0.0
+      ],
+      "bounds_max": [
+        -1.2802,
+        -0.0306,
+        0.0013
+      ],
+      "faces": 712,
+      "watertight": true,
+      "kd": [
+        0.980392,
+        0.980392,
+        0.980392
+      ]
+    }
+  ],
+  "notes": [
+    "Checkpoint lines are derived from mesh bounding boxes; the organisers publish no coordinates for Gate A / Gate B / checkpoint 1. Treat them as best-effort until confirmed at the venue.",
+    "Checkpoint 1: line at the north end of M1 (physical corridor end); alternative at the painted corner y~2.585 given as alt_p0/alt_p1.",
+    "Gate B: inferred as the A1-to-C2a opening (the only wall-free entry into the landing area besides the window).",
+    "The 4 in wall thickness and 68 in height are confirmed by the mesh (0.1016 m, 1.727 m). Barrier 3 is full height; its \"cut to 55 in\" is its length.",
+    "Boulder collisions are convex hulls of the 14.6k-face visual meshes.",
+    "The net is modelled as solid 2 cm slabs with inner faces at +-3.048 m and z=3.048 m; the real net is porous, and the lab sim collision envelope is known to differ from its visual mesh.",
+    "Approximate first-section photo scenario; first two scoring lines are hypotheses. Downstream scoring unchanged; physical vehicle reach retained without reducing margins."
+  ],
+  "real_pad": {
+    "square_m": 0.64,
+    "yaw_deg": 0.0,
+    "center_xy": [
+      -2.0422,
+      -0.7925
+    ],
+    "note": "Real pad seen 2026-11-07 (IMG_9593/9594): blue rounded-square foldable mat with tan H. Side 0.64 m is an ESTIMATE (FPVtosky square pads: 51/64 cm); centre assumed = CAD pad centre. Landing = all four 7 in prop discs inside the square."
+  },
+  "photo_scenario": {
+    "name": "topview_entrance",
+    "gap_m": 0.9144,
+    "provenance": [
+      "Team top view supersedes the previous, incorrect three upright-divider interpretation.",
+      "Panel placement is approximate; no full new_dronehacks_course.obj was available locally.",
+      "Partial entrance LiDAR cannot be registered confidently from floor features: only two feature inliers, with an invalid 2.03 scale fit. That registration was rejected.",
+      "M1 is horizontal; M2 is the angled lower-left panel; M3 is the angled tunnel approach panel. No invented central upright wall.",
+      "Team correction: M1 meets both the west and north boundaries. Centreline y=2.9972 puts its north face at y=3.048; west endpoint x=-3.048. Preserve its length and orientation. No north passage behind M1.",
+      "Old entrance checkpoint lines are unqualified references. Original tunnel, chicane and landing geometry are retained."
+    ],
+    "planning_margin_m": 0.12,
+    "changed_region": "union of old/new panel bounds",
+    "policy_geometry": false,
+    "source_obj_sha256": "e610bcf9666422e2a0a78cb46f542fc8c4d5a7ef9b15f6123f1abe40f5b8e9e1"
+  }
+}

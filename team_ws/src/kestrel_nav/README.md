@@ -3,6 +3,24 @@
 
 ## Active group154 map (2026-11-08)
 
+The refnav course profile now follows waypoints without requiring depth returns
+along the path: `min_corridor_coverage`, `min_valid_frac`, and
+`min_valid_frac_static` are 0, and `corridor_wait_land_s` is -1. Fresh blank or
+sparse frames therefore permit motion; missing returns can hide real obstacles.
+Measured obstacles still trigger hold/back-off/recheck at a fixed **0.35 m**
+ahead of the body origin (`stop_m=0.35`, `stop_per_mps=0`), with three confirming
+frames. This distance is not rotor clearance or a guaranteed stopping distance,
+and is inside the documented OAK minimum range of about 0.4 m. Camera silence
+still stops motion and triggers landing after 5 s. Estimator/PX4 faults, gate
+alignment failures, persistent measured obstacles, and route completion can
+still land. Source and packaged course profiles carry the same settings.
+
+Refnav emits warning-level `!!!!!!!!!! AUTO LAND: <reason> !!!!!!!!!!` banners
+when landing begins, including normal route completion. A fault that first
+retraces to clear floor emits `AUTO LAND PENDING` with its reason. PX4 or pilot
+takeover emits `CONTROL YIELDED`; refnav cannot infer PX4's internal failsafe
+reason. These events also appear in the flight trace.
+
 The default `course/course_v3.json` now selects `course/new_course_origin.obj`
 and `maps/course_origin_5cm.npz`, imported from `new_course_origin_map.zip`.
 Planning, localizer initialization/scan matching, occupancy, and safe-landing

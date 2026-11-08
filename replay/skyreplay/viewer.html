@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>skybeta replay: __TITLE__</title>
+<style>
+  :root { --bg:#f8f9fa; --panel:#fff; --ink:#212529; --muted:#868e96; --line:#dee2e6; --accent:#1c7ed6; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--bg); }
+  #app { display:grid; grid-template-columns: 1fr 360px; grid-template-rows: 1fr auto; height:100vh; }
+  #mapwrap { position:relative; overflow:hidden; background:#e9ecef; }
+  #map { position:absolute; inset:0; width:100%; height:100%; cursor:grab; }
+  #map.dragging { cursor:grabbing; }
+  #hud { position:absolute; left:10px; top:10px; background:rgba(255,255,255,.92); border:1px solid var(--line); border-radius:6px; padding:6px 9px; pointer-events:none; font-variant-numeric:tabular-nums; }
+  #hover { position:absolute; right:10px; bottom:10px; background:rgba(255,255,255,.92); border:1px solid var(--line); border-radius:6px; padding:4px 8px; pointer-events:none; font-variant-numeric:tabular-nums; color:#495057; }
+  #side { grid-row:1 / span 2; grid-column:2; background:var(--panel); border-left:1px solid var(--line); overflow-y:auto; padding:10px 12px; }
+  #bottom { grid-column:1; background:var(--panel); border-top:1px solid var(--line); padding:8px 12px 10px; }
+  h1 { font-size:15px; margin:0 0 2px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:14px 0 6px; }
+  .sub { color:var(--muted); font-size:12px; word-break:break-all; }
+  .row { display:flex; align-items:center; gap:8px; }
+  .controls button { font:inherit; padding:4px 10px; border:1px solid var(--line); background:#fff; border-radius:5px; cursor:pointer; }
+  .controls button:hover { background:#f1f3f5; }
+  .controls select { font:inherit; padding:3px; }
+  #time { font-variant-numeric:tabular-nums; min-width:150px; }
+  #tl { position:relative; height:46px; margin-top:6px; cursor:pointer; }
+  #tlcanvas { position:absolute; inset:0; width:100%; height:100%; }
+  .trace { display:grid; grid-template-columns: 16px 1fr; gap:2px 6px; padding:5px 0; border-bottom:1px solid #f1f3f5; }
+  .trace .sw { width:12px; height:12px; border-radius:3px; margin-top:2px; }
+  .trace .vals { grid-column:2; font-variant-numeric:tabular-nums; color:#495057; font-size:12px; }
+  .trace label { font-weight:600; cursor:pointer; }
+  .trace .desc { grid-column:2; color:var(--muted); font-size:11.5px; }
+  .layers label { display:block; padding:1px 0; cursor:pointer; }
+  #events { max-height:260px; overflow-y:auto; border:1px solid var(--line); border-radius:5px; }
+  .ev { padding:3px 6px; border-bottom:1px solid #f1f3f5; cursor:pointer; font-size:12px; display:grid; grid-template-columns: 52px 1fr; }
+  .ev:hover { background:#f1f3f5; }
+  .ev.past { color:#adb5bd; }
+  .ev .t { font-variant-numeric:tabular-nums; color:var(--muted); }
+  .ev.k-state .x { font-weight:600; } .ev.k-vio .x { color:#c92a2a; } .ev.k-phase .x { color:#1864ab; } .ev.k-loc .x { color:#d9480f; }
+  .chart { width:100%; height:110px; display:block; border:1px solid var(--line); border-radius:5px; background:#fff; }
+  .warn { background:#fff4e6; border:1px solid #ffd8a8; color:#7a3e00; border-radius:5px; padding:6px 8px; font-size:12px; margin-top:8px; }
+  .kv { display:grid; grid-template-columns: auto 1fr; gap:1px 10px; font-size:12px; }
+  .kv div:nth-child(odd) { color:var(--muted); }
+  #clear { font-variant-numeric:tabular-nums; }
+  .filters label { margin-right:8px; font-size:12px; cursor:pointer; }
+  kbd { font:11px monospace; border:1px solid var(--line); border-bottom-width:2px; border-radius:3px; padding:0 3px; background:#f8f9fa; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="mapwrap">
+    <canvas id="map"></canvas>
+    <div id="hud"></div>
+    <div id="hover"></div>
+  </div>
+  <div id="bottom">
+    <div class="row controls">
+      <button id="play" title="Space">&#9654; Play</button>
+      <button id="back" title="Left arrow">&#8722;1 s</button>
+      <button id="fwd" title="Right arrow">+1 s</button>
+      <label>speed <select id="speed"><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option><option>4</option><option>8</option></select></label>
+      <label>trail <select id="trail"><option value="5">5 s</option><option value="15">15 s</option><option value="60">60 s</option><option value="1e9" selected>all</option></select></label>
+      <label><input type="checkbox" id="follow"> follow drone</label>
+      <span id="time"></span>
+    </div>
+    <div id="tl"><canvas id="tlcanvas"></canvas></div>
+  </div>
+  <div id="side">
+    <h1>skybeta flight replay</h1>
+    <div class="sub" id="baginfo"></div>
+    <div id="warnings"></div>
+
+    <h2>Position estimates (course frame)</h2>
+    <div class="row" style="margin-bottom:4px"><span class="sub">reference for gaps, reach circle and clearance:</span></div>
+    <select id="primary" style="width:100%;font:inherit;padding:3px"></select>
+    <div id="traces"></div>
+
+    <h2>Clearance (reference estimate)</h2>
+    <div id="clear" class="kv"></div>
+
+    <h2>Gap to reference estimate (m)</h2>
+    <canvas class="chart" id="gapchart"></canvas>
+    <h2>Height above floor (m)</h2>
+    <canvas class="chart" id="zchart"></canvas>
+
+    <h2>Map layers</h2>
+    <div class="layers">
+      <label><input type="checkbox" id="L_mesh" checked> course map (top-down)</label>
+      <label><input type="checkbox" id="L_slice" checked> cross-section at drone height <span style="color:#e03131">&#9632;</span></label>
+      <label><input type="checkbox" id="L_occ" checked> live map the drone built (/coursenav/occupancy) <span class="sub" id="occinfo"></span></label>
+      <label><input type="checkbox" id="L_full" checked> full paths (faint)</label>
+      <label><input type="checkbox" id="L_plan" checked> planned targets (refnav)</label>
+      <label><input type="checkbox" id="L_goals" checked> course goals + launch fixture</label>
+      <label><input type="checkbox" id="L_reach" checked> vehicle reach circle</label>
+      <label><input type="checkbox" id="L_grid" checked> 0.5 m grid</label>
+    </div>
+
+    <h2>Events</h2>
+    <div class="filters" id="filters"></div>
+    <div id="events"></div>
+
+    <h2>About this replay</h2>
+    <div class="kv" id="about"></div>
+    <div class="warn" id="caveat">
+      There is no ground truth in a bag. Each trace is an onboard <b>estimate</b>, placed on the map through the
+      declared launch pose. Disagreement between traces, a path through a wall, or live-map walls that do not
+      line up with the course map are the signs the drone was not where it thought it was.
+      The course map is an approximate reconstruction, not a survey (see map README).
+    </div>
+    <p class="sub" style="margin-top:10px"><kbd>Space</kbd> play/pause &nbsp; <kbd>&larr;</kbd><kbd>&rarr;</kbd> step &nbsp; drag to pan, wheel to zoom, double-click to reset view.</p>
+  </div>
+</div>
+<script>
+/*__DATA__*/
+"use strict";
+const $ = id => document.getElementById(id);
+const TR = RUN.traces, KEYS = ["pf", "nav", "px4", "vio"].filter(k => TR[k]);
+const DUR = Math.max(RUN.duration_s, 0.001);
+const REACH = MAP.vehicle_radius_m || 0.294;
+const state = { t: 0, playing: false, speed: 1, trail: 1e9, primary: KEYS[0] || null,
+  show: Object.fromEntries(KEYS.map(k => [k, true])), view: null, follow: false,
+  evkinds: { state: true, phase: true, vio: true, loc: true, log: true } };
+
+// ------------------------------------------------------------------ helpers
+function idxAt(arr, t) { let lo = 0, hi = arr.length - 1; if (hi < 0 || t < arr[0]) return -1;
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (arr[m] <= t) lo = m; else hi = m - 1; } return lo; }
+const STALE = { pf: 1.6, nav: 0.6, px4: 0.6, vio: 0.6 };
+function sample(k, t) {
+  const tr = TR[k]; const i = idxAt(tr.t, t); if (i < 0) return null;
+  const age = t - tr.t[i]; const j = i + 1;
+  let x = tr.x[i], y = tr.y[i], z = tr.z[i], yaw = tr.yaw[i];
+  if (j < tr.t.length && tr.t[j] - tr.t[i] < 2 * STALE[k]) {
+    const f = (t - tr.t[i]) / (tr.t[j] - tr.t[i]);
+    x += (tr.x[j] - x) * f; y += (tr.y[j] - y) * f;
+    if (z != null && tr.z[j] != null) z += (tr.z[j] - z) * f;
+    return { x, y, z, yaw, i, stale: false };
+  }
+  return { x, y, z, yaw, i, stale: age > STALE[k] };
+}
+const fmt = (v, d = 2) => v == null || !isFinite(v) ? "–" : (v >= 0 ? "+" : "") + v.toFixed(d);
+const deg = r => r == null ? null : r * 180 / Math.PI;
+
+// ------------------------------------------------------------------ mesh slicing (cross-section at height h)
+const V = MAP.mesh.verts;
+const SOLID = MAP.mesh.groups.filter(g => g.kind === "obstacle" || g.kind === "net");
+const sliceCache = new Map();
+function slice(h) {
+  const key = Math.round(h * 50); if (sliceCache.has(key)) return sliceCache.get(key);
+  const hz = key / 50, segs = [];
+  for (const g of SOLID) {
+    if (hz < g.zmin || hz > g.zmax) continue;
+    const F = g.faces;
+    for (let f = 0; f < F.length; f += 3) {
+      const p = [F[f], F[f + 1], F[f + 2]].map(i => [V[3 * i], V[3 * i + 1], V[3 * i + 2]]);
+      const pts = [];
+      for (let e = 0; e < 3; e++) {
+        const a = p[e], b = p[(e + 1) % 3];
+        if ((a[2] - hz) * (b[2] - hz) < 0 || (a[2] === hz && b[2] !== hz)) {
+          const s = (hz - a[2]) / (b[2] - a[2]); pts.push([a[0] + s * (b[0] - a[0]), a[1] + s * (b[1] - a[1])]);
+        }
+      }
+      if (pts.length >= 2) segs.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1], g.name]);
+    }
+  }
+  sliceCache.set(key, segs); return segs;
+}
+function nearest(x, y, h) {
+  let best = Infinity, who = null, px = 0, py = 0;
+  for (const s of slice(h)) {
+    const dx = s[2] - s[0], dy = s[3] - s[1], L = dx * dx + dy * dy;
+    let u = L > 0 ? ((x - s[0]) * dx + (y - s[1]) * dy) / L : 0; u = Math.max(0, Math.min(1, u));
+    const qx = s[0] + u * dx, qy = s[1] + u * dy, d = Math.hypot(x - qx, y - qy);
+    if (d < best) { best = d; who = s[4]; px = qx; py = qy; }
+  }
+  return { d: best, who, px, py };
+}
+const zOr = z => (z == null ? (MAP.cruise_z_m || 0.8) : Math.max(0.02, z));
+
+// minimum clearance along the reference trace (airborne part: z > 0.2 m), sampled at <= 10 Hz
+let minClear = null;
+function computeMinClear() {
+  minClear = null; const k = state.primary; if (!k) return;
+  const tr = TR[k]; let last = -1e9;
+  for (let i = 0; i < tr.t.length; i++) {
+    if (tr.t[i] - last < 0.1) continue; last = tr.t[i];
+    if (tr.z[i] != null && tr.z[i] < 0.2) continue;
+    const n = nearest(tr.x[i], tr.y[i], zOr(tr.z[i]));
+    if (!minClear || n.d < minClear.d) minClear = { ...n, t: tr.t[i] };
+  }
+}
+
+// ------------------------------------------------------------------ occupancy frames
+const OCC = RUN.occupancy || [];
+const occCanvas = new Map();
+function occImage(i) {
+  if (occCanvas.has(i)) return occCanvas.get(i);
+  const o = OCC[i], raw = atob(o.data), c = document.createElement("canvas"); c.width = o.w; c.height = o.h;
+  const ctx = c.getContext("2d"), img = ctx.createImageData(o.w, o.h);
+  for (let r = 0; r < o.h; r++) for (let q = 0; q < o.w; q++) {
+    const v = raw.charCodeAt(r * o.w + q), p = ((o.h - 1 - r) * o.w + q) * 4;
+    if (v === 255) continue;
+    if (v >= 50) { img.data[p] = 230; img.data[p + 1] = 119; img.data[p + 2] = 0; img.data[p + 3] = 90 + Math.min(165, (v - 50) * 3.3); }
+    else if (v <= 25) { img.data[p] = 51; img.data[p + 1] = 154; img.data[p + 2] = 240; img.data[p + 3] = 35; }
+    else { img.data[p] = 134; img.data[p + 1] = 142; img.data[p + 2] = 150; img.data[p + 3] = 45; }
+  }
+  ctx.putImageData(img, 0, 0); occCanvas.set(i, c); return c;
+}
+
+// ------------------------------------------------------------------ view transform
+const cv = $("map"), ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resetView() {
+  let x0 = -3.2, x1 = 3.2, y0 = -3.2, y1 = 3.2;
+  for (let i = 0; i < V.length; i += 3) { if (Math.abs(V[i]) < 20 && Math.abs(V[i + 1]) < 20) {
+    x0 = Math.min(x0, V[i]); x1 = Math.max(x1, V[i]); y0 = Math.min(y0, V[i + 1]); y1 = Math.max(y1, V[i + 1]); } }
+  for (const k of KEYS) for (let i = 0; i < TR[k].x.length; i++) {
+    x0 = Math.min(x0, TR[k].x[i]); x1 = Math.max(x1, TR[k].x[i]); y0 = Math.min(y0, TR[k].y[i]); y1 = Math.max(y1, TR[k].y[i]); }
+  const s = Math.min(W / (x1 - x0 + 0.6), H / (y1 - y0 + 0.6));
+  state.view = { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, s };
+}
+const sx = x => W / 2 + (x - state.view.cx) * state.view.s;
+const sy = y => H / 2 - (y - state.view.cy) * state.view.s;
+const wx = px => (px - W / 2) / state.view.s + state.view.cx;
+const wy = py => -(py - H / 2) / state.view.s + state.view.cy;
+function resize() {
+  DPR = window.devicePixelRatio || 1; const r = cv.getBoundingClientRect(); W = r.width; H = r.height;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  if (!state.view) resetView(); baseDirty = true; draw();
+  for (const c of [$("tlcanvas"), $("gapchart"), $("zchart")]) { const b = c.getBoundingClientRect(); c.width = b.width * DPR; c.height = b.height * DPR; }
+  drawTimeline(); drawCharts();
+}
+
+// ------------------------------------------------------------------ base map (cached offscreen)
+let base = document.createElement("canvas"), baseDirty = true;
+const rgb = (c, a) => `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${a})`;
+function drawBase() {
+  base.width = cv.width; base.height = cv.height; const b = base.getContext("2d");
+  b.setTransform(DPR, 0, 0, DPR, 0, 0); b.fillStyle = "#e9ecef"; b.fillRect(0, 0, W, H);
+  if ($("L_mesh").checked) {
+    const order = { floor: 0, mark: 1, obstacle: 2, net: 3 };
+    const groups = [...MAP.mesh.groups].sort((a, c) => order[a.kind] - order[c.kind] || a.zmax - c.zmax);
+    for (const g of groups) {
+      if (g.kind === "floor") {              // one rectangle: triangle seams would show as diagonals
+        let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+        for (const i of g.faces) { x0 = Math.min(x0, V[3 * i]); x1 = Math.max(x1, V[3 * i]); y0 = Math.min(y0, V[3 * i + 1]); y1 = Math.max(y1, V[3 * i + 1]); }
+        b.fillStyle = "#ffffff"; b.fillRect(sx(x0), sy(y1), (x1 - x0) * state.view.s, (y1 - y0) * state.view.s); continue;
+      }
+      let fill, stroke;
+      if (g.kind === "floor") { fill = "#ffffff"; stroke = "#ffffff"; }
+      else if (g.kind === "mark") { fill = rgb(g.color, 0.55); stroke = rgb(g.color, 0.55); }
+      else if (g.kind === "net") { fill = "rgba(73,80,87,0.9)"; stroke = "rgba(73,80,87,0.9)"; }
+      else { const c = g.color.map(v => 0.35 + 0.55 * v); fill = rgb(c, 0.5); stroke = rgb(c.map(v => v * 0.8), 0.55); }
+      b.fillStyle = fill; b.strokeStyle = stroke; b.lineWidth = 1; b.beginPath();
+      const F = g.faces;
+      for (let f = 0; f < F.length; f += 3) {
+        const a = F[f] * 3, c = F[f + 1] * 3, d = F[f + 2] * 3;
+        b.moveTo(sx(V[a]), sy(V[a + 1])); b.lineTo(sx(V[c]), sy(V[c + 1])); b.lineTo(sx(V[d]), sy(V[d + 1])); b.closePath();
+      }
+      b.fill(); b.stroke();
+    }
+  }
+  if ($("L_grid").checked) {
+    b.strokeStyle = "rgba(0,0,0,0.07)"; b.lineWidth = 1; b.beginPath();
+    const x0 = Math.floor(wx(0) * 2) / 2, x1 = wx(W), y0 = Math.floor(wy(H) * 2) / 2, y1 = wy(0);
+    for (let x = x0; x <= x1; x += 0.5) { b.moveTo(sx(x), 0); b.lineTo(sx(x), H); }
+    for (let y = y0; y <= y1; y += 0.5) { b.moveTo(0, sy(y)); b.lineTo(W, sy(y)); }
+    b.stroke();
+    b.fillStyle = "rgba(0,0,0,0.45)"; b.font = "10px system-ui";
+    for (let x = Math.ceil(x0); x <= x1; x++) b.fillText(`${x} m`, sx(x) + 2, H - 4);
+    for (let y = Math.ceil(y0); y <= y1; y++) b.fillText(`${y} m`, 3, sy(y) - 2);
+    // compass
+    b.fillStyle = "rgba(0,0,0,0.6)"; b.font = "bold 11px system-ui"; b.fillText("N ↑   E →", W - 80, 18);
+  }
+  if ($("L_full").checked) for (const k of KEYS) if (state.show[k]) {
+    const tr = TR[k]; b.strokeStyle = tr.color + "40"; b.lineWidth = 1.5; b.beginPath();
+    for (let i = 0; i < tr.t.length; i++) { const X = sx(tr.x[i]), Y = sy(tr.y[i]);
+      if (i && tr.t[i] - tr.t[i - 1] > 2) b.moveTo(X, Y); else if (i) b.lineTo(X, Y); else b.moveTo(X, Y); }
+    b.stroke();
+  }
+  baseDirty = false;
+}
+
+// ------------------------------------------------------------------ main draw
+function marker(c, x, y, yaw, color, stale, big) {
+  const X = sx(x), Y = sy(y), r = big ? 7 : 5.5;
+  c.lineWidth = 2; c.strokeStyle = color; c.fillStyle = stale ? "#fff" : color;
+  c.beginPath(); c.arc(X, Y, r, 0, 2 * Math.PI); c.fill(); c.stroke();
+  if (yaw != null) { const L = big ? 22 : 16; c.beginPath(); c.moveTo(X, Y);
+    c.lineTo(X + Math.cos(yaw) * L, Y - Math.sin(yaw) * L); c.stroke(); }
+}
+function draw() {
+  if (!state.view) return;
+  if (state.follow && state.primary) { const p = sample(state.primary, state.t); if (p) { state.view.cx = p.x; state.view.cy = p.y; baseDirty = true; } }
+  if (baseDirty) drawBase();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(base, 0, 0); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const t = state.t;
+  // live occupancy
+  if (!OCC.length) $("occinfo").textContent = "(not in this bag)";
+  if ($("L_occ").checked && OCC.length) {
+    const i = idxAt(OCC.map(o => o.t), t);
+    $("occinfo").textContent = i < 0 ? "(none yet)" : `(${OCC[i].known} known, ${OCC[i].occupied} occupied cells)`;
+    if (i >= 0) { const o = OCC[i]; const img = occImage(i);
+      ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(sx(o.ox), sy(o.oy)); ctx.rotate(-o.oyaw);
+      ctx.drawImage(img, 0, -o.h * o.res * state.view.s, o.w * o.res * state.view.s, o.h * o.res * state.view.s); ctx.restore(); }
+  }
+  // goals
+  if ($("L_goals").checked) {
+    ctx.font = "11px system-ui";
+    for (const g of MAP.goals) {
+      const X = sx(g.xy[0]), Y = sy(g.xy[1]); ctx.strokeStyle = "#1864ab"; ctx.fillStyle = "#1864ab"; ctx.lineWidth = 1.5;
+      if (g.radius_m) { ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.arc(X, Y, g.radius_m * state.view.s, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]); }
+      ctx.beginPath(); ctx.moveTo(X - 5, Y - 5); ctx.lineTo(X + 5, Y + 5); ctx.moveTo(X + 5, Y - 5); ctx.lineTo(X - 5, Y + 5); ctx.stroke();
+      ctx.fillText(g.name, X + 7, Y - 6);
+    }
+    const f = RUN.fixture;
+    if (f) { const X = sx(f.x), Y = sy(f.y), a = f.yaw_deg * Math.PI / 180; ctx.strokeStyle = "#2f9e44"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.rect(X - 6, Y - 6, 12, 12); ctx.moveTo(X, Y); ctx.lineTo(X + 18 * Math.cos(a), Y - 18 * Math.sin(a)); ctx.stroke();
+      ctx.fillStyle = "#2f9e44"; ctx.fillText("launch fixture", X + 9, Y + 14); }
+  }
+  // planned route
+  if ($("L_plan").checked && RUN.plans.length) {
+    const i = idxAt(RUN.plans.map(p => p.t), t);
+    const plan = RUN.plans[Math.max(i, 0)]; const ghost = i < 0;
+    ctx.strokeStyle = ghost ? "rgba(95,61,196,0.25)" : "rgba(95,61,196,0.8)"; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    ctx.beginPath(); const f = RUN.fixture; if (f) ctx.moveTo(sx(f.x), sy(f.y));
+    plan.points.forEach((p, n) => (n || f) ? ctx.lineTo(sx(p[0]), sy(p[1])) : ctx.moveTo(sx(p[0]), sy(p[1])));
+    ctx.stroke(); ctx.setLineDash([]);
+    plan.points.forEach((p, n) => { ctx.beginPath(); ctx.arc(sx(p[0]), sy(p[1]), 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.fillText(`T${n + 1}`, sx(p[0]) + 5, sy(p[1]) + 12); });
+  }
+  if ($("L_plan").checked && RUN.setpoints) {
+    const sp = RUN.setpoints, i = idxAt(sp.t, t);
+    if (i >= 0 && t - sp.t[i] < 2) { const X = sx(sp.x[i]), Y = sy(sp.y[i]); ctx.strokeStyle = "#5f3dc4"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(X - 7, Y); ctx.lineTo(X + 7, Y); ctx.moveTo(X, Y - 7); ctx.lineTo(X, Y + 7); ctx.stroke(); }
+  }
+  // cross-section + clearance of the reference estimate
+  const P = state.primary ? sample(state.primary, t) : null;
+  let near = null;
+  if (P) {
+    const h = zOr(P.z);
+    if ($("L_slice").checked) {
+      ctx.strokeStyle = "#e03131"; ctx.lineWidth = 2.2; ctx.beginPath();
+      for (const s of slice(h)) { ctx.moveTo(sx(s[0]), sy(s[1])); ctx.lineTo(sx(s[2]), sy(s[3])); }
+      ctx.stroke();
+    }
+    near = nearest(P.x, P.y, h);
+    if (isFinite(near.d)) { ctx.strokeStyle = "rgba(224,49,49,0.8)"; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(sx(P.x), sy(P.y)); ctx.lineTo(sx(near.px), sy(near.py)); ctx.stroke(); ctx.setLineDash([]); }
+    if ($("L_reach").checked) { ctx.strokeStyle = TR[state.primary].color; ctx.lineWidth = 1.2; ctx.setLineDash([2, 2]);
+      ctx.beginPath(); ctx.arc(sx(P.x), sy(P.y), REACH * state.view.s, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]); }
+  }
+  // trails + markers
+  for (const k of KEYS) if (state.show[k]) {
+    const tr = TR[k], i1 = idxAt(tr.t, t); if (i1 < 0) continue;
+    const i0 = Math.max(0, idxAt(tr.t, t - state.trail));
+    ctx.strokeStyle = tr.color; ctx.lineWidth = k === state.primary ? 3 : 2; ctx.beginPath();
+    for (let i = i0; i <= i1; i++) { const X = sx(tr.x[i]), Y = sy(tr.y[i]);
+      if (i > i0 && tr.t[i] - tr.t[i - 1] <= 2) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }
+    const s = sample(k, t); if (s) ctx.lineTo(sx(s.x), sy(s.y)); ctx.stroke();
+    if (s) marker(ctx, s.x, s.y, s.yaw, tr.color, s.stale, k === state.primary);
+  }
+  updateReadouts(P, near);
+}
+
+// ------------------------------------------------------------------ readouts
+function updateReadouts(P, near) {
+  const t = state.t;
+  $("time").textContent = `t = ${t.toFixed(2)} s / ${DUR.toFixed(1)} s`;
+  const hud = [];
+  for (const k of KEYS) {
+    const s = sample(k, t), el = $("vals_" + k);
+    if (!s) { el.textContent = "no data yet"; continue; }
+    let gap = "";
+    if (P && k !== state.primary) gap = `  gap ${Math.hypot(s.x - P.x, s.y - P.y).toFixed(2)} m`;
+    const tr = TR[k], ex = tr.extra || {}, i = s.i;
+    let extra = "";
+    if (ex.sigma_xy && ex.sigma_xy[i] != null) extra += `  σxy ${(+ex.sigma_xy[i]).toFixed(3)} m`;
+    if (ex.corrected && ex.corrected[i] === false) extra += "  (no map correction yet)";
+    el.textContent = `x ${fmt(s.x)}  y ${fmt(s.y)}  z ${s.z == null ? "–" : s.z.toFixed(2)}  yaw ${s.yaw == null ? "–" : deg(s.yaw).toFixed(0) + "°"}${gap}${extra}${s.stale ? "  (stale)" : ""}`;
+  }
+  if (P) hud.push(`<b style="color:${TR[state.primary].color}">${TR[state.primary].label}</b>: (${fmt(P.x)}, ${fmt(P.y)}) m, z ${P.z == null ? "–" : P.z.toFixed(2)} m`);
+  const ev = RUN.events.filter(e => e.kind === "state" || e.kind === "phase").filter(e => e.t <= t);
+  const lastState = [...ev].reverse().find(e => e.kind === "state"), lastPhase = [...ev].reverse().find(e => e.kind === "phase");
+  if (lastState) hud.push(`last state: ${lastState.text}`);
+  if (lastPhase) hud.push(lastPhase.text.slice(0, 90));
+  $("hud").innerHTML = hud.join("<br>"); $("hud").style.display = hud.length ? "" : "none";
+  const c = [];
+  if (P && near && isFinite(near.d)) {
+    c.push("height used", `${zOr(P.z).toFixed(2)} m` + (P.z == null ? " (cruise, no z)" : ""));
+    c.push("centre to nearest wall", `${near.d.toFixed(2)} m (${near.who})`);
+    const o = near.d - REACH; c.push("outline clearance", `<b style="color:${o < 0.12 ? "#c92a2a" : "inherit"}">${o.toFixed(2)} m</b> (reach ${REACH.toFixed(3)} m)`);
+  } else c.push("", "no estimate at this time");
+  if (minClear) c.push("min along flight", `<a href="#" id="jumpmin">${(minClear.d - REACH).toFixed(2)} m outline at t=${minClear.t.toFixed(1)} s</a> (${minClear.who})`);
+  $("clear").innerHTML = c.map(v => `<div>${v}</div>`).join("");
+  const jm = $("jumpmin"); if (jm) jm.onclick = e => { e.preventDefault(); seek(minClear.t); };
+  // events list highlight
+  for (const el of document.querySelectorAll(".ev")) el.classList.toggle("past", +el.dataset.t > t);
+}
+
+// ------------------------------------------------------------------ timeline + charts
+const EVC = { state: "#212529", phase: "#1c7ed6", vio: "#e03131", loc: "#e8590c", log: "#ced4da" };
+function drawTimeline() {
+  const c = $("tlcanvas"), g = c.getContext("2d"), w = c.width / DPR, h = c.height / DPR;
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, w, h);
+  g.fillStyle = "#f1f3f5"; g.fillRect(0, 14, w, h - 14);
+  const X = t => t / DUR * w;
+  // airborne / armed shading
+  let armedAt = null, airAt = null;
+  const spans = [];
+  for (const e of RUN.events) if (e.kind === "state") {
+    if (e.text === "ARMED") armedAt = e.t; if (e.text === "disarmed" && armedAt != null) { spans.push(["#ffe8cc", armedAt, e.t]); armedAt = null; }
+    if (e.text === "airborne") airAt = e.t; if (e.text === "landed" && airAt != null) { spans.push(["#ffc078", airAt, e.t]); airAt = null; }
+  }
+  if (armedAt != null) spans.push(["#ffe8cc", armedAt, DUR]); if (airAt != null) spans.push(["#ffc078", airAt, DUR]);
+  for (const [col, a, b] of spans) { g.fillStyle = col; g.fillRect(X(a), col === "#ffc078" ? 30 : 14, X(b) - X(a), col === "#ffc078" ? h - 30 : h - 14); }
+  // vio lost
+  for (const e of RUN.events) if (e.kind === "vio") { g.fillStyle = "#e03131"; g.fillRect(X(e.t) - 1, 14, 2, h - 14); }
+  // event ticks
+  for (const e of RUN.events) if (state.evkinds[e.kind] && e.kind !== "vio") { g.fillStyle = EVC[e.kind]; g.fillRect(X(e.t) - 0.5, 0, 1.5, 12); }
+  if (minClear) { g.fillStyle = "#c92a2a"; g.beginPath(); const x = X(minClear.t); g.moveTo(x, 14); g.lineTo(x - 5, 22); g.lineTo(x + 5, 22); g.fill(); }
+  // cursor
+  g.fillStyle = "#1c7ed6"; g.fillRect(X(state.t) - 1, 0, 2, h);
+  g.fillStyle = "#495057"; g.font = "10px system-ui"; g.fillText("armed", 3, 26); g.fillText("airborne", 3, h - 4);
+}
+function chart(id, series, yLabel) {
+  const c = $(id), g = c.getContext("2d"), w = c.width / DPR, h = c.height / DPR;
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, w, h);
+  let lo = Infinity, hi = -Infinity;
+  for (const s of series) for (const v of s.v) if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  if (!isFinite(lo)) { g.fillStyle = "#adb5bd"; g.fillText("no data", 8, 16); return; }
+  lo = Math.min(lo, 0); if (hi - lo < 0.1) hi = lo + 0.1; const pad = 16;
+  const X = t => pad + t / DUR * (w - pad - 4), Y = v => h - 12 - (v - lo) / (hi - lo) * (h - 20);
+  g.strokeStyle = "#f1f3f5"; g.fillStyle = "#adb5bd"; g.font = "9px system-ui";
+  for (const v of [lo, (lo + hi) / 2, hi]) { g.beginPath(); g.moveTo(pad, Y(v)); g.lineTo(w, Y(v)); g.stroke(); g.fillText(v.toFixed(2), 1, Y(v) + 3); }
+  for (const s of series) { g.strokeStyle = s.color; g.lineWidth = 1.3; g.beginPath(); let pen = false;
+    for (let i = 0; i < s.t.length; i++) { if (s.v[i] == null) { pen = false; continue; } const x = X(s.t[i]), y = Y(s.v[i]); if (pen) g.lineTo(x, y); else g.moveTo(x, y); pen = true; }
+    g.stroke(); }
+  g.fillStyle = "#1c7ed6"; g.fillRect(X(state.t) - 0.5, 0, 1.5, h);
+}
+let gapSeries = [];
+function computeGaps() {
+  gapSeries = []; const k0 = state.primary; if (!k0) return;
+  for (const k of KEYS) if (k !== k0) {
+    const tr = TR[k], t = [], v = [];
+    for (let i = 0; i < tr.t.length; i++) { const p = sample(k0, tr.t[i]); t.push(tr.t[i]); v.push(p && !p.stale ? Math.hypot(tr.x[i] - p.x, tr.y[i] - p.y) : null); }
+    gapSeries.push({ color: tr.color, t, v });
+  }
+}
+function drawCharts() {
+  chart("gapchart", gapSeries);
+  chart("zchart", KEYS.filter(k => k !== "pf").map(k => ({ color: TR[k].color, t: TR[k].t, v: TR[k].z })));
+}
+
+// ------------------------------------------------------------------ UI wiring
+function seek(t) { state.t = Math.max(0, Math.min(DUR, t)); draw(); drawTimeline(); drawCharts(); }
+function buildSide() {
+  const f = RUN.fixture;
+  $("baginfo").textContent = RUN.bag + (RUN.files.length > 1 ? ` (${RUN.files.length} files)` : "");
+  const warn = [];
+  if (RUN.truncated_files.length) warn.push(`Bag file(s) ${RUN.truncated_files.join(", ")} end mid-record (recorder killed before it finalised). Everything up to the cut is shown.`);
+  if (!f) warn.push("No launch fixture found in the bag (no /coursenav/drift) and none given: VIO and PX4 traces cannot be placed on the map. Re-run with --start X Y YAW_DEG.");
+  if (RUN.nav_fixture_differs) warn.push("--start differs from the fixture the drone used: VIO/PX4 traces use yours, the navigator belief keeps the drone's.");
+  if (!KEYS.length) warn.push("No position estimate found in this bag.");
+  $("warnings").innerHTML = warn.map(w => `<div class="warn">${w}</div>`).join("");
+  const sel = $("primary");
+  sel.innerHTML = KEYS.map(k => `<option value="${k}">${TR[k].label}</option>`).join("");
+  sel.onchange = () => { state.primary = sel.value; computeMinClear(); computeGaps(); draw(); drawTimeline(); drawCharts(); };
+  $("traces").innerHTML = KEYS.map(k => `<div class="trace"><div class="sw" style="background:${TR[k].color}"></div>
+    <label><input type="checkbox" id="show_${k}" checked> ${TR[k].label} <span class="sub">(${TR[k].t.length} pts)</span></label>
+    <div class="vals" id="vals_${k}"></div><div class="desc">${TR[k].desc}</div></div>`).join("");
+  for (const k of KEYS) $("show_" + k).onchange = e => { state.show[k] = e.target.checked; baseDirty = true; draw(); };
+  const kinds = { state: "vehicle state", phase: "mission phase", vio: "VIO", loc: "localizer", log: "warnings/errors" };
+  $("filters").innerHTML = Object.entries(kinds).map(([k, n]) => `<label><input type="checkbox" data-k="${k}" ${state.evkinds[k] ? "checked" : ""}> ${n}</label>`).join("");
+  for (const cb of $("filters").querySelectorAll("input")) cb.onchange = () => { state.evkinds[cb.dataset.k] = cb.checked; buildEvents(); drawTimeline(); };
+  buildEvents();
+  const about = [["map", `${MAP.name} (${MAP.obj})`], ["launch fixture", f ? `(${f.x.toFixed(3)}, ${f.y.toFixed(3)}) m, ${f.yaw_deg.toFixed(1)}°` : "none"],
+    ["fixture source", f ? f.source : "–"], ["landed height", `${RUN.landed_z} m (heights = this + rise since bag start)`],
+    ["vehicle reach", `${REACH.toFixed(3)} m`], ["bag start", new Date(RUN.t0_unix * 1000).toISOString().replace("T", " ").slice(0, 19) + " UTC (drone clock)"],
+    ["live-map frames", OCC.length || "none"], ["generated", RUN.generated || ""]];
+  $("about").innerHTML = about.map(([a, b]) => `<div>${a}</div><div>${b}</div>`).join("");
+}
+function buildEvents() {
+  const evs = RUN.events.filter(e => state.evkinds[e.kind]);
+  $("events").innerHTML = evs.map(e => `<div class="ev k-${e.kind}" data-t="${e.t}"><span class="t">${e.t.toFixed(1)}</span><span class="x"></span></div>`).join("");
+  const nodes = $("events").querySelectorAll(".ev");
+  evs.forEach((e, i) => { nodes[i].querySelector(".x").textContent = e.text; nodes[i].onclick = () => seek(e.t); });
+  draw();
+}
+let lastFrame = null;
+function tick(ts) {
+  if (!state.playing) { lastFrame = null; return; }
+  if (lastFrame != null) { state.t += (ts - lastFrame) / 1000 * state.speed; if (state.t >= DUR) { state.t = DUR; setPlaying(false); } }
+  lastFrame = ts; draw(); drawTimeline(); if ((chartsTick = (chartsTick + 1) % 6) === 0) drawCharts();
+  requestAnimationFrame(tick);
+}
+let chartsTick = 0;
+function setPlaying(p) { state.playing = p; $("play").innerHTML = p ? "&#10074;&#10074; Pause" : "&#9654; Play"; if (p) { if (state.t >= DUR) state.t = 0; requestAnimationFrame(tick); } }
+$("play").onclick = () => setPlaying(!state.playing);
+$("back").onclick = () => seek(state.t - 1); $("fwd").onclick = () => seek(state.t + 1);
+$("speed").onchange = e => state.speed = +e.target.value;
+$("trail").onchange = e => { state.trail = +e.target.value; draw(); };
+$("follow").onchange = e => { state.follow = e.target.checked; draw(); };
+for (const id of ["L_mesh", "L_grid", "L_full"]) $(id).onchange = () => { baseDirty = true; draw(); };
+for (const id of ["L_slice", "L_occ", "L_plan", "L_goals", "L_reach"]) $(id).onchange = () => draw();
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+  if (e.code === "Space") { e.preventDefault(); setPlaying(!state.playing); }
+  else if (e.code === "ArrowLeft") seek(state.t - (e.shiftKey ? 5 : 0.5));
+  else if (e.code === "ArrowRight") seek(state.t + (e.shiftKey ? 5 : 0.5));
+});
+// timeline scrubbing
+const tl = $("tl"); let scrubbing = false;
+const scrub = e => { const r = tl.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * DUR); };
+tl.onmousedown = e => { scrubbing = true; scrub(e); };
+window.addEventListener("mousemove", e => { if (scrubbing) scrub(e); });
+window.addEventListener("mouseup", () => { scrubbing = false; dragging = null; cv.classList.remove("dragging"); });
+// pan / zoom
+let dragging = null;
+cv.onmousedown = e => { dragging = { x: e.clientX, y: e.clientY, cx: state.view.cx, cy: state.view.cy }; cv.classList.add("dragging"); };
+cv.addEventListener("mousemove", e => {
+  const r = cv.getBoundingClientRect(), X = wx(e.clientX - r.left), Y = wy(e.clientY - r.top);
+  $("hover").textContent = `cursor (${X.toFixed(2)}, ${Y.toFixed(2)}) m`;
+  if (!dragging) return;
+  state.view.cx = dragging.cx - (e.clientX - dragging.x) / state.view.s;
+  state.view.cy = dragging.cy + (e.clientY - dragging.y) / state.view.s; baseDirty = true; draw();
+});
+cv.addEventListener("wheel", e => {
+  e.preventDefault(); const r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  const X = wx(px), Y = wy(py), k = Math.exp(-e.deltaY * 0.0015); state.view.s *= k;
+  state.view.cx = X - (px - W / 2) / state.view.s; state.view.cy = Y + (py - H / 2) / state.view.s; baseDirty = true; draw();
+}, { passive: false });
+cv.ondblclick = () => { resetView(); baseDirty = true; draw(); };
+window.addEventListener("resize", resize);
+
+buildSide(); computeMinClear(); computeGaps(); resize();
+const m0 = /[#&]t=([0-9.]+)/.exec(location.hash); seek(m0 ? +m0[1] : 0);
+window.addEventListener("hashchange", () => { const m = /[#&]t=([0-9.]+)/.exec(location.hash); if (m) seek(+m[1]); });
+</script>
+</body>
+</html>
