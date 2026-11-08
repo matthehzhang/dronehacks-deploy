@@ -117,7 +117,9 @@ class LocalGrid:
         free = np.setdiff1d(free, occ, assume_unique=True)
         flat, seen = self.L.reshape(-1), self.seen.reshape(-1)
         flat[free] += self.p.l_free
-        flat[occ] += self.p.l_occ
+        # A return overrides accumulated free belief: a new obstacle in long-free space
+        # becomes occupied after the same few returns as in fresh space.
+        flat[occ] = np.maximum(flat[occ], 0.) + self.p.l_occ
         np.clip(flat, self.p.l_min, self.p.l_max, out=flat)
         touched = np.concatenate([free, occ])
         seen[touched] = np.minimum(seen[touched].astype(np.int32) + 1, 65535)

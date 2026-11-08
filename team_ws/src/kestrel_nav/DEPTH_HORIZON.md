@@ -154,3 +154,35 @@ zero recorded touches and confirmed disarm. Both are partial first-target tests
 (`flight_completed=false` by design), not full-course runs. An intermediate
 Gazebo attempt never spawned the aircraft model and was stopped unarmed; its
 retry is the east-offset result. Final reduced-package suite: 32 passed.
+
+
+## FASTER-style committed horizons and reduced clearance (2026-11-08)
+
+Gazebo run stack_20261108T123141Z reached waypoint 1, briefly had a leg-2
+route, then stalled 4+ minutes in search: observed footprint clearance fell to
+0.33-0.37 m (required 0.414) while measured-obstacle clearance stayed 0.50 m.
+Mixed/decayed evidence near the aircraft revoked its own footprint coverage,
+and brief depth gaps withdrew the route.
+
+Method adopted from FASTER (Tordesillas, Lopez, Everett, How; IROS 2019,
+T-RO 2022, arXiv:2001.04420): plan a guide through known-free AND unknown space
+(measured obstacles and the room block it), commit only to its prefix inside
+certified space with the stop (backup) there, and replan continuously so the
+prefix extends ahead of the aircraft. Changes:
+
+- Certified = observed at least once with probability < 70, not a measured
+  obstacle, plus the airframe's own body disc. Never-observed stays unknown.
+- A depth return now overrides accumulated free belief in that cell, so new
+  obstacles still need only ~3 returns.
+- Committed prefix of the optimistic guide is preferred; frontier observation
+  poses (must advance) are the fallback when the prefix is shorter than 0.4 m.
+- Navigator replans every 0.5 s while following a non-terminal route; a failed
+  or shorter extension keeps the current route. Depth gaps up to 1.5 s keep
+  the committed route instead of withdrawing it.
+- Follower tracks receding replans in motion unless their initial heading
+  differs by > 45 deg.
+- margin_m 0.12 -> 0.05 and raster allowance res*sqrt(2)/2 -> res/2: effective
+  centre clearance 0.449 -> 0.369 m. Offline widest-path analysis of the
+  topview_entrance 5 cm map (analysis only, not loaded by the policy) gave
+  bottlenecks of 0.400 m at the launch point and 0.412 m at the window: both
+  were impossible at 0.449 m. Rotor-tip radius 0.294 m is the physical floor.

@@ -63,6 +63,8 @@ class Params:
     search_sweep_deg: float = 60.0             # search yaws at most this far either side of the bearing to the
                                                 # active waypoint (never a full-circle scan)
     search_step_deg: float = 30.0              # dwell headings inside that sector
+    replan_reorient_deg: float = 45.0          # while moving, a receding replan is tracked in motion unless its
+                                                # initial heading differs by more than this (then stop and turn)
     corridor_wait_land_s: float = -1.0          # >= 0: land when the current leg's corridor has gone this long
                                                 # without an observing frame (in check or go). < 0 (default): hold
                                                 # and wait indefinitely (original rule)
@@ -379,7 +381,8 @@ class Mission:
                 desired = self._path_at(self.p.path_lookahead_m)[1]
                 if self.phase in ("blocked", "backoff", "recheck") or (self.last_v is not None
                         and self.last_v.heading is not None
-                        and abs(_wrap(desired - self.last_v.heading)) > math.radians(self.p.face_tol_deg)):
+                        and abs(_wrap(desired - self.last_v.heading)) > math.radians(
+                            self.p.replan_reorient_deg if self.phase == 'go' else self.p.face_tol_deg)):
                     self.path_reorient = True
         return True
 

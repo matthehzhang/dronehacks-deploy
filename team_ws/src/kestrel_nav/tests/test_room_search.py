@@ -95,9 +95,44 @@ def test_observation_pose_advances_toward_waypoint():
     prob[:60, :] = 10                     # observed free up to x = 2
     n.update((-1., -2.5), .05, prob)
     p = n.plan((0., 0.), (4., 0.))
-    assert not n.terminal
-    assert n.diag['progress_m'] >= .15
-    assert np.linalg.norm(p.pts[-1]-(4., 0.)) < 4.-.15
+    assert not n.terminal and n.diag['commit'] == 'guide_prefix'
+    assert np.linalg.norm(p.pts[-1]-(4., 0.)) < 4.-1.          # commits most of the seen space
+    assert p.v[-1] == 0 and n._safe_points(p.pts)               # backup stop inside certified space
+    assert np.interp(.1, p.s, p.v) > 0
+
+
+def test_guide_prefix_extends_as_space_is_revealed():
+    n = planner()
+    prob = np.full((120, 100), -1)
+    prob[:40, :] = 10                     # seen to x = 1
+    n.update((-1., -2.5), .05, prob)
+    first = n.plan((0., 0.), (4., 0.)).pts[-1, 0]
+    prob[:80, :] = 10                     # camera sees 2 m further along the guide
+    n.update((-1., -2.5), .05, prob)
+    second = n.plan((.3, 0.), (4., 0.)).pts[-1, 0]
+    assert second > first+1.5
+
+
+def test_mixed_or_decayed_evidence_still_certified_but_return_dominated_is_not():
+    n = planner()
+    prob = np.full((100, 100), 10)
+    prob[45:55, 45:55] = 50               # decayed / speck-filtered cells around the aircraft
+    n.update((-2.5, -2.5), .05, prob)
+    assert n.plan((0., 0.), (1., 0.)) is not None and n.terminal
+    prob[49:52, 52:55] = 80               # several unconfirmed returns 0.15 m beside it
+    n.update((-2.5, -2.5), .05, prob)
+    with pytest.raises(PlanError, match='start_footprint_not_observed_clear'):
+        n.plan((0., 0.), (1., 0.))
+
+
+def test_body_disc_is_certified_but_does_not_override_measured_obstacles():
+    n = planner(body_radius=.3)
+    prob = np.full((100, 100), -1)
+    n.update((-2.5, -2.5), .05, prob, position=(0., 0.))
+    assert n.free[50, 50] and not n.free[50, 60]
+    prob[50, 52] = 95
+    n.update((-2.5, -2.5), .05, prob, position=(0., 0.))
+    assert not n.free[50, 52]
 
 
 def test_detour_around_measured_wall_counts_as_progress_but_unknown_is_never_flown():
@@ -110,7 +145,7 @@ def test_detour_around_measured_wall_counts_as_progress_but_unknown_is_never_flo
     prob[50:53, :95] = 95                  # wall at x~0.6, y < 1.25
     n.update((-2., -3.5), .05, prob)
     p = n.plan((0., -1.), (3., -1.))
-    assert not n.terminal and n.diag['progress_m'] > 0
+    assert not n.terminal
     assert p.pts[:, 1].max() > 1.2         # goes around the wall's open end
     assert n._safe_points(p.pts)           # only certified cells
 
@@ -189,3 +224,16 @@ def test_waypoint_goal_ne_feeds_sweep_not_horizon_endpoint():
     m.depth_t = 2.
     m.step(2., m.last_v)
     assert m.phase == 'search' and math.isclose(m.search_center, 0.)
+
+
+def test_new_obstacle_in_long_free_cell_is_occupied_after_three_returns():
+    from coursenav.localgrid import LocalGrid, LocalParams
+    from coursenav.scan import Scan
+    g = LocalGrid(LocalParams(min_cells=1))
+    far = Scan(np.array([0.]), np.array([2.5]), np.array([.05]))
+    for k in range(20):
+        g.integrate(float(k)*.1, (0., 0., 0.), far)       # ray at 1 m observed free many times
+    near = Scan(np.array([0.]), np.array([1.0]), np.array([.05]))
+    for k in range(3):
+        g.integrate(2.+k*.1, (0., 0., 0.), near)
+    assert g.occupied().any()

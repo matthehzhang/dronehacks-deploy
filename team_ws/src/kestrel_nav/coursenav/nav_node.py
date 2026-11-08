@@ -37,8 +37,10 @@ class NavNode(Node):
         # Declared enclosure limits: a hard constraint independent of depth (nets may be invisible).
         self.room = RoomBoundary.load(resolve(doc, 'room_boundary_file')) if doc.get('room_boundary_file') else None
         self.depth_nav = DepthPlanner(need, sp, rd.get('start_xy'), float(dp('pilot_verified_launch_radius_m', 0.0).value),
-                                      room=self.room)
+                                      room=self.room, body_radius=float(doc['vehicle']['radius_m']))
         self.depth_plan_t = -math.inf
+        self.replan_s = float(dp('replan_s', 0.5).value)
+        self.stale_grace_s = float(dp('stale_grace_s', 1.5).value)
         self.depth_plan_revision = -1
         self.last_obstacle_stops = 0
         self.local_fields = None
@@ -141,11 +143,22 @@ class NavNode(Node):
                                         required_m=round(n.need, 3))
         fresh = self.local_stamp is not None and -0.05 <= now - self.local_stamp <= 0.5 and (not self.local_error)
         out.update(local_map_fresh=bool(fresh), local_map_error=self.local_error)
-        if not fresh or self.local_fields is None:
+        grace = (self.local_stamp is not None and now - self.local_stamp <= self.stale_grace_s
+                 and n.path is not None and self.nav_leg == leg)
+        if (not fresh or self.local_fields is None) and grace:
+            # Brief depth gap: keep the already-certified committed route (its stop lies
+            # in known-free space); no replanning on stale data. refnav keeps its own
+            # depth-loss checks.
+            out.update(reason='depth_gap_holding_committed_route', plan_error='')
+            P = n.path
+            out.update(valid=True, pid=self.pid, terminal=bool(n.terminal), goal_course=list(map(float, self.nav_legs[leg]['stop'])),
+                       horizon_course=P.pts[-1].tolist(), pts_course=P.pts.round(4).tolist(), pts_ne=to_ned(P.pts).round(4).tolist(),
+                       v=P.v.round(4).tolist(), stops=list(P.stops), tubes=None if P.tube is None else P.tube.round(4).tolist())
+        elif not fresh or self.local_fields is None:
             n.path = None
             out.update(reason='fresh_depth_grid_required', plan_error='fresh_depth_grid_required')
         elif leg < len(self.nav_legs) and phase in AIRBORNE:
-            n.update(*self.local_fields)
+            n.update(*self.local_fields, position=position)
             start_cell = n.grid.ij(position)
             if n.grid.inside(start_cell):
                 out['start_clearance'] = dict(required_m=n.need,
@@ -167,18 +180,30 @@ class NavNode(Node):
             unsafe = n.path is not None and (not n.safe(position))
             if unsafe or changed or reached or guard_changed:
                 n.path = None
-            extend = n.path is not None and (not n.terminal) and (now - self.depth_plan_t >= 1.0) and (n.revision != self.depth_plan_revision)
-            near_end = n.path is not None and np.linalg.norm(position - n.path.pts[-1]) < 0.65
-            want = n.path is None or (extend and near_end)
+            # Receding horizon (FASTER-style): while following a non-terminal route, replan
+            # whenever the map changed so the committed prefix keeps extending ahead.
+            extend = (n.path is not None and (not n.terminal) and now - self.depth_plan_t >= self.replan_s
+                      and n.revision != self.depth_plan_revision)
+            want = n.path is None or extend
             if want and now - self.depth_plan_t >= 0.5:
                 self.depth_plan_t = now
+                kept, kept_terminal, kept_reason = n.path, n.terminal, n.reason
                 try:
-                    n.plan(position, goal, v_start=float(self.status.get('v_cmd') or 0.0))
+                    new = n.plan(position, goal, v_start=float(self.status.get('v_cmd') or 0.0))
+                    if kept is not None and not n.terminal and new.length < .5*kept.length - .3:
+                        # A shorter commit than what remains is not an extension; keep the route.
+                        remaining = kept.length - float(np.min(np.linalg.norm(kept.pts - position, axis=1)))
+                        if new.length < remaining - .3:
+                            n.path, n.terminal, n.reason = kept, kept_terminal, kept_reason
+                            raise PlanError('')
                     self.depth_plan_revision = n.revision
                     self.pid += 1
                     self.nav_leg = leg
                     self.last_plan_error = ''
                 except PlanError as exc:
+                    if kept is not None and n.path is None:
+                        n.path, n.terminal, n.reason = kept, kept_terminal, kept_reason   # extension failed: keep route
+                    self.depth_plan_revision = n.revision
                     self.last_plan_error = str(exc)
             out.update(local_obstacle_cells=int(n.grid.occ.sum()), plan_error=self.last_plan_error, reason=self.last_plan_error or n.reason,
                        planner=dict(n.diag))

@@ -12,7 +12,7 @@
   },
   "vehicle": {
     "radius_m": 0.29408284528683193,
-    "margin_m": 0.12,
+    "margin_m": 0.05,
     "propeller_diameter_m": 0.1778,
     "rotor_centres_xy_m": [
       [

@@ -8,11 +8,18 @@ enclosure is a separate hard constraint). An optional pilot-verified launch
 disc is fixed in the odometry frame; it never overrides a measured obstacle
 or the room boundary. PURE: no ROS or flight commands.
 
-Observation poses (non-terminal horizons) must ADVANCE toward the active
-waypoint under an optimistic cost-to-go: a grid distance in which measured
-obstacles and the room boundary block, and unknown space is assumed passable.
-That optimism is used only to rank where to look next; it never certifies a
-cell for flight and never creates an obstacle.
+Committed horizons follow FASTER (Tordesillas et al., IROS 2019 / T-RO 2022):
+a GUIDE route to the waypoint is planned optimistically through known-free AND
+unknown space (measured obstacles and the room block it), and the aircraft
+commits only to the guide's prefix that lies in certified space, ending in a
+stop there (the backup). Replanning keeps extending that prefix as the camera,
+looking along the guide, observes more, so the stop is normally never reached.
+Unknown space is never flown and never turned into an obstacle.
+
+Certified space = observed at least once, below the uncertain-evidence level,
+not a measured obstacle, plus the aircraft's own body disc (it is physically
+there). Mixed or decayed evidence no longer revokes coverage; obstacles still
+need their own returns.
 """
 from dataclasses import replace
 import math
@@ -68,7 +75,8 @@ def grid_distances(passable, res, sources):
 
 class DepthPlanner:
     def __init__(self, need, smooth, launch_xy=None, launch_radius=0., room=None,
-                 min_progress=.15, frontier_band=.4):
+                 min_progress=.15, frontier_band=.4, body_radius=None, certify_below=70,
+                 min_commit_m=.4):
         if not np.isfinite(launch_radius) or not 0 <= launch_radius <= 2.:
             raise ValueError('pilot-verified launch radius must be between 0 and 2 m')
         self.need, self.sp = float(need), replace(smooth, need_m=float(need))
@@ -76,6 +84,8 @@ class DepthPlanner:
         self.launch_radius = float(launch_radius)
         self.room = room
         self.min_progress, self.frontier_band = float(min_progress), float(frontier_band)
+        self.body_radius = None if body_radius is None else float(body_radius)
+        self.certify_below, self.min_commit_m = int(certify_below), float(min_commit_m)
         self.path = None
         self.terminal = False
         self.visits = []
@@ -101,18 +111,24 @@ class DepthPlanner:
                 self._room_pad = self.room.contains(self.grid.xy(pij))
         return self._room_cells
 
-    def update(self, origin, res, probabilities):
+    def update(self, origin, res, probabilities, position=None):
         prob = np.asarray(probabilities)
         if prob.ndim != 2 or not np.isfinite(prob).all() or not .01 <= res <= .1:
             raise ValueError('invalid local depth grid')
         occupied = prob >= 88
-        free = (prob >= 0) & (prob <= 45)
+        # Observed, not dominated by returns: certified. Never-observed (-1) stays unknown.
+        free = (prob >= 0) & (prob < self.certify_below)
         self.grid = Grid2D(occupied, np.asarray(origin, float), float(res))
+        xy = None
         if self.launch_radius > 0 and self.launch_xy is not None:
             xy = self.grid.xy(np.indices(prob.shape).transpose(1, 2, 0))
             free |= np.linalg.norm(xy-self.launch_xy, axis=2) <= self.launch_radius
+        if self.body_radius and position is not None:
+            # The airframe occupies this disc right now: physically free, not assumed.
+            xy = self.grid.xy(np.indices(prob.shape).transpose(1, 2, 0)) if xy is None else xy
+            free |= np.linalg.norm(xy-np.asarray(position, float)[:2], axis=2) <= self.body_radius
         free &= ~occupied
-        raster = res*math.sqrt(2)/2       # cell-centre raster uncertainty, once
+        raster = res/2                    # cell-centre raster uncertainty, once
         # Pad boundaries: leaving the rolling sensor window is unknown.
         observed_clear = ndimage.distance_transform_edt(np.pad(free, 1))[1:-1, 1:-1]*res
         obstacle_clear = (ndimage.distance_transform_edt(~occupied)*res if occupied.any()
@@ -225,7 +241,9 @@ class DepthPlanner:
         if self.terminal:
             endpoint = goal
         else:
-            endpoint = self._observation_pose(start, goal, dist)
+            endpoint = self._committed_prefix(start, goal, dist)
+            if endpoint is None:
+                endpoint = self._observation_pose(start, goal, dist)
         poly = astar(self.blocked, self.clear, start, endpoint)
         if np.linalg.norm(endpoint-start) <= .05:
             # Already in capture range: still provide a terminal path so the
@@ -240,8 +258,54 @@ class DepthPlanner:
         if path.length > .15 and np.interp(.1, path.s, path.v) <= 1e-6:
             raise PlanError('non_executable_zero_speed_prefix')
         self.path = path
-        self.reason = 'waypoint_route' if self.terminal else 'observation_route_toward_waypoint'
+        self.reason = ('waypoint_route' if self.terminal else
+                       'committed_guide_prefix' if self.diag.get('commit') == 'guide_prefix'
+                       else 'observation_route_toward_waypoint')
         return path
+
+    def _guide(self, start, h):
+        """Steepest descent of the optimistic cost-to-go: the shortest optimistic route, as cells."""
+        c = tuple(self.grid.ij(start))
+        nx, ny = h.shape
+        cells = [c]
+        for _ in range(4*(nx+ny)):
+            best, nxt = h[c], None
+            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
+                a, b = c[0]+di, c[1]+dj
+                if not (0 <= a < nx and 0 <= b < ny) or not np.isfinite(h[a, b]):
+                    continue
+                if di and dj and not (np.isfinite(h[c[0]+di, c[1]]) and np.isfinite(h[c[0], c[1]+dj])):
+                    continue
+                if h[a, b] < best-1e-9:
+                    best, nxt = h[a, b], (a, b)
+            if nxt is None:
+                break
+            c = nxt
+            cells.append(c)
+        return cells
+
+    def _committed_prefix(self, start, goal, dist):
+        """FASTER-style commit: the guide's prefix inside certified space (stop there as backup)."""
+        h = self.cost_to_go(goal)
+        if not np.isfinite(h[tuple(self.grid.ij(start))]):
+            return None
+        guide = self._guide(start, h)
+        k = 0
+        while k+1 < len(guide) and np.isfinite(dist[guide[k+1]]):
+            k += 1
+        # Back off to a cell whose stop is clearly inside certified space.
+        while k > 0 and self.clear[guide[k]] < self.need+self.grid.res:
+            k -= 1
+        end = self.grid.xy(guide[k])
+        gxy = self.grid.xy(np.array(guide))
+        self.diag.update(guide_m=round(float(np.sum(np.linalg.norm(np.diff(gxy, axis=0), axis=1))), 3),
+                         guide_end_course=gxy[-1].round(3).tolist(),
+                         commit_m=round(float(dist[guide[k]]), 3) if k else 0.)
+        if k == 0 or dist[guide[k]] < self.min_commit_m:
+            self.diag['commit'] = 'prefix_too_short'
+            return None
+        self.diag['commit'] = 'guide_prefix'
+        return end
 
     def _observation_pose(self, start, goal, dist):
         """A reachable pose near unobserved room space that reduces the optimistic cost-to-go."""
