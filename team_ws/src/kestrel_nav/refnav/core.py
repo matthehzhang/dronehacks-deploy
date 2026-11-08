@@ -58,7 +58,11 @@ class Params:
     vertical_search: bool = True               # a full heading sweep found no route while a face blocks the way
                                                 # close ahead: try other heights (a sill above cruise, a bar below
                                                 # it) with a short sweep at each, before the headings repeat
-    vertical_search_offsets_m: tuple = (0.25, 0.5, 0.7, -0.3)   # from cruise, in order, clipped to alt_min..max
+    vertical_search_window_m: float = 1.35      # first height tried, ABOVE THE FLOOR: the window's centre (~55 in).
+                                                # 0.95 m above home (1.06 m above the floor) left the 0.914 m sill
+                                                # inside the navigator's +/-0.25 m band and the drone hovered there
+    floor_below_home_m: float = 0.10           # the landed body origin's height above the floor (fly_course: landed_z)
+    vertical_search_offsets_m: tuple = (-0.3,)  # then these, from cruise, in order, clipped to alt_min..max
     vertical_face_m: float = 1.2               # a face this close ahead at the current height starts the ladder
     vertical_hold_s: float = 20.0              # a height found by searching is held until past the face, at most this
     replan_reorient_deg: float = 45.0          # while moving, a receding replan is tracked in motion unless its
@@ -879,8 +883,9 @@ class Mission:
             if face is None:
                 return False                                   # open space or a far wall: headings only
             levels = []
-            for off in p.vertical_search_offsets_m:
-                lv = min(max(p.height_m + off, p.alt_min_m), p.alt_max_m, face[1])
+            window = p.vertical_search_window_m - p.floor_below_home_m      # above home, like every height here
+            for lv in [window] + [p.height_m + off for off in p.vertical_search_offsets_m]:
+                lv = min(max(lv, p.alt_min_m), p.alt_max_m, face[1])
                 if abs(lv - p.height_m) >= .05 and all(abs(lv - q) >= .05 for q in levels):
                     levels.append(lv)
             self.vsearch = dict(levels=levels, i=0, face_m=face[0], heading=self.search_center)

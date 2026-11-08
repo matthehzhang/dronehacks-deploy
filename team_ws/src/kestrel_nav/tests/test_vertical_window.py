@@ -181,3 +181,22 @@ def test_course_file_uses_sparse_depth_and_45_degree_look_around():
     rp = doc['refnav_params']
     assert rp['min_valid_frac_static'] <= .05 and rp['min_valid_frac'] <= .1
     assert rp['search_step_deg'] == 45. and rp['search_sweep_deg'] == 90.
+
+
+@pytest.mark.parametrize('floor', [.10, .18])
+def test_altitude_search_goes_straight_to_window_height_above_the_floor(floor):
+    """Blocked at the window: the first height tried is 1.35 m above the FLOOR (window centre ~55 in),
+    whatever the landed body height; not a small step up that leaves the sill in the navigator's band."""
+    m = blocked_mission()
+    m.p.floor_below_home_m = floor
+    t, first = 2., None
+    for _ in range(3000):
+        t += .05
+        h = -m.sp[2]
+        m.depth_t = t
+        m.depth_pts = scene(.5, .9144, 1.6256, h + floor - .1)
+        m.step(t, Vehicle(pos=(0., 0., -h), heading=m.sp[3], pos_ok=True, vel=(0., 0., 0.)))
+        if m.vc.override is not None:
+            first = m.vc.override
+            break
+    assert first is not None and abs(first + floor - 1.35) < 1e-9
