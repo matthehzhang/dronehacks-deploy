@@ -80,10 +80,12 @@ verify the real raised crossing. Preview the actual preprocessed route and heigh
 targets with `python tools/preview_window_height.py`; outputs go to
 `plans/window_height_review/`. These are target diagrams, not flight simulations.
 
-The final landing goal is now **(-2.0422, -1.5425) m**: 0.75 m farther from
-the start along the vertical map axis (-course y), with x unchanged. The
-pad's `from.offset_xy_m=[0.0, -0.75]` records this user-measured adjustment
-relative to the imported marking; OBJ/voxel geometry remains unchanged.
+The final landing goal is now **(-2.3250, -1.8253) m**: 0.75 m farther from
+the start along the vertical map axis (-course y), then a further 0.40 m along
+the -x/-y (south-west) diagonal after a flight landed on the pad's far edge,
+diagonally right of centre. The pad's `from.offset_xy_m=[-0.2828, -1.0328]`
+records this user-measured adjustment relative to the imported marking;
+OBJ/voxel geometry remains unchanged.
 
 After `tunnel_exit`, the route now requires a full stop at `tunnel_clearance`,
 course ENU **(2.05, -1.85) m**, before turning toward the window. This is an
