@@ -17,6 +17,7 @@ from .localgrid import occupied_points_from_grid
 from .depth_planner import DepthPlanner
 from .course import resolve
 from .room import RoomBoundary
+from .airframe import planning_clearance
 AIRBORNE = ('hold', 'turn', 'check', 'go', 'blocked', 'backoff', 'recheck', 'align', 'search')
 
 class NavNode(Node):
@@ -32,7 +33,7 @@ class NavNode(Node):
         self.nav_legs = rd['nav_legs']
         doc = load_course()
         self.depth_only = True
-        need = float(doc['vehicle']['radius_m'] + doc['vehicle']['margin_m'])
+        need = planning_clearance(doc['vehicle'])
         sp = smooth_params_for(rd.get('navigation', {}), rd.get('params', {}), need)
         # Declared enclosure limits: a hard constraint independent of depth (nets may be invisible).
         self.room = RoomBoundary.load(resolve(doc, 'room_boundary_file')) if doc.get('room_boundary_file') else None

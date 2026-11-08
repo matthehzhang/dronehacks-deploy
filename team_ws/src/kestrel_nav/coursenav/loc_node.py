@@ -93,6 +93,8 @@ class LocNode(Node):
         self.local = LocalGrid(LocalParams())
         self.local_stamp = None
         self.local_height = None
+        self.band_half_m = float(dp('band_half_m', 0.25).value)   # airframe vertical sweep + margin
+        self._h_off, self._h_t = None, 0.
         self.local_error = 'waiting for fresh calibrated depth and odometry'
         self.height = None                     # (stamp_wall, metres of the body origin above the floor)
         self.vio_ok = True
@@ -188,6 +190,22 @@ class LocNode(Node):
         r, t = tf.transform.rotation, tf.transform.translation
         return quat_to_mat(r.w, r.x, r.y, r.z), np.array([t.x, t.y, t.z])
 
+    def _flight_height(self, z_vio):
+        """Body height above the floor: VIO z anchored to the rangefinder height and corrected
+        slowly (tau 10 s). The rangefinder alone reads a sill or object below as the floor rising."""
+        now = time.monotonic()
+        rf = self.height[1] if self.height is not None and 0 <= now - self.height[0] <= .5 else None
+        if rf is not None:
+            if self._h_off is None:
+                self._h_off = rf - z_vio
+            else:
+                dt = max(0., now - self._h_t)
+                self._h_off += min(1., dt/10.)*((rf - z_vio) - self._h_off)
+            self._h_t = now
+        if self._h_off is None:
+            return rf if rf is not None else .8
+        return z_vio + self._h_off
+
     def _on_lpos_height(self, m):
         """dist_bottom while plausible (0.02-3 m; PX4 1.16 with range as the height reference may leave
         dist_bottom_valid false although it carries the range), else landed_z_m minus NED z."""
@@ -261,7 +279,7 @@ class LocNode(Node):
             return
         self.counts["scans"] += 1
         R_level = level_from_px4_q(self.att)
-        h = self.height[1] if self.height is not None else 0.8
+        h = self._flight_height(od[2])
         pts = depth_points_level(d, self.K, self.cam_cal[1], self.cam_cal[2], R_level)
         # The prior matcher is diagnostic infrastructure only in this mode.
         # Neither its fit nor its correction may influence local geometry.
@@ -287,13 +305,11 @@ class LocNode(Node):
                 or self.local_stamp is not None and captured <= self.local_stamp):
             self.local_error = 'local map requires fresh depth, attitude, height and healthy capture-matched VIO'
             return False
-        if self.local_height is None or abs(height-self.local_height) > .2:
-            # A 2-D obstacle map at another altitude is not this flight band.
-            self.local = LocalGrid(self.local.p)
-            self.local_height = height
-        # Never turn the visible ground into a ring of apparent walls during
-        # takeoff. The origin-map keep-outs and immediate depth guard remain.
-        scan = scan_from_points(points,height,max(.15,height-.4),height+.4,rmin=.3,rmax=12.)
+        # The band follows the aircraft (vertical centring changes height on purpose); walls
+        # are vertical, so the map is kept. Surfaces outside the band are handled by the
+        # vertical centring, not as 2-D walls. The floor is never in the band.
+        self.local_height = height
+        scan = scan_from_points(points,height,max(.15,height-self.band_half_m),height+self.band_half_m,rmin=.3,rmax=12.)
         self.local.integrate(captured,compose(self.nominal,pose),scan)
         self.local_stamp = captured
         self.local_error = ''

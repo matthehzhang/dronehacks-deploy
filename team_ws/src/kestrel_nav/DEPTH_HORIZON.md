@@ -186,3 +186,34 @@ prefix extends ahead of the aircraft. Changes:
   topview_entrance 5 cm map (analysis only, not loaded by the policy) gave
   bottlenecks of 0.400 m at the launch point and 0.412 m at the window: both
   were impossible at 0.449 m. Rotor-tip radius 0.294 m is the physical floor.
+
+
+## Height, vertical centring, clearance and legacy removal (2026-11-08)
+
+Run stack_20261108T124724Z cleared entrance, tunnel and window_pre, then touched
+the window top at z 1.147 m. Cause: drone-14 / sky_beta uses the rangefinder
+as PX4's height reference (EKF2_HGT_REF 2, EV height not fused). Over the
+window sill PX4's height estimate dropped, refnav's altitude loop commanded
++0.2 m/s, and loc_node (rangefinder height) wiped its local map on the >0.2 m
+"height change", so the window frame vanished from the planner.
+
+- Altitude hold and loc_node use VIO z anchored to the rangefinder height and
+  corrected slowly (tau 10 s); a sill or object below no longer moves them. No
+  local-map wipe on height change.
+- refnav.vertical: the altitude target is the midpoint of the opening measured
+  by depth in the corridor ahead (lowest surface above, highest below, floor
+  excluded), keeping vertical_clearance_m from each edge; one-sided surfaces
+  keep that clearance; otherwise cruise height. No opening height is
+  configured anywhere. The target is held until 0.4 m past the opening and is
+  rate limited to 0.25 m/s within 0.35-1.5 m.
+- The 2-D depth band is the flight height +/-0.25 m (vertical sweep + margin);
+  surfaces outside it are the vertical centring's job.
+- Planning clearance = lateral half-width 0.249 m + margin 0.12 m = 0.369 m
+  (the follower faces along its path), never below rotor-tip radius + 0.05 m.
+- Removed from the follower: corridor check phase, live-depth obstacle stops,
+  live speed caps, tube holds, first-turn gate, corridor-wait search/landing,
+  depth-silence landing, safe-landing retreat, sim forced disarm, tunnel and
+  alignment remnants, map corrections; refnav/speed.py and unused depth helpers.
+  Motion is limited only by the planner's measured walls and room boundary.
+  Kept: arm/disarm and Offboard authority (yield to pilot/PX4), estimator
+  unhealthy and PX4 position invalid landings, landing requests.

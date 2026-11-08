@@ -25,5 +25,18 @@ def vehicle_geometry(vehicle):
                 raise ValueError('rotor centres must be finite body-frame XY pairs')
             reaches.append(math.hypot(*centre) + diameter / 2)
         radius = max(radius, max(reaches))
+        # Half-width across the direction of travel (the follower faces along its path).
+        result['lateral_m'] = max(abs(float(c[1])) for c in centres) + diameter / 2
     result.update(radius_m=radius, margin_m=margin)
     return result
+
+
+def planning_clearance(vehicle, turn_floor_m=0.05):
+    """Centre clearance the 2-D planner requires.
+
+    The follower always faces along its path, so the airframe's extent across the
+    path is its lateral half-width; the margin is kept around that. The full
+    rotor-tip circle (any yaw) plus turn_floor_m stays a hard lower bound, so an
+    in-place turn on the route never reaches a surface."""
+    lateral = float(vehicle.get('lateral_m', vehicle['radius_m']))
+    return max(lateral + float(vehicle['margin_m']), float(vehicle['radius_m']) + turn_floor_m)

@@ -206,18 +206,15 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
               f"{p['predicted_false_blocks']}")
 
     params = {k: v for k, v in doc.get("refnav_params", {}).items() if not k.startswith("_")}
-    # simulator-configuration workarounds; refnav ignores them unless the node runs on sim time
-    params.update({k: v for k, v in doc.get("sim_profile", {}).get("refnav", {}).items() if not k.startswith("_")})
     navcfg = {k: v for k, v in doc.get("navigation", {}).items() if not k.startswith("_")}
     nav_mode = 'path'
     yaw=math.radians(syaw);c,s=math.cos(yaw),math.sin(yaw)
     nav_legs=[dict(name=w['name'],stop=w['xy'],goals=[w['xy']],path=True) for w in p['waypoints'][1:]]
     params.update(navcfg.get('refnav',{}))
-    params.update(track_mode='path',local_horizon=True,corridor_search=True,correction_max_m=0.)
+    params.update(track_mode='path',local_horizon=True)
     route_doc = {"route": route, "legs": legs, "params": params,
                  "_note": f"RUN RECORD of fly_course.py at {stamp}: planned from start {source} "
                           f"({sx:.4f}, {sy:.4f}, {syaw:.2f} deg). Rule 6.4: never an input to a later run."}
-    route_doc['land_columns'] = []
     if nav_legs is not None:
         route_doc["nav_legs"] = nav_legs
         route_doc["start_xy"] = [float(sx), float(sy)]   # skybeta: the navigator pre-plans each leg from its start

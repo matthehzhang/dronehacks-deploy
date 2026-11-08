@@ -12,7 +12,7 @@
   },
   "vehicle": {
     "radius_m": 0.29408284528683193,
-    "margin_m": 0.05,
+    "margin_m": 0.12,
     "propeller_diameter_m": 0.1778,
     "rotor_centres_xy_m": [
       [
@@ -52,17 +52,14 @@
     "overshoot_b": 0.576,
     "overshoot_margin_m": 0.1,
     "stop_approach_m": 1.0,
+    "arc_min_tube_m": 0.16,
+    "center_stops": true,
+    "center_face_min_m": 0.8,
+    "geometry_source": "depth_only",
     "refnav": {
-      "path_tube_gate": true,
       "path_heading_lead_deg": 25.0,
       "path_lookahead_m": 0.2,
       "yaw_rate_dps": 30.0,
-      "geometry_speed": true,
-      "response_delay_s": 0.75,
-      "side_near_m": 0.4,
-      "side_extra_m": 0.3,
-      "side_min_mps": 0.15,
-      "side_reach_m": 1.0,
       "speed_mps": 0.5,
       "accel_mps2": 0.5,
       "brake_mps2": 0.4,
@@ -70,58 +67,20 @@
       "arrive_settle_s": 0.3,
       "hold_s": 0.25,
       "yaw_accel_dps2": 0.0,
-      "first_turn_gate_s": 4.5,
       "path_lat_accel_max_mps2": 0.3,
-      "local_horizon": true,
-      "corridor_search": true
-    },
-    "arc_min_tube_m": 0.16,
-    "center_stops": true,
-    "center_face_min_m": 0.8,
-    "geometry_source": "depth_only"
+      "local_horizon": true
+    }
   },
   "refnav_params": {
-    "corridor_half_m": 0.32,
-    "leg_end_margin_m": 0.25,
     "speed_mps": 0.3,
-    "lead_max_m": 0.25,
     "arrive_m": 0.15,
     "hold_s": 0.25,
-    "band_m": 0.25,
-    "corridor_wait_land_s": 10.0,
     "yaw_rate_dps": 35.0,
     "accel_mps2": 0.5,
-    "blend_turn_deg": 30.0,
-    "depth_lost_pause_static": true,
-    "depth_lost_land_s": 5.0,
-    "stop_per_mps": 1.0,
-    "stop_base_m": 0.45,
-    "stop_min_m": 0.55,
     "min_valid_frac_static": 0.15,
     "min_valid_frac": 0.3,
-    "min_corridor_coverage": 0.45,
-    "confirm_frames": 3,
-    "safe_land": true,
-    "retreat_speed_mps": 0.1,
-    "corridor_search": true
-  },
-  "sim_profile": {
-    "fixture_offset_m": [
-      0.0,
-      0.0
-    ],
-    "refnav": {
-      "sim_stuck_land_disarm_s": 0.0
-    }
-  },
-  "return": {
-    "enabled": false,
-    "cruise_z_m": 2.1,
-    "radius_m": 0.61,
-    "from": {
-      "feature": "launch_mark",
-      "group": "Launch mark"
-    }
+    "lateral_m": 0.37,
+    "vertical_clearance_m": 0.24
   },
   "waypoint_file": "course/waypoint_intent.json",
   "room_boundary_file": "course/room_boundary.json"

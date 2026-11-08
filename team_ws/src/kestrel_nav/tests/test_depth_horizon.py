@@ -98,7 +98,7 @@ def test_valid_far_return_carves_horizon_without_inventing_wall_at_range_limit()
 
 
 def mission():
-    m=Mission(Params(track_mode='path',local_horizon=True,corridor_search=True))
+    m=Mission(Params(track_mode='path',local_horizon=True))
     m.phase='go';m.leg=0;m.targets=[(4.,0.)];m.sp=[0.,0.,-.7,0.]
     m.home=[0.,0.,0.,0.];m.leg_dir=(1.,0.);m.leg_len=4.;m.leg_heading=0.
     m.t_started=0.;m.t_phase=0.;m.t_last=1.;m.t_check=1.
@@ -198,7 +198,7 @@ def test_package_contains_only_horizon_navigation():
     mission=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='Mission')
     methods={n.name:n for n in mission.body if isinstance(n,ast.FunctionDef)}
     assert '_go_pose' not in methods and '_advance' not in methods
-    assert len(methods['_go'].body)==1
+    assert '_go_path' in methods and '_go' not in methods
     assert core.Mission(core.Params())._path_leg()
 
 
@@ -216,8 +216,8 @@ def test_unknown_footprint_band_is_not_published_as_an_obstacle():
     assert np.any(cells==-1) and np.any(cells==0)
 
 
-def test_live_obstacle_guard_withdraws_horizon_instead_of_old_backoff_policy():
-    m=mission();m.on_path(2.,0,[(0.,0.),(1.,0.)],[0.,.2],pid=1)
-    m._obstacle(2.,Output('go'),m.last_v,.4,'on')
-    assert m.path is None and m.phase=='search' and m.v_cmd==0
-    assert m.counts['obstacle_stops']==1
+def test_follower_has_no_legacy_live_depth_stops():
+    # Motion is limited only by the planner (measured walls + room boundary).
+    for name in ('_clearance','_blocks','_geometry_cap','_obstacle','_retreat','_stuck_landing','corridor_fresh'):
+        assert not hasattr(Mission, name)
+    assert not hasattr(Params(), 'corridor_wait_land_s') and not hasattr(Params(), 'safe_land')
