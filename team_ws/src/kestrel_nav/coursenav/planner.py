@@ -41,9 +41,10 @@ class PlanError(RuntimeError):
 
 
 # ---------------------------------------------------------------------------- grid search
-def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
-    """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding),
-    crowding = how far inside prefer_m of an obstacle the cell is (0..1). -> (n,2) xy."""
+def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0, penalty=None):
+    """Shortest path on 8-connected cells, each step costing length * (1 + weight * crowding + penalty),
+    crowding = how far inside prefer_m of an obstacle the cell is (0..1); penalty (optional, per cell,
+    >= 0): extra cost per metre, e.g. for space only ASSUMED free (coursenav.navigator). -> (n,2) xy."""
     occ = blocked.occ
     nx, ny = occ.shape
     a, b = tuple(blocked.ij(a_xy)), tuple(blocked.ij(b_xy))
@@ -70,7 +71,8 @@ def astar(blocked: Grid2D, clearance, a_xy, b_xy, prefer_m=0.6, weight=4.0):
                 continue
             if dx and dy and (occ[c[0] + dx, c[1]] or occ[c[0], c[1] + dy]):
                 continue                                   # no corner cutting
-            cost = g[c] + step * (1.0 + weight * 0.5 * (crowd[c] + crowd[n]))
+            cost = g[c] + step * (1.0 + weight * 0.5 * (crowd[c] + crowd[n])
+                                  + (0.0 if penalty is None else 0.5 * (penalty[c] + penalty[n])))
             if cost < g[n]:
                 g[n] = cost
                 parent[n] = c

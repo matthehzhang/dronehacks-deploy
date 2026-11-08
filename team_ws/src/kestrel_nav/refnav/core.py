@@ -169,6 +169,12 @@ class Params:
     blocked_backoff_m: float = 0.2              # ... then back off this far along the path just flown ...
     blocked_recheck_s: float = 2.0              # ... and recheck this long before landing
     blocked_clear_margin_m: float = 0.15        # resume only once the clearance exceeds the stop distance by this
+    blocked_max_repeats: int = 0                # > 0: the (repeats+1)-th block on the same leg AND the same path
+                                                # lands instead of holding again. A hold/back-off/recheck that
+                                                # "recovers" only because backing off moved the obstacle past the
+                                                # stop distance repeats for ever otherwise (2026-11-07, skybeta-14:
+                                                # 15 cycles in 45 s at one corner). A NEW path (the navigator
+                                                # re-planned around it) starts the count again. 0 = unlimited.
     depth_lost_pause_static: bool = False       # depth silence is not counted while turning in place or holding
     stop_per_mps: float = 0.0                   # > 0: stop distance = max(stop_min_m, stop_base_m + this * v)
     stop_base_m: float = 0.45
@@ -343,6 +349,7 @@ class Mission:
                        "depth_unusable": 0, "depth_future": 0, "depth_stale": 0, "depth_out_of_order": 0,
                        "corridor_unobserved": 0, "corrections": 0, "recoveries": 0, "blended_turns": 0, "path_waits": 0,
                        "alignments": 0, "tunnel_ticks": 0, "tube_holds": 0, "tube_ticks": 0, "retreats": 0}
+        self.block_key, self.block_n = None, 0   # blocked_max_repeats: (leg, path id) and its block count
         self.tube_hold = False        # tube_gate: forward motion held until back inside half the tube
         self.last_v = None            # the latest Vehicle seen by step (for the safe-landing decision)
         self.flown = []               # PX4 NE breadcrumbs of the path actually flown (estimate), from take-off
@@ -1284,7 +1291,9 @@ class Mission:
         if clr is not None:
             cap = self._geometry_cap(clr, v)
             self.last_clearance = clr
-            if self._blocks(clr, max(L - self.path_s, 0.0)):
+            # judged against the next STOP (an interior stop-and-turn corner, else the leg end), as a straight
+            # leg's end is: a surface just beyond the corner the path turns away at is not on the way there
+            if self._blocks(clr, max(s_stop - self.path_s, 0.0)):
                 self._obstacle(now, out, v, clr, "on")
                 self.v_cmd, self.a_cmd = 0.0, 0.0
                 self.v_vec, self.a_vec = (0.0, 0.0), (0.0, 0.0)
@@ -1642,6 +1651,17 @@ class Mission:
 
     # ------------------------------------------------------------------ hold-and-recheck
     def _start_recover(self, now, out, kind, why, v):
+        if kind == "blocked" and self.p.blocked_max_repeats > 0:
+            pid = self.path.get("pid") if (self.p.track_mode == "path" and self._path_leg()
+                                           and self.path is not None and self.path.get("leg") == self.leg) else None
+            key = (self.leg, pid)
+            self.block_n = self.block_n + 1 if key == self.block_key else 1
+            self.block_key = key
+            if self.block_n > self.p.blocked_max_repeats:
+                self.counts["block_repeat_landings"] = self.counts.get("block_repeat_landings", 0) + 1
+                self._land(now, out, f"{why}; blocked {self.block_n} times on leg {self.leg + 1} with no new "
+                                     f"path around it (blocked_max_repeats {self.p.blocked_max_repeats})")
+                return
         self.recover = {"kind": kind, "t0": now, "why": why, "target": None, "t_back": None, "t_re": None}
         self._set("blocked", now, out, f"{why}; holding up to {self.p.blocked_hold_s:g} s")
 
@@ -1656,10 +1676,15 @@ class Mission:
             if clr is None or not self.corridor_fresh(now):
                 return False
             self.last_clearance = clr
-            n0, e0 = self.leg_start
-            proj = (v.pos[0] - n0) * self.leg_dir[0] + (v.pos[1] - e0) * self.leg_dir[1]
+            rem = self._path_remaining(now, v)
+            if rem is not None:                           # path mode: to the next stop, as _go_path judges it
+                remaining, along = rem[0], None
+            else:
+                n0, e0 = self.leg_start
+                proj = (v.pos[0] - n0) * self.leg_dir[0] + (v.pos[1] - e0) * self.leg_dir[1]
+                remaining, along = self.leg_len - max(proj, 0.0), max(proj, 0.0)
             # hysteresis: the obstacle must have clearly gone, not just hover at the stop distance
-            return not self._blocks(clr - self.p.blocked_clear_margin_m, self.leg_len - max(proj, 0.0), max(proj, 0.0))
+            return not self._blocks(clr - self.p.blocked_clear_margin_m, remaining, along)
         if r["kind"] == "align":
             if self.frame is not None and self._align_judged_t != self.depth_t and self.depth_fresh(now):
                 self._align_judged_t = self.depth_t
@@ -1668,6 +1693,18 @@ class Mission:
                     self.align_hist.append(est)
             return len(self.align_hist) >= max(1, self.p.align_frames)
         return False
+
+    def _path_remaining(self, now, v):
+        """Path mode, a fresh path for this leg: (distance from the aircraft to the next stop along the path,
+        its progress). Else None."""
+        if not (self.p.track_mode == "path" and self._path_leg() and self._path_fresh(now) and v.pos is not None):
+            return None
+        P = self.path
+        s_now, _ = self._path_project(v.pos)
+        nxt = [i for i in P["stops"] if i > self.path_stop_done]
+        s_stop = float(P["s"][nxt[0]]) if nxt else float(P["s"][-1])
+        s_now = min(s_now, s_stop)
+        return max(s_stop - s_now, 0.0), s_now
 
     def _resume(self, now, out, v):
         r, self.recover = self.recover, None

@@ -223,6 +223,7 @@
     "blocked_backoff_m": 0.2,
     "blocked_recheck_s": 2.0,
     "blocked_clear_margin_m": 0.15,
+    "blocked_max_repeats": 3,
     "depth_lost_pause_static": true,
     "depth_lost_land_s": 5.0,
     "stop_per_mps": 1.0,

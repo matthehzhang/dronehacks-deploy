@@ -16,7 +16,12 @@ Out: /coursenav/pose      geometry_msgs/PoseWithCovarianceStamped, frame "course
      /coursenav/odometry  nav_msgs/Odometry, frame "course": VIO corrected into the course frame
      /coursenav/status    std_msgs/String JSON (2 Hz)
      /coursenav/occupancy nav_msgs/OccupancyGrid, frame "course" (1 Hz, latched): the LIVE map of this
-                          run (coursenav.occgrid), -1 unknown, 0..100 occupancy probability
+                          run (coursenav.occgrid), -1 unknown, 0..100 occupancy probability. With nav_map
+                          (default) it is the NAVIGATION map: every scan placed at the pose the navigator
+                          flies by (VIO + the start fixture + the drift EKF once it has one), not gated on
+                          the localizer's confidence. The localizer's own gated map (live_map) still feeds
+                          its particle filter; a course that differs from the published layout never makes
+                          the localizer confident, and the navigator must still see it.
      logs/coursenav_<stamp>.csv (one row per scan update)
      logs/occ_<stamp>.npz      the live map at shutdown: a RUN RECORD. Rule 6.4: never loaded by a later run.
 
@@ -104,6 +109,11 @@ class LocNode(Node):
                                                        gate_sigma_xy_m=float(dp("live_gate_sigma_xy_m", 0.06).value),
                                                        gate_sigma_yaw_deg=float(dp("live_gate_sigma_yaw_deg", 2.0).value)),
                                  see_through=see_through_grid(cmap, self.field_zlo, self.field_zhi))
+        # navigation map (see the header): ungated, in the navigator's frame; never feeds the particle filter
+        self.nav_live = None
+        if bool(dp("nav_map", True).value):
+            self.nav_live = LiveGrid(self.field, OccParams(use_in_pf=False),
+                                     see_through=see_through_grid(cmap, self.field_zlo, self.field_zhi))
         self.prior_dist = self.pf.dist
 
         from tf2_ros import Buffer, TransformListener
@@ -185,7 +195,7 @@ class LocNode(Node):
         self.log.writerow(["t", "x", "y", "yaw", "sx", "sy", "syaw", "vio_x", "vio_y", "vio_yaw", "z_height",
                            "beams_depth", "ess", "vio_ok"])
         self.create_timer(0.5, self._status)
-        if self.live is not None:
+        if self.live is not None or self.nav_live is not None:
             self.create_timer(1.0, self._publish_occ)
         self.get_logger().info(f"shadow localizer: prior {np.round(self.prior, 3)} sigma {self.prior_sigma}; "
                                f"depth {depth_topic}; log {self.log_path}")
@@ -321,6 +331,11 @@ class LocNode(Node):
                 "stamp": t, "delta": [0.0, 0.0, 0.0], "nominal": [float(v) for v in nominal_body],
                 "fixture": [float(v) for v in self.nominal], "sigma_xy": None,
                 "accepted": 0, "rejected": 0, "resets": 0, "uncorrected": True})))
+        if self.nav_live is not None:
+            # the pose the navigator converts its paths with (nav_node: DriftEKF.body_course of the nominal)
+            nav_pose = self.ekf.body_course(nominal_body) if self.ekf.ready else nominal_body
+            if self.vio_ok:
+                self.nav_live.integrate(nav_pose, scan)
         if self.counts["updates"] >= self.min_updates_for_corr:
             nominal = compose(self.nominal, pose)                     # where VIO + fixture put the body
             raw = np.array([mean[0] - nominal[0], mean[1] - nominal[1]])   # course ENU drift of that belief
@@ -398,7 +413,7 @@ class LocNode(Node):
         self.pub_odom.publish(out)
 
     def _publish_occ(self):
-        g = self.live
+        g = self.nav_live if self.nav_live is not None else self.live
         msg = OccupancyGrid()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "course"
@@ -418,7 +433,8 @@ class LocNode(Node):
                   ess=round(self.pf.ess()) if self.pf.ready else None,
                   scans_skipped=self.pf.skipped, scan_fit=self.pf.last_fit,
                   cluster_frac=round(self.pf.last_cluster_frac, 2),
-                  live_map=self.live.stats() if self.live is not None else None)
+                  live_map=self.live.stats() if self.live is not None else None,
+                  nav_map=self.nav_live.stats() if self.nav_live is not None else None)
         if self.last_est is not None:
             t, mean, cov, pose, *_ = self.last_est
             st.update(t=round(t, 3), x=round(float(mean[0]), 3), y=round(float(mean[1]), 3),
@@ -433,6 +449,9 @@ class LocNode(Node):
             self.log_f.close()
             if self.live is not None and self.live.scans_in:
                 self.live.save(self.occ_path, source="loc_node", log=str(self.log_path))
+            if self.nav_live is not None and self.nav_live.scans_in:
+                self.nav_live.save(self.occ_path.with_name(self.occ_path.name.replace("occ_", "navocc_")),
+                                   source="loc_node nav_map", log=str(self.log_path))
         except Exception as e:                                # never let a record failure mask shutdown
             self.get_logger().error(f"could not save the live map: {e}")
         return super().destroy_node()

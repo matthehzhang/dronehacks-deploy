@@ -24,46 +24,17 @@ from rclpy.executors import ExternalShutdownException
 from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-from scipy import ndimage
 from std_msgs.msg import String
 
-from .course import Grid2D, load_course, plan_grids, resolve, scan_grid
+from .course import load_course, plan_grids, resolve, scan_grid, see_through_grid
 from .drift import DriftEKF
+from .livemap import LiveLandmarks
 from .navigator import Navigator
 from .navplan import course_to_ned, smooth_params_for
 from .objmap import CourseMap
 from .planner import PlanError
 
 AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "align")
-
-
-class LiveLandmarks:
-    """The localizer's published occupancy grid as the navigator's live map: confident surfaces more
-    than novel_min_m from any prior surface, in clumps of at least min_cells (coursenav.occgrid rules)."""
-
-    def __init__(self, prior: Grid2D, occ_prob=0.88, novel_min_m=0.15, min_cells=4):
-        self.prior = prior
-        self.prior_dist = prior.distance()
-        self.occ_prob, self.novel_min_m, self.min_cells = occ_prob, novel_min_m, min_cells
-        self.occupied = np.zeros(prior.occ.shape, bool)
-
-    def on_grid(self, m):
-        nx, ny = self.prior.occ.shape
-        if m.info.width != nx or m.info.height != ny:
-            return False
-        prob = np.asarray(m.data, np.int8).reshape(ny, nx).T          # row-major, x fastest
-        self.occupied = prob >= int(round(self.occ_prob * 100))
-        return True
-
-    def landmarks(self):
-        novel = self.occupied & (self.prior_dist > self.novel_min_m)
-        if not novel.any() or self.min_cells <= 1:
-            return novel
-        lab, n = ndimage.label(novel, structure=np.ones((3, 3), bool))
-        sizes = ndimage.sum(novel, lab, index=np.arange(1, n + 1))
-        keep = np.zeros(n + 1, bool)
-        keep[1:] = sizes >= self.min_cells
-        return keep[lab]
 
 
 class NavNode(Node):
@@ -82,7 +53,13 @@ class NavNode(Node):
         need = float(doc["vehicle"]["radius_m"] + doc["vehicle"]["margin_m"])
         sp = smooth_params_for(rd.get("navigation", {}), rd.get("params", {}), need)
         sg = scan_grid(cmap)
-        self.live = LiveLandmarks(sg) if sg.occ.shape == obst.occ.shape else None
+        self.live = None
+        if sg.occ.shape == obst.occ.shape and bool(dp("live_map", True).value):
+            st = see_through_grid(cmap) if bool(dp("clear_seen_through", True).value) else None
+            self.live = LiveLandmarks(sg, see_through=st, plan_obst=obst.occ)
+            if st is None:
+                self.live.free_prob = -1.0                       # never clear a prior surface
+        self.block_replan = bool(dp("replan_on_block", True).value)
         self.nav = Navigator(obst, blocked, clearance, need, sp, live=self.live, gate_lines=rd.get("gate_lines"))
         # the flight frame's heading relative to the VIO origin: 90 deg in the simulator (vision bridge
         # heading_enu_rad), 0 on the skybeta drone (the flight interface permutes odometry ENU directly)
@@ -158,38 +135,61 @@ class NavNode(Node):
         targets = {j: [float(v) for v in to_ned([self.nav_legs[j]["stop"]])[0]]
                    for j in range(leg + 1, len(self.nav_legs))}
         out = {"stamp": time.time(), "leg": leg, "pid": self.pid, "targets_ne": targets}
-        if leg < len(self.nav_legs) and self.nav_legs[leg]["path"] and phase in AIRBORNE:
-            L = self.nav_legs[leg]
-            want = self.nav_leg != leg
-            if not want and self.nav.path is not None:
-                want = self.nav.needs_replan(time.monotonic(), 0.0)
-            c = self.cache.pop(leg, None) if self.nav_leg != leg else None
-            if want and c is not None and np.hypot(*(c[0] - believed[:2])) <= 0.5:
-                self.nav.path, self.nav.goals, self.nav.t_plan = c[2], c[1], time.monotonic()
-                self.pid += 1
-                self.nav_leg = leg
-                want = False
-                self.get_logger().info(f"leg {leg + 1}: pre-planned path {self.nav.path.length:.2f} m")
-            if want:
-                goals = [np.array(g, float) for g in L["goals"]]
-                goals = [g for g in goals[:-1] if np.hypot(*(g - believed[:2])) > 0.3] + [goals[-1]]
-                try:
-                    v0 = float(self.status.get("v_cmd") or 0.0) if self.nav_leg == leg else 0.0
-                    self.nav.plan(believed[:2], goals, t=time.monotonic(), v_start=v0)
-                    self.stats["replans" if self.nav_leg == leg else "plans"] += 1
-                    self.pid += 1
-                    self.nav_leg = leg
-                    self.get_logger().info(f"leg {leg + 1}: path {self.nav.path.length:.2f} m, "
-                                           f"{len(self.nav.path.stops)} stop corners, est {self.nav.path.duration():.1f} s")
-                except PlanError as e:
-                    self.stats["plan_errors"] += 1
-                    self.get_logger().warning(f"leg {leg + 1}: no path ({e}); refnav holds without one")
-            if self.nav.path is not None and self.nav_leg == leg:
+        airborne_path_leg = leg < len(self.nav_legs) and self.nav_legs[leg]["path"] and phase in AIRBORNE
+
+        def publish():
+            if airborne_path_leg and self.nav.path is not None and self.nav_leg == leg:
                 P = self.nav.path
-                out.update(pid=self.pid, pts_ne=to_ned(P.pts).round(4).tolist(), v=P.v.round(3).tolist(),
-                           stops=list(P.stops),
+                out.update(stamp=time.time(), pid=self.pid, pts_ne=to_ned(P.pts).round(4).tolist(),
+                           v=P.v.round(3).tolist(), stops=list(P.stops),
                            tubes=None if P.tube is None else P.tube.round(4).tolist())
-        self.pub.publish(String(data=json.dumps(out)))
+            self.pub.publish(String(data=json.dumps(out)))
+
+        if not airborne_path_leg:
+            publish()
+            return
+        L = self.nav_legs[leg]
+        now = time.monotonic()
+        want, why = self.nav_leg != leg, "new leg"
+        if not want and self.nav.path is not None:
+            prog = self.nav.progress(believed[:2])
+            if self.nav.needs_replan(now, prog):
+                want, why = True, "live map: obstacle on the path ahead"
+            elif (self.block_replan and phase in ("blocked", "backoff", "recheck")
+                  and (self.nav.t_plan is None or now - self.nav.t_plan >= self.nav.p.replan_every_s)
+                  and self.nav.path_blocked_ahead(prog)):
+                want, why = True, f"refnav {phase}: the live map now shows the obstacle"
+        c = self.cache.pop(leg, None) if self.nav_leg != leg else None
+        if want and c is not None and np.hypot(*(c[0] - believed[:2])) <= 0.5 and not self.nav.map_changed():
+            self.nav.path, self.nav.goals, self.nav.t_plan = c[2], c[1], now
+            self.pid += 1
+            self.nav_leg = leg
+            want = False
+            self.get_logger().info(f"leg {leg + 1}: pre-planned path {self.nav.path.length:.2f} m")
+        # the path refnav already has stays fresh while a (re-)plan runs: a plan on the Jetson can take
+        # longer than refnav's path_stale_s, and a stale path stops the aircraft
+        publish()
+        if not want:
+            return
+        goals = [np.array(g, float) for g in L["goals"]]
+        goals = [g for g in goals[:-1] if np.hypot(*(g - believed[:2])) > 0.3] + [goals[-1]]
+        try:
+            v0 = float(self.status.get("v_cmd") or 0.0) if self.nav_leg == leg else 0.0
+            self.nav.plan(believed[:2], goals, t=now, v_start=v0)
+            self.stats["replans" if self.nav_leg == leg else "plans"] += 1
+            self.pid += 1
+            self.nav_leg = leg
+            sig = self.nav._sig
+            self.get_logger().info(f"leg {leg + 1}: path {self.nav.path.length:.2f} m, {len(self.nav.path.stops)} "
+                                   f"stop corners, est {self.nav.path.duration():.1f} s ({why}; live map: "
+                                   f"{sig[0]} landmark cells, {sig[1]} prior cells cleared)")
+            publish()
+        except PlanError as e:
+            self.nav.t_plan = now                       # retry at the re-plan rate, not every tick
+            self.stats["plan_errors"] += 1
+            self.get_logger().warning(f"leg {leg + 1}: no path ({e}; {why}); refnav keeps the last one"
+                                      if self.nav.path is not None else
+                                      f"leg {leg + 1}: no path ({e}); refnav holds without one")
 
 
 def main(args=None):

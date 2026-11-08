@@ -10,6 +10,32 @@ autonomous descent onto the pad. See **[docs/SAFE_POLICY.md](docs/SAFE_POLICY.md
 evidence behind each, offline results (16/16 landed from the launch mark, 0 contacts, 150-168 s); matched to workspace matthew930am's steady-profile rules and the open risks. It has
 not flown. `live.launch.py` and `tune.launch.py` are unchanged.
 
+## When the built course differs from the map (`kestral_group154-livemap`, 2026-11-07)
+
+skybeta-14, bag `20261107-201744`: the maze had been simplified on the day. The localizer never matched a
+scan (`updates` 0 all flight), so the live map stayed empty, the navigator kept routing through the old
+maze, and refnav held at a wall that was not on the map: block, back off 0.2 m, "clear", block again, 15
+times in 45 s until the pilot took over. Nothing below knows any particular layout:
+
+- **Navigation map from VIO** (`loc_node`, `nav_map`, default on): every scan is placed at the pose the
+  navigator flies by (VIO + start fixture + drift EKF when it has one), not gated on the localizer. It is
+  what `/coursenav/occupancy` carries. The localizer's own gated map still feeds its particle filter.
+- **The navigator flies the course as it is** (`coursenav/livemap.py`, `navigator.py`): new surfaces are
+  added; published surfaces the camera confidently sees THROUGH are removed (never nets, window, tunnel or
+  keep-outs). With no path on that map, and only once this run has seen the course differ, it plans once
+  more treating still-unconfirmed published surfaces as open, at 8x cost per metre (`assumed_free_cost`),
+  and replans as depth confirms or refutes them. refnav's depth check still guards every metre.
+- **Replans**: judged on the path AHEAD of the aircraft (it used the whole path, behind included); also
+  when refnav is blocked and the map now shows why; a failed plan retries at 1 Hz, not every tick; the
+  current path is re-published before a plan runs so it never goes stale during one.
+- **refnav**: a path-mode block is judged against the next corner, as a straight leg's is against its end;
+  `blocked_max_repeats` 3 (course file): the 4th block on the same leg and path lands; a new path resets it.
+
+Offline (`tests/test_live_course_change.py`, real course map, ray-cast depth from an as-built world): the
+unchanged course flies with 0 replans; the changed maze is flown in ~20 s (one optimistic replan, then a
+confirmed one), never nearer than 0.43 m to a real surface; a dead end holds and reports no path.
+Not flown yet.
+
 ## Branch `diagnostic` (inherited)
 
 This experimental branch adds `tune.launch.py`: slow map-guided transit, bounded
