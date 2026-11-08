@@ -33,7 +33,9 @@ def test_prior_provenance_and_goal_resolution(active):
     assert hashlib.sha256(obj.read_bytes()).hexdigest() == cmap.meta['obj_sha256'] == manifest['obj_sha256']
     assert cmap.meta['scenario'] == 'topview_entrance'
     assert cmap.meta['official_published'] is False
-    assert doc['start']['xy'] == manifest['start']['xy']
+    # Deployment starts 8 inches forward of the original imported mark.
+    assert doc['start']['xy'] == pytest.approx([
+        manifest['start']['xy'][0], manifest['start']['xy'][1] + 8 * .0254])
     assert doc['start']['yaw_deg'] == manifest['start']['yaw_deg']
     assert [s['name'] for s in doc['sequence']] == ['tunnel_entry', 'tunnel_exit', 'chicane', 'pad']
     assert 'maze_exit' not in doc['derived']

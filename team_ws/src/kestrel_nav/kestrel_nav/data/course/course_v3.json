@@ -8,10 +8,10 @@
     "sigma_yaw_deg": 2.0,
     "xy": [
       -2.515,
-      0.914
+      1.1172
     ],
     "yaw_deg": 90.0,
-    "_note": "Declared local-sim launch prior; localizer refines it. Not a surveyed venue pose."
+    "_note": "User-requested launch position 8 inches (0.2032 m) forward of the imported mark, along the unchanged 90-degree heading (+course y). Physically place the drone here before starting the stack. Not a surveyed venue pose."
   },
   "vehicle": {
     "radius_m": 0.29408284528683193,

@@ -3,6 +3,11 @@
 
 ## Active group154 map (2026-11-08)
 
+The configured launch position is now course ENU **(-2.515, 1.1172) m**, heading
+**90 degrees**: 8 inches (0.2032 m) forward of the imported launch mark.
+Place the drone at that new position before starting the stack; this changes
+the planner and localizer's start assumption, not a commanded takeoff movement.
+
 Path tracking uses `navigation.refnav.path_tube_recovery_mps=0.10`: outside
 the narrow tracking tube, forward speed is capped at 0.10 m/s while position
 feedback steers back toward the path. The planned speed ceiling returns inside

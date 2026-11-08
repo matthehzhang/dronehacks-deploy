@@ -29,7 +29,9 @@ def test_yaw_rate_sign_and_clamps():
 
 def test_group154_plans_new_course_from_the_declared_launch_mark():
     import fly_course
-    p, route, legs, doc = fly_course.plan_now((-2.515, 0.914), 90.0)
+    from coursenav.course import load_course
+    start = load_course()['start']
+    p, route, legs, doc = fly_course.plan_now(start['xy'], start['yaw_deg'])
     assert len(route) == len(legs) and route
     assert p['min_clearance_m'] >= doc['vehicle']['radius_m'] + doc['vehicle']['margin_m']
     assert [s['name'] for s in doc['sequence']] == ['tunnel_entry', 'tunnel_exit', 'chicane', 'pad']
