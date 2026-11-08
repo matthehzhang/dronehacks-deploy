@@ -84,13 +84,17 @@ class RefNav(Node):
             self.get_logger().warning("sim_stuck_land_disarm_s is a SIMULATOR workaround: ignored without use_sim_time")
             prm.sim_stuck_land_disarm_s = 0.0
         self.mission = C.Mission(prm)
-        self.return_enabled = "automatic_return" in doc
+        self.skybeta_return_enabled = "skybeta_return" in doc
+        self.return_enabled = "automatic_return" in doc and not self.skybeta_return_enabled
         self.diagnostic_enabled = "diagnostic" in doc
-        if self.return_enabled and self.diagnostic_enabled:
+        if (self.return_enabled or self.skybeta_return_enabled) and self.diagnostic_enabled:
             raise ValueError('diagnostic and automatic return are separate missions')
         self.diagnostic_config = doc.get('diagnostic')
         self._diagnostic_summary_written = False
-        if self.return_enabled:
+        if self.skybeta_return_enabled:
+            from .skybeta_return import SkybetaReturnMission
+            self.mission = SkybetaReturnMission(prm, doc['skybeta_return'])
+        elif self.return_enabled:
             from coursenav.return_plan import ReturnGeometry
             from .return_home import ReturnMission
             self.mission = ReturnMission(prm, ReturnGeometry(doc["automatic_return"]))

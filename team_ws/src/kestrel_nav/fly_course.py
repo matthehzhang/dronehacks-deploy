@@ -259,8 +259,9 @@ def main(argv=None):
     ap.add_argument("--start-from-mark", action="store_true",
                     help="skybeta: the start pose is the course file's launch mark and guideline heading (rule 7.4: "
                          "the drone is placed on the mark); the localizer still corrects in flight")
+    ap.add_argument("--skybeta-return", action="store_true", help="automatic hardware return after pad disarm")
     ap.add_argument("--no-return", action="store_true",
-                    help="never fly the automatic return after the pad landing (skybeta: the pilot arms, not refnav)")
+                    help="disable the native-PX4 return; explicit --skybeta-return selects the hardware return instead")
     ap.add_argument("--nav", choices=["path", "legs", "steady"], default=None,
                     help="path: stops only, cruise legs along the navigator's smoothed paths on the fused map "
                          "(coursenav.nav_node + the localizer's drift EKF); legs: the planner's waypoint route with "
@@ -308,6 +309,14 @@ def require_sim_plan_ready(ready, process):
             process.kill()
             process.wait(timeout=5)
     raise SystemExit('Navigator did not finish preplanning within the 300 wall-second watchdog; simulation flight not started')
+
+
+def skybeta_return_spec(doc):
+    # Validate optional return settings only after the outbound landing. A bad
+    # return height must not prevent planning/starting the primary mission.
+    config = doc.get('return')
+    config = config if isinstance(config, dict) else {}
+    return dict(height_above_floor_m=config.get('cruise_z_m', 2.1), speed_mps=.3)
 
 
 def _fly(a, t0, doc, prepared, run_dir, stamp):
@@ -386,7 +395,11 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
                           f"({sx:.4f}, {sy:.4f}, {syaw:.2f} deg). Rule 6.4: never an input to a later run."}
     from coursenav.course import land_columns
     route_doc["land_columns"] = land_columns(doc, prepared[1], (sx, sy), syaw)
-    if doc.get("return", {}).get("enabled", True) and not getattr(a, "no_return", False):
+    if getattr(a, 'skybeta_return', False):
+        route_doc['skybeta_return'] = skybeta_return_spec(doc)
+        print(f"skybeta return enabled: pad disarm -> rearm -> vertical climb to {route_doc['skybeta_return']['height_above_floor_m']} m "
+              "-> original launch -> landing/disarm", flush=True)
+    elif doc.get("return", {}).get("enabled", True) and not getattr(a, "no_return", False):
         from coursenav.return_plan import route_spec
         route_doc["automatic_return"] = route_spec(doc, (sx, sy, syaw), height)
         print(f"automatic return after pad landing/disarm: candidate height {doc['return']['cruise_z_m']:.2f} m; "

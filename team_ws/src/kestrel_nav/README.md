@@ -24,12 +24,32 @@ a fresh PX4 `landed=true` report triggers an explicit normal
 `VEHICLE_CMD_COMPONENT_ARM_DISARM` command (`param1=0`, `param2=0`), retried once
 per second while still landed and armed. The adapter publishes this command on
 the version-resolved PX4 vehicle-command topic; motion still uses the flight
-interface. Landing disarm is the only direct vehicle command from this adapter.
+interface. The outbound flight sends no arm/mode commands; the automatic return
+uses normal arm/Offboard commands only after the first landing and disarm.
 It prints `DISARM COMMAND SENT`, then waits for actual PX4 disarm confirmation.
 It then prints `LANDING CONFIRMED: PX4 reports DISARMED` and finishes. At 60 seconds without
 confirmation it prints `DISARM NOT CONFIRMED` and keeps landing. PX4 owns the
 normal disarm acceptance; a command being sent does not mark the mission complete.
 No force-disarm command is added. This has not been flight validated.
+
+The skybeta launch now enables `return_home:=true`. After successful pad landing
+and disarm, a separate return layer holds the pad XY/yaw target, rearms, requests
+Offboard and climbs vertically to **2.10 m above the original floor reference**.
+The climb's commanded target must finish and the measured height must remain
+within **5 cm for one second** before turning or translating toward the original
+launch position. It then flies directly home at 0.30 m/s, lands, and explicitly
+disarms again. The first landing latch is cleared before second takeoff; late
+outbound paths/corrections cannot change the return target. Recording spans both
+flights, including a delayed rearm on the pad.
+
+The existing outbound controller is unchanged. Return setup starts only after
+successful outbound completion, never on abort/fault landings. Invalid return
+configuration leaves the completed run on the pad. This skybeta return does not
+use the native-PX4 return's battery/localizer-confidence/map-clearance/time-budget
+qualification. Height 2.10 m is the operator-selected return height, not a checked
+clearance guarantee. Existing controller input/obstacle handling still applies.
+To fly only the committed outbound sequence, use
+`ros2 launch kestrel_nav refnav_skybeta.launch.py return_home:=false`.
 
 The user-supplied approximate window bounds **1.00-1.80 m** override alignment
 geometry only. The old OBJ/voxel window is **0.305-1.219 m** and remains unchanged;

@@ -166,6 +166,8 @@ class NavNode(Node):
     def _tick(self):
         if self.drift is None or self.status is None:
             return
+        if self.status.get('return_started'):
+            return  # the separate return owns its target; do not replan outbound leg zero
         d = self.drift
         ekf = DriftEKF.from_state(d["delta"], d["nominal"])
         nb = np.array(d["nominal"], float)
