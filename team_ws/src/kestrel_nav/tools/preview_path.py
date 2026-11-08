@@ -30,10 +30,10 @@ def serializable(value):
     raise TypeError(type(value).__name__)
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--out', type=Path, default=ROOT / 'plans' / 'path_preview')
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=True)
     doc = load_course()
     cmap = CourseMap.load(resolve(doc, 'map'))
@@ -72,6 +72,7 @@ def main():
         print(f"  {nav_legs[j]['name']}: {path.length:.2f} m; {len(path.stops)} planned corner stops")
     print(f'Image: {(args.out / "path_preview.png").resolve()}')
     print(f'Data:  {(args.out / "preprocessed_paths.json").resolve()}')
+    return result, args.out
 
 
 def draw(doc, grids, start, yaw, nav_legs, paths, output):

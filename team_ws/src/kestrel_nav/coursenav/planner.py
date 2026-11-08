@@ -619,9 +619,16 @@ def annotate(wps, obst, clearance, doc, cmap=None, solid=None):
             dist = float(w["pre_m"])
             align = {"group": w["gate"], "dist_m": round(dist, 3), "width_m": round(left + right, 3),
                      "half_left_m": round(left, 3), "half_right_m": round(right, 3)}
-            if gate.get("z_m"):
-                align["dz_lo"] = round(float(gate["z_m"][0]) - z, 3)
-                align["dz_hi"] = round(float(gate["z_m"][1]) - z, 3)
+            opening_z = gate.get("opening_z_m", gate.get("z_m"))
+            crossing_z = float(gate.get("crossing_z_m", z))
+            if opening_z:
+                if (len(opening_z) != 2 or not all(math.isfinite(float(v)) for v in opening_z)
+                        or not math.isfinite(crossing_z) or not opening_z[0] < crossing_z < opening_z[1]):
+                    raise PlanError("opening_z_m must bracket the finite crossing height")
+                align["dz_lo"] = round(float(opening_z[0]) - crossing_z, 3)
+                align["dz_hi"] = round(float(opening_z[1]) - crossing_z, 3)
+            if "crossing_z_m" in gate:
+                align["target_z_m"] = crossing_z
             far = max(left, right)
             bearing = math.degrees(math.atan2(far, max(dist - CAMERA_FORWARD_M, 0.05))) if math.isfinite(far) else 90.0
             align["edge_bearing_deg"] = round(bearing, 1)

@@ -3,6 +3,29 @@
 
 ## Active group154 map (2026-11-08)
 
+Window height: cruise remains **0.80 m above the floor** through the tunnel and
+the approach to `window_pre`. At that existing stop, hold the XY/yaw target and
+raise the body origin to **1.40 m** at a setpoint rate of 0.25 m/s. Start window
+alignment only after measured height stays within **5 cm for 1 second**. Camera
+height trim is limited to **+/-10 cm** around 1.40 m, followed by the same height
+hold before crossing. Missing sill/header observations keep the nominal height.
+Keep the crossing height on the route to the pad until the normal landing descent.
+If the camera cannot confirm the window within the existing 4-second alignment
+period, discard partial detections and continue the planned crossing at the settled
+height, without lateral/height corrections, alignment recovery or an alignment-failure
+landing. A prominent `WINDOW ALIGNMENT FALLBACK` message explains this. Tunnel
+alignment, detected-obstacle responses and camera-stream-loss handling are unchanged.
+This adds no automatic-landing trigger, velocity-validity requirement or continuous
+height veto during crossing. Holding XY still allows feedback to counter drift.
+
+The user-supplied approximate window bounds **1.00-1.80 m** override alignment
+geometry only. The old OBJ/voxel window is **0.305-1.219 m** and remains unchanged;
+the horizontal planner still uses the existing cruise band. The old map shows
+0.50 m horizontal clearance around the climb column over z=0.55-1.75 m, but cannot
+verify the real raised crossing. Preview the actual preprocessed route and height
+targets with `python tools/preview_window_height.py`; outputs go to
+`plans/window_height_review/`. These are target diagrams, not flight simulations.
+
 The final landing goal is now **(-2.0422, -1.5425) m**: 0.75 m farther from
 the start along the vertical map axis (-course y), with x unchanged. The
 pad's `from.offset_xy_m=[0.0, -0.75]` records this user-measured adjustment

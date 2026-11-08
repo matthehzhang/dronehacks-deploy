@@ -141,6 +141,23 @@ def test_final_goal_moves_only_along_vertical_map_axis(active):
     assert pad['xy'][1] < original[1] < doc['start']['xy'][1]
 
 
+def test_window_height_profile_survives_route_and_navigator_conversion(active):
+    from coursenav.navplan import stops_and_legs
+
+    course, planner, doc, cmap = active
+    plan = planner.plan(doc, *course.plan_grids(cmap, doc), start_xy=doc['start']['xy'], chicane='window', cmap=cmap)
+    _, legs, nav_legs = stops_and_legs(plan, doc['start']['xy'], np.deg2rad(doc['start']['yaw_deg']))
+    crossing = next(leg for leg in legs if leg['name'] == 'window_post')['align']
+    assert crossing['target_z_m'] == pytest.approx(1.4)
+    assert crossing['dz_lo'] == pytest.approx(-.4)
+    assert crossing['dz_hi'] == pytest.approx(.4)
+    assert doc['refnav_params']['align_window_max_dz_m'] == pytest.approx(.1)
+    pre = next(i for i, leg in enumerate(nav_legs) if leg['name'] == 'window_pre')
+    assert legs[pre]['hold'] and nav_legs[pre]['path']
+    assert nav_legs[pre + 1]['path'] is False
+    assert not any('target_z_m' in leg.get('align', {}) for leg in legs[:pre])
+
+
 @pytest.mark.parametrize('offset', [[0.0], [0.0, float('nan')], [0.0, 0.0, 0.0]])
 def test_invalid_landing_goal_offsets_are_rejected(active, offset):
     course, _, doc, _ = active

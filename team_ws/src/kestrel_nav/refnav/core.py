@@ -64,8 +64,8 @@ from .speed import braking_cap, side_cap
 
 NAV_OFFBOARD = 14
 NAV_AUTO_LAND = 18
-AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "retreat")
-TRANSLATING = ("go", "backoff", "climb")           # phases in which the aircraft is commanded to move
+AIRBORNE = ("climb", "excite", "hover", "turn", "gate_height", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "retreat")
+TRANSLATING = ("go", "backoff", "climb", "gate_height")  # includes vertical-only motion
 SILENCE_PAUSED = ("turn", "hold", "excite")                # no translation: depth silence is not counted here
 
 
@@ -75,6 +75,10 @@ class Params:
     legs: list = field(default_factory=list)    # optional per-leg metadata dicts (same length as route):
                                                 # {"name", "mode", "hold": bool, "align": {...}, "tunnel": {...}}
     height_m: float = 1.2
+    landed_z_m: float = 0.10                   # body origin above floor at takeoff; supplied by fly_course
+    gate_height_tol_m: float = 0.05
+    gate_height_settle_s: float = 1.0          # continuous measured height agreement before alignment/crossing
+    gate_height_rate_mps: float = 0.25
     speed_mps: float = 0.6
     lead_max_m: float = 1.0                     # the carrot never leads the aircraft by more
     yaw_rate_dps: float = 45.0
@@ -378,6 +382,10 @@ class Mission:
         self.align_ok_leg = None
         self.align_result = None
         self.last_align = None        # the latest successful alignment (reporting)
+        self.gate_height_target = None
+        self.gate_height_next = None
+        self.gate_height_since = None
+        self.gate_height_log_t = None
         self.tunnel_entry_t = None    # first tick this leg advanced without depth (tunnel mode entry)
         self.tunnel_active = False
 
@@ -898,6 +906,8 @@ class Mission:
                 self.yaw_rate_cmd = 0.0
                 out.yawspeed = 0.0 if p.yaw_accel_dps2 > 0 else None
                 self._after_turn(now, out)
+        elif ph == "gate_height":
+            self._gate_height(now, dt, out, v)
         elif ph == "align":
             self._align(now, out, v)
         elif ph == "check":
@@ -1057,9 +1067,51 @@ class Mission:
             self.first_turn_pending = True
             out.events.append("first large turn since take-off: going only once back on the setpoint")
         if self._leg_meta().get("align") and self.align_ok_leg != self.leg:
-            self._set("align", now, out, f"aligning on {self._leg_meta().get('name', 'the gate')}")
+            if self._window_height_required():
+                z = float(self._leg_meta()["align"]["target_z_m"])
+                self._start_gate_height(now, out, self.home[2] + self.p.landed_z_m - z, "align")
+            else:
+                self._set("align", now, out, f"aligning on {self._leg_meta().get('name', 'the gate')}")
         else:
             self._set("check", now, out)
+
+    def _window_height_required(self):
+        meta = self._leg_meta().get("align", {})
+        return meta.get("group") == "window" and meta.get("target_z_m") is not None
+
+    def _height_good(self, v, target):
+        return (v.pos is not None and math.isfinite(v.pos[2])
+                and abs(v.pos[2] - target) <= self.p.gate_height_tol_m)
+
+    def _start_gate_height(self, now, out, target, next_phase):
+        # Keep the approach XY/yaw setpoint fixed. Position feedback can counter drift;
+        # no horizontal path progress or velocity/acceleration feed-forward is allowed.
+        self.gate_height_target, self.gate_height_next = target, next_phase
+        self.gate_height_since = self.gate_height_log_t = None
+        self.v_cmd = self.a_cmd = 0.0
+        self.v_vec = self.a_vec = None
+        self.align_hist, self._align_judged_t = [], None
+        self.clr_hist, self.corr_t = [], None
+        floor_z = self.home[2] + self.p.landed_z_m
+        self._set("gate_height", now, out,
+                  f"!!!!!!!!!! WINDOW HEIGHT HOLD: target {floor_z - target:.2f} m above floor; "
+                  f"XY held until height within {self.p.gate_height_tol_m:.2f} m "
+                  f"for {self.p.gate_height_settle_s:.1f} s !!!!!!!!!!")
+
+    def _gate_height(self, now, dt, out, v):
+        target = self.gate_height_target
+        step = self.p.gate_height_rate_mps * dt
+        self.sp[2] += max(-step, min(step, target - self.sp[2]))
+        good = abs(self.sp[2] - target) < 1e-9 and self._height_good(v, target)
+        self.gate_height_since = (now if self.gate_height_since is None else self.gate_height_since) if good else None
+        if self.gate_height_since is not None and now - self.gate_height_since >= self.p.gate_height_settle_s:
+            self.t_check = now
+            self._set(self.gate_height_next, now, out,
+                      "!!!!!!!!!! WINDOW HEIGHT READY: measured height settled !!!!!!!!!!")
+        elif self.gate_height_log_t is None or now - self.gate_height_log_t >= 2.0:
+            self.gate_height_log_t = now
+            error = abs(v.pos[2] - target)
+            out.events.append(f"WINDOW HEIGHT HOLD: error {error:.2f} m; XY held")
 
     def _leg_speed(self):
         """This leg's cruise ceiling: the leg's own "speed_mps" (planner.leg_speed_mps, from its
@@ -1591,11 +1643,19 @@ class Mission:
     def _measure_gate(self, v):
         """One alignment measurement from the latest frame, expressed in the LEG frame (the body may
         still be a few degrees off the leg heading when it measures)."""
-        meta = self._leg_meta().get("align") or {}
+        meta = dict(self._leg_meta().get("align") or {})
+        if self._window_height_required() and v.pos is not None:
+            # Edge expectations are relative to the measured body height, not just its target.
+            actual_z = self.home[2] + self.p.landed_z_m - v.pos[2]
+            offset = meta["target_z_m"] - actual_z
+            for key in ("dz_lo", "dz_hi"):
+                meta[key] += offset
         est = G.find_opening(self.frame.points(0.3, 6.0), meta,
                              height_max_m=self.p.align_window_max_dz_m)
         if est is None:
             return None
+        if self._window_height_required() and est.get("dz_m") is not None:
+            est["dz_m"] += self.sp[2] - v.pos[2]
         bearing = _wrap(self.leg_heading - v.heading) if v.heading is not None else 0.0
         return G.to_leg_frame(est, bearing)
 
@@ -1609,15 +1669,34 @@ class Mission:
         if len(self.align_hist) >= max(1, p.align_frames):
             res = G.combine(self.align_hist[-p.align_frames:])
             self._apply_alignment(now, out, res)
-            self._set("check", now, out)
+            self._after_alignment(now, out)
             return
         if now - self.t_phase > p.align_timeout_s:
             why = (f"gate not found: {len(self.align_hist)}/{p.align_frames} measurements in "
                    f"{p.align_timeout_s:g} s on leg {self.leg + 1}")
+            if self._window_height_required():
+                # The measured-height hold already completed. Unconfirmed/partial
+                # detections never move targets: continue the planned crossing as-is.
+                self.align_hist = []
+                self.align_ok_leg = self.leg
+                self.align_result = {"fallback": True, "reason": why}
+                self.t_check = now
+                self.clr_hist, self.corr_t = [], None
+                self._set("check", now, out,
+                          f"!!!!!!!!!! WINDOW ALIGNMENT FALLBACK: {why}; "
+                          "keeping settled height and planned path, continuing without camera correction !!!!!!!!!!")
+                return
             if p.blocked_hold_s > 0:
                 self._start_recover(now, out, "align", why, v)
             else:
                 self._land(now, out, why)
+
+    def _after_alignment(self, now, out):
+        if self._window_height_required():
+            # A camera trim also has to settle before any sideways alignment/crossing motion.
+            self._start_gate_height(now, out, self.sp[2], "check")
+        else:
+            self._set("check", now, out)
 
     def _apply_alignment(self, now, out, res):
         """Shift the crossing (this leg's target and the following gate targets) by the measured
@@ -1627,6 +1706,10 @@ class Mission:
         window = self._leg_meta().get("align", {}).get("group") == "window"
         dz_limit = p.align_window_max_dz_m if window else p.align_max_dz_m
         dz = 0.0 if res.get("dz_m") is None else max(-dz_limit, min(dz_limit, res["dz_m"]))
+        if self._window_height_required():
+            nominal = self.home[2] + p.landed_z_m - self._leg_meta()["align"]["target_z_m"]
+            bounded = max(nominal - dz_limit, min(nominal + dz_limit, self.sp[2] - dz))
+            dz = self.sp[2] - bounded  # repeated recovery/alignment cannot accumulate a larger trim
         turn = max(-math.radians(p.align_max_turn_deg), min(math.radians(p.align_max_turn_deg), res.get("heading_rad", 0.0)))
         un, ue = self.leg_dir
         ln, le = ue, -un                                      # unit vector to the LEFT of the leg (NED, yaw clockwise)
@@ -1694,7 +1777,7 @@ class Mission:
         self.counts["recoveries"] += 1
         if r["kind"] == "align":
             self._apply_alignment(now, out, G.combine(self.align_hist[-self.p.align_frames:]))
-            self._set("check", now, out, "recovered: gate found")
+            self._after_alignment(now, out)
             return
         n0, e0 = self.leg_start
         proj = (v.pos[0] - n0) * self.leg_dir[0] + (v.pos[1] - e0) * self.leg_dir[1]

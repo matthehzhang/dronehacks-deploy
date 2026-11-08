@@ -355,6 +355,7 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
         raise SystemExit("refnav's rule replayed on the map predicts a false stop: not flying (--force to override)")
 
     params = {k: v for k, v in doc.get("refnav_params", {}).items() if not k.startswith("_")}
+    params["landed_z_m"] = float(height)
     # simulator-configuration workarounds; refnav ignores them unless the node runs on sim time
     params.update({k: v for k, v in doc.get("sim_profile", {}).get("refnav", {}).items() if not k.startswith("_")})
     navcfg = {k: v for k, v in doc.get("navigation", {}).items() if not k.startswith("_")}
