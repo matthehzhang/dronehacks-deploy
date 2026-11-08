@@ -97,6 +97,8 @@ def test_tunnel_clearance_is_a_required_stop_before_window(active):
     route, legs, nav_legs = stops_and_legs(plan, doc['start']['xy'], np.deg2rad(doc['start']['yaw_deg']))
     assert [leg['name'] for leg in nav_legs] == [
         'tunnel_entry', 'tunnel_exit', 'tunnel_clearance', 'window_pre', 'window_post', 'pad']
+    assert nav_legs[-1]['stop'] == pytest.approx(doc['sequence'][-1]['xy'])
+    assert legs[-1]['hold']
     stop = nav_legs[2]
     assert stop['stop'] == pytest.approx([2.05, -1.85])
     assert stop['path'] and legs[2]['hold']
@@ -119,6 +121,33 @@ def test_tunnel_clearance_is_a_required_stop_before_window(active):
     # Smoothing for the following leg starts at this stop rather than cutting across it.
     path = nav.plan(np.asarray(stop['stop']), [np.asarray(g) for g in nav_legs[3]['goals']])
     assert path.pts[0] == pytest.approx(stop['stop'])
+
+
+def test_final_goal_moves_only_along_vertical_map_axis(active):
+    course, _, doc, _ = active
+    semantics = importlib.import_module(course.__package__ + '.semantics')
+    geo = semantics.Geometry(course.resolve(doc, 'obj'))
+    pad = doc['sequence'][-1]
+    spec = dict(pad['from'])
+    assert spec.pop('offset_xy_m') == [0.0, -0.75]
+    original, original_radius = semantics.pad_center(geo, spec)
+    shifted, shifted_radius = semantics.pad_center(geo, pad['from'])
+    assert shifted - original == pytest.approx([0.0, -0.75])
+    assert shifted_radius == pytest.approx(original_radius)
+    assert pad['xy'] == pytest.approx([-2.0422, -1.5425])
+    assert pad['xy'] == pytest.approx(shifted, abs=.00005)
+    assert doc['derived']['pad']['xy'] == pad['xy']
+    assert pad['land']
+    assert pad['xy'][1] < original[1] < doc['start']['xy'][1]
+
+
+@pytest.mark.parametrize('offset', [[0.0], [0.0, float('nan')], [0.0, 0.0, 0.0]])
+def test_invalid_landing_goal_offsets_are_rejected(active, offset):
+    course, _, doc, _ = active
+    semantics = importlib.import_module(course.__package__ + '.semantics')
+    geo = semantics.Geometry(course.resolve(doc, 'obj'))
+    with pytest.raises(semantics.SemanticsError, match='offset_xy_m'):
+        semantics.pad_center(geo, {**doc['sequence'][-1]['from'], 'offset_xy_m': offset})
 
 
 def test_packaged_assets_match_source():

@@ -77,9 +77,10 @@
       "land": true,
       "from": {
         "feature": "pad_center",
-        "group": "Landing pad 5 ft"
+        "group": "Landing pad 5 ft",
+        "offset_xy_m": [0.0, -0.75]
       },
-      "_note": "Checkpoint 5: land on the pad's centre; radius from the marking."
+      "_note": "User-measured final landing goal: 0.75 m farther from the start along the vertical map axis (-course y), unchanged x. Applies an offset to the imported pad centre; target (-2.0422, -1.5425) m. OBJ/voxel map and marking radius are unchanged."
     }
   ],
   "chicane_options": {

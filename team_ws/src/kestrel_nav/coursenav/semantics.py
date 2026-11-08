@@ -242,9 +242,14 @@ def gap_after_wall_end(geo, cmap, spec, zlo=0.3, zhi=1.6):
 
 
 def pad_center(geo, spec):
+    """Pad marking centre/radius, with an optional measured course-frame goal offset."""
     xy = geo.points(spec["group"], zhi=FLOOR_Z)[:, :2]
     c = xy.mean(axis=0)
-    return c, float(np.linalg.norm(xy - c, axis=1).max())
+    radius = float(np.linalg.norm(xy - c, axis=1).max())
+    offset = np.asarray(spec.get("offset_xy_m", [0.0, 0.0]), float)
+    if offset.shape != (2,) or not np.isfinite(offset).all():
+        raise SemanticsError("pad_center offset_xy_m must contain two finite course-frame metres")
+    return c + offset, radius
 
 
 # ---------------------------------------------------------------------------- the course

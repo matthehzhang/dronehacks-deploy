@@ -3,6 +3,11 @@
 
 ## Active group154 map (2026-11-08)
 
+The final landing goal is now **(-2.0422, -1.5425) m**: 0.75 m farther from
+the start along the vertical map axis (-course y), with x unchanged. The
+pad's `from.offset_xy_m=[0.0, -0.75]` records this user-measured adjustment
+relative to the imported marking; OBJ/voxel geometry remains unchanged.
+
 After `tunnel_exit`, the route now requires a full stop at `tunnel_clearance`,
 course ENU **(2.05, -1.85) m**, before turning toward the window. This is an
 approximate placement from the user's pink waypoint to pass the rotated wall
