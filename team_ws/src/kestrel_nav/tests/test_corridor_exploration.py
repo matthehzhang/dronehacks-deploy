@@ -117,3 +117,13 @@ def test_fresh_corridor_or_disabled_recovery_does_not_trigger_exploration():
 def test_invalid_exploration_delay_is_rejected(value):
     with pytest.raises(ValueError, match='corridor_explore_after_s'):
         C.Mission(C.Params(recovery_replan=True, corridor_explore_after_s=value))
+
+
+def test_exhausted_hop_never_becomes_a_missing_route_reference():
+    m, v, _ = exploring()
+    m.recover['old_path'] = None
+    m.recover['pid'] = None
+    assert give_hop(m, 10.2, hop_pts(v.pos[:2], (1.4, 0.)))
+    m._finish_recovery(31., C.Output('creep'), v, 'round exhausted')
+    assert m.recover['old_path'] is None
+    assert m.replan_request['reference_pid'] is None

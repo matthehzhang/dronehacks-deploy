@@ -1807,6 +1807,7 @@ class Mission:
         if r is not None and r.get("cause") == "unobserved":
             # Each round keeps the existing certified-hop size/speed and live-depth
             # guards. Request ids remain monotonic, so old replies cannot move us.
+            self.path = None  # an exhausted hop must never become the next round's route reference
             self._start_recover(now, out, "blocked", r["why"], v, r["old_path"], r["old_path_s"])
             self.recover.update(cause="unobserved", exploration_round=r.get("exploration_round", 1) + 1,
                                 t0_hold=now - self.p.blocked_hold_s - 1.0)
