@@ -27,6 +27,8 @@ def route_spec(doc, start, landed_z):
 
 
 class ReturnGeometry:
+    MAX_DRIFT_M = 0.5               # PX4-frame vs localizer disagreement on the pad beyond which the return refuses
+
     def __init__(self, spec, cmap=None):
         self.spec = spec
         self.map = cmap if cmap is not None else CourseMap.load(spec['map_file'])
@@ -40,6 +42,16 @@ class ReturnGeometry:
         f, left = dn * math.cos(h) + de * math.sin(h), dn * math.sin(h) - de * math.cos(h)
         return np.array([sx + f * math.cos(y) - left * math.sin(y),
                          sy + f * math.sin(y) + left * math.cos(y)])
+
+    def ne_xy(self, course, launch):
+        """Inverse of course_xy: a course-frame point -> PX4 local NE through the remembered launch frame."""
+        sx, sy, yaw_deg = self.spec['start_course']
+        dx, dy = np.asarray(course, float) - [sx, sy]
+        h, y = launch[3], math.radians(yaw_deg)
+        f, left = dx * math.cos(y) + dy * math.sin(y), -dx * math.sin(y) + dy * math.cos(y)
+        dn = f * math.cos(h) + left * math.sin(h)
+        de = f * math.sin(h) - left * math.cos(h)
+        return np.array([launch[0] + dn, launch[1] + de])
 
     def clear_segment(self, a, b, radius, z_margin):
         """Conservative box sweep, including the full voxel cells, inside map bounds.
@@ -66,13 +78,20 @@ class ReturnGeometry:
     def plan(self, launch, current, localized_xy, sigma, eph, epv, climb_rate, speed):
         s = self.spec
         start = np.asarray(s['start_course'][:2], float)
-        pad = self.course_xy(current[:2], launch)
-        # Retain the remembered local-frame destination. The current map estimate must
-        # agree with that frame before trusting the saved coordinate and map sweep.
-        disagreement = float(np.linalg.norm(pad-np.asarray(localized_xy)))
-        if disagreement > .15:
+        remembered = self.course_xy(current[:2], launch)
+        # PX4's local frame drifts with VIO (Gazebo/FlyX: 0.2-0.4 m over a run), so the REMEMBERED launch is no
+        # longer where the launch is. Measure that drift with the localizer (the map) on the pad and correct the
+        # destination by it: home is the PX4-frame point the localizer places on the launch, and every swept
+        # volume is checked where the aircraft really is. Gazebo 2026-11-07: the old rule (refuse beyond
+        # 0.15 m) refused the return of an otherwise ready run. Beyond MAX_DRIFT_M the frames disagree by more
+        # than drift explains: refuse.
+        drift = np.asarray(localized_xy, float) - remembered
+        disagreement = float(np.linalg.norm(drift))
+        if disagreement > self.MAX_DRIFT_M:
             raise ValueError('remembered launch frame disagrees with localizer')
-        uncertainty = max(2*sigma, eph) + disagreement
+        pad = np.asarray(localized_xy, float)
+        # heading drift is not corrected by a translation: allow a quarter of the drift, plus 5 cm, over the transit
+        uncertainty = max(2*sigma, eph) + .05 + .25 * disagreement
         if np.linalg.norm(np.asarray(localized_xy)-s['pad_xy']) + uncertainty + s['radius_m'] > s['pad_radius_m']:
             raise ValueError('landing is not confidently inside the destination pad')
         if np.linalg.norm(start-s['launch_mark']) + uncertainty + .15 > s['landing_radius_m']:
@@ -96,4 +115,5 @@ class ReturnGeometry:
         # corridor checks and reserve, in addition to translation/descent time.
         # This is an initial budget model, not a flight-time guarantee.
         estimated = height/climb_rate + float(np.linalg.norm(pad-start))/speed + (z-s['landed_z_m'])/.25 + 40
-        return ReturnPlan(height, z, tuple(launch[:2]), estimated)
+        target = self.ne_xy(start - drift, launch)          # the PX4-frame point the localizer calls the launch
+        return ReturnPlan(height, z, (float(target[0]), float(target[1])), estimated)

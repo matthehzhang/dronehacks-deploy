@@ -77,3 +77,17 @@ def smooth_params_for(nav_cfg, refnav_params, need_m):
         sp.yaw_rate_dps = float(refnav_params["yaw_rate_dps"])
     sp.need_m = need_m
     return sp
+
+
+def headings_to_frame(pts, yaw, to_frame, d_m=0.1):
+    """CRAB headings (course frame, rad) at `pts` -> the same headings in the frame `to_frame` maps points
+    into (PX4 NED: (n, e)), through the same transform as the points (drift correction, VIO frame), by
+    mapping a short step along each heading. None when there are no headings."""
+    if yaw is None:
+        return None
+    pts = np.asarray(pts, float)
+    yaw = np.asarray(yaw, float)
+    a = np.asarray(to_frame(pts), float)
+    b = np.asarray(to_frame(pts + d_m * np.stack([np.cos(yaw), np.sin(yaw)], axis=1)), float)
+    d = b - a
+    return np.arctan2(d[:, 1], d[:, 0])

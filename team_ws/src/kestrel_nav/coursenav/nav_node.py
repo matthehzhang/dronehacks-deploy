@@ -30,7 +30,7 @@ from std_msgs.msg import String
 from .course import Grid2D, load_course, plan_grids, resolve, scan_grid
 from .drift import DriftEKF
 from .navigator import Navigator
-from .navplan import course_to_ned, smooth_params_for
+from .navplan import course_to_ned, headings_to_frame, smooth_params_for
 from .objmap import CourseMap
 from .planner import PlanError
 
@@ -189,6 +189,8 @@ class NavNode(Node):
                 out.update(pid=self.pid, pts_ne=to_ned(P.pts).round(4).tolist(), v=P.v.round(3).tolist(),
                            stops=list(P.stops),
                            tubes=None if P.tube is None else P.tube.round(4).tolist())
+                if P.yaw is not None:                   # CRAB: the heading to hold per point (NED rad)
+                    out["yaw_ne"] = headings_to_frame(P.pts, P.yaw, to_ned).round(4).tolist()
         self.pub.publish(String(data=json.dumps(out)))
 
 

@@ -52,6 +52,12 @@ class SmoothParams:
     arc_min_tube_m: float = 0.0     # > 0 (with reach_m): a corner is flown as an arc only if every point of the
                                     # arc keeps a tube (clearance - reach) / 2 of at least this; else stop-and-turn.
                                     # An arc yaws while moving, which adds cross-track error the tube must hold
+    crab_max_deg: float = 0.0       # > 0: CRAB. Consecutive segments whose directions all lie within +- this of
+                                    # one heading form a run flown at that FIXED heading (the aircraft slides
+                                    # sideways by rolling, it does not yaw); only run boundaries are in-place
+                                    # turns. Corners inside a run are arcs without yaw (or yawless stops when no
+                                    # arc fits). Bounded by the depth camera: the travel direction plus the
+                                    # corridor must stay in view (refnav checks the corridor along the travel)
     # flow profile (flow-corners branch): room-based speed and stop approach, from the cloud runs' data
     reach_m: float = 0.0            # > 0: rotor reach; tube = (clearance - reach) / 2 per point (planner.leg_tube_m)
     tube_response_s: float = 0.0    # > 0: v <= tube / this (cross-track p90 = 0.44 s * v, steady run015)
@@ -72,6 +78,9 @@ class Path:
     stops: list = field(default_factory=list)   # indices of sharp corners flown as stop-and-turn
     tube: np.ndarray = None         # (N,) cross-track tube (m) for refnav's gate, when reach_m > 0
     stop_vertices: list = field(default_factory=list)   # the input polyline's vertices that became stops
+    yaw: np.ndarray = None          # (N,) CRAB: the fixed heading to hold at each point (rad); None = the tangent
+    turn_stops: list = field(default_factory=list)      # CRAB: the stops where the heading changes (the rest
+                                                        # of `stops` are yawless: brake, go on sideways)
 
     @property
     def length(self):
@@ -153,43 +162,91 @@ def _corner_arc(p0, p1, p2, r, ds):
     return _arc_points(c, r, a0, a1, ccw, ds), t, turn
 
 
-def smooth(poly, grid, clearance, p: SmoothParams = None, keep_sharp=()):
-    """Polyline (after prune) -> dense points with curvature and stop flags. Corners in keep_sharp
-    (vertex indices, e.g. a gate's pre point where the aircraft must stop and align) stay sharp."""
-    p = p or SmoothParams()
+def _wrap(a):
+    return math.atan2(math.sin(a), math.cos(a))
+
+
+def crab_runs(poly, crab_max_deg, boundary_cost, forced=()):
+    """CRAB: partition the polyline's segments into runs, each flown at one heading that keeps every segment's
+    direction within +-crab_max_deg of the nose (the aircraft slides sideways; it does not yaw). Dynamic
+    programming over contiguous partitions: minimise the sum of boundary_cost[v] over the vertices v where a
+    run ends (a corner the aircraft must stop at costs a stop; one it can fly as an arc costs little), and
+    then the number of runs. A vertex in `forced` (a gate's pre point: stop and align) always ends a run.
+    Headings: the first run takes the middle of its feasible interval; each later run keeps the previous
+    heading when it is feasible, else moves to the nearest edge of its interval (the least turning).
+    -> (run id per segment, heading per run (rad))."""
     poly = np.asarray(poly, float)
+    d = np.diff(poly, axis=0)
+    h = np.arctan2(d[:, 1], d[:, 0])
+    m = len(h)
+    lim = math.radians(2.0 * crab_max_deg)
+    best, prev, span = [math.inf] * (m + 1), [-1] * (m + 1), [None] * (m + 1)
+    best[0] = 0.0
+    for j in range(1, m + 1):                       # a run of segments i .. j-1
+        ref, lo, hi = h[j - 1], 0.0, 0.0
+        for i in range(j - 1, -1, -1):
+            off = _wrap(h[i] - ref)
+            lo, hi = min(lo, off), max(hi, off)
+            if hi - lo > lim or (i + 1 <= j - 1 and (i + 1) in forced):
+                break
+            c = best[i] + (boundary_cost.get(i, 1.0) if i > 0 else 0.0) + 1e-3
+            if c < best[j]:
+                best[j], prev[j], span[j] = c, i, (ref, lo, hi)
+    runs, j = [], m
+    while j > 0:
+        runs.append((prev[j], j, span[j]))
+        j = prev[j]
+    runs.reverse()
+    run_of, heads, cur = np.zeros(m, int), [], None
+    half = math.radians(crab_max_deg)
+    for r, (i, j, (ref, lo, hi)) in enumerate(runs):
+        run_of[i:j] = r
+        centre, w = ref + 0.5 * (lo + hi), max(half - 0.5 * (hi - lo), 0.0)   # feasible: centre +- w
+        if cur is None:
+            cur = centre
+        else:
+            cur = centre + max(-w, min(w, _wrap(cur - centre)))
+        heads.append(_wrap(cur))
+    return run_of, heads
+
+
+def _fit_arc(poly, k, seg_len, turn, grid, clearance, p):
+    """The largest corner arc at vertex k (radius r_max_m down to r_min_m) whose chords keep need_m (the
+    roomier need_m + prefer_extra_m first). -> (points, tangent length, radius, signed turn) or None."""
+    t_max = 0.5 * min(seg_len[k - 1], seg_len[k])
+    r0 = min(p.r_max_m, t_max / math.tan(turn / 2.0))
+    for need in (p.need_m + max(p.prefer_extra_m, 0.0), p.need_m):     # roomy first, the buffer at least
+        r = r0
+        while r >= p.r_min_m - 1e-9:
+            arc = _corner_arc(poly[k - 1], poly[k], poly[k + 1], r, p.ds_m)
+            # the arc is flown as chords between its points: certify the chords, not only the points
+            # (a chord can cut a blocked cell's corner between two clear points)
+            if arc is not None and min(segment_min_clearance(grid, clearance, a, b)
+                                       for a, b in zip(arc[0][:-1], arc[0][1:])) >= need:
+                return (arc[0], arc[1], r, arc[2])
+            r *= 0.8
+    return None
+
+
+def _turn_at(poly, k):
+    u = poly[k] - poly[k - 1]
+    w = poly[k + 1] - poly[k]
+    return abs(math.atan2(u[0] * w[1] - u[1] * w[0], float(np.dot(u, w))))
+
+
+def _corners(poly, seg_len, grid, clearance, p, keep_sharp):
+    """The heading-follows-the-tangent decision per vertex: {k: arc} flown while yawing, and the set of
+    stop-and-turn vertices."""
     n = len(poly)
-    if n < 2:
-        raise ValueError("a path needs at least two points")
-    seg_len = np.linalg.norm(np.diff(poly, axis=0), axis=1)
-    arcs = {}
-    stops = set()
+    arcs, stops = {}, set()
     for k in range(1, n - 1):
-        u = poly[k] - poly[k - 1]
-        w = poly[k + 1] - poly[k]
-        turn = abs(math.atan2(u[0] * w[1] - u[1] * w[0], float(np.dot(u, w))))
+        turn = _turn_at(poly, k)
         if turn < math.radians(1.0):
             continue
         if k in keep_sharp or turn > math.radians(p.stop_turn_deg):
             stops.add(k)
             continue
-        t_max = 0.5 * min(seg_len[k - 1], seg_len[k])
-        r = min(p.r_max_m, t_max / math.tan(turn / 2.0))
-        found = None
-        r0 = r
-        for need in (p.need_m + max(p.prefer_extra_m, 0.0), p.need_m):     # roomy first, the buffer at least
-            r = r0
-            while found is None and r >= p.r_min_m - 1e-9:
-                arc = _corner_arc(poly[k - 1], poly[k], poly[k + 1], r, p.ds_m)
-                # the arc is flown as chords between its points: certify the chords, not only the points
-                # (a chord can cut a blocked cell's corner between two clear points)
-                if arc is not None and min(segment_min_clearance(grid, clearance, a, b)
-                                           for a, b in zip(arc[0][:-1], arc[0][1:])) >= need:
-                    found = (arc[0], arc[1], r, arc[2])
-                    break
-                r *= 0.8
-            if found is not None:
-                break
+        found = _fit_arc(poly, k, seg_len, turn, grid, clearance, p)
         if found is not None and p.arc_min_tube_m > 0 and p.reach_m > 0:
             arc_tube = (_clear_at(grid, clearance, found[0]).min() - p.reach_m) / 2.0
             if arc_tube < p.arc_min_tube_m:
@@ -209,8 +266,53 @@ def smooth(poly, grid, clearance, p: SmoothParams = None, keep_sharp=()):
                 for j in (k, k + 1):
                     arcs.pop(j, None)
                     stops.add(j)
+    return arcs, stops
+
+
+def smooth(poly, grid, clearance, p: SmoothParams = None, keep_sharp=()):
+    """Polyline (after prune) -> dense points with curvature and stop flags. Corners in keep_sharp
+    (vertex indices, e.g. a gate's pre point where the aircraft must stop and align) stay sharp.
+    CRAB (crab_max_deg > 0): runs of segments flown at a fixed heading (crab_runs). Inside a run every
+    corner is an arc without yaw (r_min_m and the clearance only: the yaw rules do not apply) or, when
+    none fits, a yawless stop. Between runs the corner keeps what the tangent-following rules decide: an arc
+    (the heading turns from one run's to the next while moving, as before) or a stop-and-turn."""
+    p = p or SmoothParams()
+    poly = np.asarray(poly, float)
+    n = len(poly)
+    if n < 2:
+        raise ValueError("a path needs at least two points")
+    seg_len = np.linalg.norm(np.diff(poly, axis=0), axis=1)
+    keep_sharp = set(keep_sharp)
+    arcs, stops = _corners(poly, seg_len, grid, clearance, p, keep_sharp)
+    crab = p.crab_max_deg > 0
+    flow = set()                                          # CRAB: run boundaries flown as arcs (yaw while moving)
+    turn_vertices = set(stops)
+    if crab:
+        cost = {k: (1.0 if k in stops else 0.05 if k in arcs else 1.0) for k in range(1, n - 1)}
+        run_of, run_head = crab_runs(poly, p.crab_max_deg, cost, forced=keep_sharp)
+        t_arcs = arcs
+        arcs, stops, turn_vertices = {}, set(), set()
+        for k in range(1, n - 1):
+            if run_of[k - 1] != run_of[k]:                # a boundary: the tangent-following decision
+                if k in t_arcs:
+                    arcs[k] = t_arcs[k]
+                    flow.add(k)
+                else:
+                    stops.add(k)
+                    turn_vertices.add(k)
+                continue
+            turn = _turn_at(poly, k)                      # inside a run: no yaw
+            if turn < math.radians(1.0):
+                continue
+            found = _fit_arc(poly, k, seg_len, turn, grid, clearance, p)
+            if found is None:
+                stops.add(k)                              # yawless stop: brake, go on sideways
+            else:
+                arcs[k] = found
     # assemble: straight pieces between tangent points, arcs at corners
-    pts, kap, stop_idx = [poly[0][None, :]], [np.zeros(1)], []
+    pts, kap, stop_idx, yaw, turn_idx = [poly[0][None, :]], [np.zeros(1)], [], [], []
+    if crab:
+        yaw.append(np.full(1, run_head[run_of[0]]))
     for k in range(1, n):
         start = poly[k - 1] + (poly[k] - poly[k - 1]) / seg_len[k - 1] * (arcs[k - 1][1] if (k - 1) in arcs else 0.0)
         end = poly[k] - (poly[k] - poly[k - 1]) / seg_len[k - 1] * (arcs[k][1] if k in arcs else 0.0)
@@ -219,23 +321,38 @@ def smooth(poly, grid, clearance, p: SmoothParams = None, keep_sharp=()):
         line = np.linspace(start, end, m + 1)[1:]
         pts.append(line)
         kap.append(np.zeros(len(line)))
+        if crab:
+            yaw.append(np.full(len(line), run_head[run_of[k - 1]]))
         if k in arcs:
             arc_pts, _, r, turn = arcs[k]
             pts.append(arc_pts[1:])
             kap.append(np.full(len(arc_pts) - 1, math.copysign(1.0 / r, turn)))
+            if crab:
+                a0 = run_head[run_of[k - 1]]
+                if k in flow:                             # the heading turns to the next run's along the arc
+                    dy = _wrap(run_head[run_of[k]] - a0)
+                    f = np.arange(1, len(arc_pts)) / max(len(arc_pts) - 1, 1)
+                    yaw.append(np.array([_wrap(a0 + dy * x) for x in f]))
+                else:
+                    yaw.append(np.full(len(arc_pts) - 1, a0))
         if k in stops:
             stop_idx.append(sum(len(a) for a in pts) - 1)
+            if k in turn_vertices:
+                turn_idx.append(stop_idx[-1])
     P = np.concatenate(pts)
     K = np.concatenate(kap)
     keep = np.concatenate([[True], np.linalg.norm(np.diff(P, axis=0), axis=1) > 1e-9])
     idx_map = np.cumsum(keep) - 1
     P, K = P[keep], K[keep]
+    Y = np.concatenate(yaw)[keep] if crab else None
     stop_idx = sorted({int(idx_map[i]) for i in stop_idx})
+    turn_idx = sorted({int(idx_map[i]) for i in turn_idx})
     s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))])
     d = np.gradient(P, axis=0)
     heading = np.arctan2(d[:, 1], d[:, 0])
     clr = _clear_at(grid, clearance, P)
-    return Path(P, s, K, heading, np.zeros(len(P)), clr, stop_idx, stop_vertices=sorted(stops))
+    return Path(P, s, K, heading, np.zeros(len(P)), clr, stop_idx, stop_vertices=sorted(stops), yaw=Y,
+                turn_stops=turn_idx)
 
 
 def facing_room(grid, p, heading, max_m=3.0, step=None):
@@ -276,7 +393,13 @@ def speed_profile(path: Path, p: SmoothParams = None, v_start=0.0, v_end=0.0, st
     k = np.abs(path.kappa)
     curved = k > 1e-9
     cap[curved] = np.minimum(cap[curved], np.sqrt(p.lat_accel_mps2 / k[curved]))
-    cap[curved] = np.minimum(cap[curved], math.radians(p.yaw_rate_dps) / k[curved])
+    if path.yaw is None:
+        cap[curved] = np.minimum(cap[curved], math.radians(p.yaw_rate_dps) / k[curved])
+    else:                                                   # CRAB: only where the held heading itself turns
+        dyaw = np.abs(np.angle(np.exp(1j * np.diff(path.yaw)))) / np.maximum(np.diff(path.s), 1e-6)
+        rate = np.concatenate([dyaw, [0.0]])
+        turning = rate > 1e-6
+        cap[turning] = np.minimum(cap[turning], math.radians(p.yaw_rate_dps) / rate[turning])
     if p.slow_clear_m > 0:
         f = np.clip((path.clearance - p.need_m) / p.slow_clear_m, 0.0, 1.0)
         cap = np.minimum(cap, p.slow_min_mps + (p.cruise_mps - p.slow_min_mps) * f)

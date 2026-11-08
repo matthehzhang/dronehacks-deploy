@@ -56,6 +56,8 @@ PX4 leaves Offboard, never translating into a confirmed obstacle inside the stop
 from __future__ import annotations
 
 import math
+
+import numpy as np
 from dataclasses import dataclass, field
 
 from . import depth as D
@@ -145,6 +147,20 @@ class Params:
                                                 # navigator: A* on the fused map, corner arcs, time-optimal profile);
                                                 # gate and tunnel legs keep the straight pose tracking above
     path_lookahead_m: float = 0.35              # path mode: heading looks this far (+ 0.5 s of speed) ahead
+    path_timed: bool = False                    # path mode: fly a TIMED trajectory (refnav.timed): the reference is
+                                                # s(t), v(t), a(t) streamed by a clock with full feed-forward; the pose
+                                                # only scales the clock (live caps, tube, lag) and re-syncs it
+    path_jerk_window_s: float = 0.25            # timed: speed smoothed over this window (S-curve; jerk <= a / window)
+    path_lead_s: float = 0.0                    # timed: velocity / acceleration feed-forward taken this far AHEAD on
+                                                # the trajectory (the identified command -> response delay), so they
+                                                # reach PX4 on time; the position reference stays at the clock
+    path_lag_max_m: float = 0.15                # timed: the clock waits while the reference leads the aircraft along
+                                                # the path by more than this (resumes inside half of it)
+    path_resync_m: float = 0.10                 # timed: re-plan from the aircraft when it is this far behind/ahead
+                                                # of the reference after a pause, or a new path arrives
+    crab_view_max_deg: float = 25.0             # CRAB paths (headings from the navigator): forward motion holds while
+                                                # the travel direction is more than this off the camera's axis
+                                                # (the OAK sees +-35 deg past its border; the corridor must stay in view)
     path_heading_lead_deg: float = 180.0        # path mode: the heading never leads the current tangent by more
                                                 # (run010: 50 deg of heading preview into a corner; 180 = off)
     path_lat_accel_max_mps2: float = 0.0        # > 0: path mode lateral feed-forward v^2*kappa clamped to this
@@ -332,6 +348,11 @@ class Mission:
         self.path = None              # path mode: dict(t, leg, pts (n,2) NED, s, v, heading, kappa, stops)
         self.path_s = 0.0             # path mode: progress along the current path (m)
         self.path_stop_done = -1      # path mode: index of the last interior stop already turned at
+        self.traj = None              # path_timed: the TimedTrajectory being streamed (None: plan one)
+        self.traj_tau = 0.0           # path_timed: its clock (s)
+        self.traj_rate = 0.0          # path_timed: how fast that clock runs (0..1)
+        self.traj_key = None          # path_timed: (path pid, leg, target stop) it was planned for
+        self.traj_lag_hold = False    # path_timed: the clock waits for the aircraft
         self.v_vec = None             # path mode: commanded velocity (vn, ve) ...
         self.a_vec = None             # ... and feed-forward acceleration (an, ae)
         self.slow_since = None        # arrive_speed_mps: first tick the aircraft was slow enough
@@ -342,7 +363,8 @@ class Mission:
         self.counts = {"depth_frames": 0, "obstacle_stops": 0, "depth_holds": 0, "unconfirmed_obstacles": 0,
                        "depth_unusable": 0, "depth_future": 0, "depth_stale": 0, "depth_out_of_order": 0,
                        "corridor_unobserved": 0, "corrections": 0, "recoveries": 0, "blended_turns": 0, "path_waits": 0,
-                       "alignments": 0, "tunnel_ticks": 0, "tube_holds": 0, "tube_ticks": 0, "retreats": 0}
+                       "alignments": 0, "tunnel_ticks": 0, "tube_holds": 0, "tube_ticks": 0, "retreats": 0,
+                       "crab_out_of_view": 0, "lag_holds": 0}
         self.tube_hold = False        # tube_gate: forward motion held until back inside half the tube
         self.last_v = None            # the latest Vehicle seen by step (for the safe-landing decision)
         self.flown = []               # PX4 NE breadcrumbs of the path actually flown (estimate), from take-off
@@ -435,7 +457,7 @@ class Mission:
                 self.leg_dir = ((tn - n0) / L, (te - e0) / L)
                 self.leg_heading = math.atan2(te - e0, tn - n0)
 
-    def on_path(self, t, leg, pts_ne, speeds, stops=(), pid=0, tubes=None):
+    def on_path(self, t, leg, pts_ne, speeds, stops=(), pid=0, tubes=None, yaws=None):
         """track_mode "path": the current path for leg `leg` in PX4 NED (refreshed by the navigator as
         the map correction and the live map change). pts_ne: (n, 2), speeds: (n,) the time-optimal profile,
         stops: indices of interior stop-and-turn corners; pid: changes when the path is RE-PLANNED (new
@@ -465,8 +487,13 @@ class Mission:
             tb = _np.asarray(tubes, float)
             if tb.shape != (len(pts),) or not _np.all(_np.isfinite(tb)):
                 tb = None
+        yw = None
+        if yaws is not None:                                    # CRAB: a fixed heading per point (NED rad)
+            yw = _np.asarray(yaws, float)
+            if yw.shape != (len(pts),) or not _np.all(_np.isfinite(yw)):
+                yw = None
         self.path = dict(t=float(t), leg=int(leg), pid=pid, pts=pts, s=s, v=_np.maximum(sp, 0.0), heading=heading,
-                         kappa=kappa, stops=sorted(int(i) for i in stops), tube=tb)
+                         kappa=kappa, stops=sorted(int(i) for i in stops), tube=tb, yaw=yw)
         self.targets[leg] = (float(pts[-1, 0]), float(pts[-1, 1]))
         if leg == self.leg and self._path_leg():
             self.leg_len = float(s[-1])
@@ -573,6 +600,8 @@ class Mission:
             if paused_before and not paused_after:
                 self.silence_from = now                      # silence counts again from here
         self.phase, self.t_phase = phase, now
+        if phase != "go":
+            self.traj = None
         if why:
             self.why = why
 
@@ -870,7 +899,8 @@ class Mission:
                 self._next_leg(now, out, v)
         elif ph == "turn":
             if (self._path_leg() and self._path_fresh(now) and self.path_stop_done < 0 and self.path_s == 0.0):
-                self.leg_heading = self._path_at(p.path_lookahead_m)[1]   # face where the path first goes
+                self.leg_heading = (self._path_yaw(0.02) if self._crab()        # CRAB: the first run's heading
+                                    else self._path_at(p.path_lookahead_m)[1])   # face where the path first goes
             elif (p.path_turn_hold and self._path_leg() and self.path_stop_done < 0 and self.path_s == 0.0):
                 if self.leg_heading != self.sp[3]:
                     out.events.append(f"turn: no path yet for leg {self.leg + 1}: keeping the heading "
@@ -1077,7 +1107,12 @@ class Mission:
         whose rays through the corridor (at stop_m + lead_max_m ahead) mostly returned nothing has
         observed nothing there and is not evidence of free space. None = unknown (do not move)."""
         p = self.p
-        bearing = _wrap(self.leg_heading - v.heading)        # positive = to the right (NED yaw)
+        bearing = self._travel_bearing(v)                    # positive = to the right (NED yaw)
+        if self._crabbing():
+            # CRAB: the corridor that matters is along the TRAVEL, and it must be in the camera's view at all
+            if abs(bearing) > math.radians(p.crab_view_max_deg):
+                self.counts["crab_out_of_view"] += 1         # unknown: forward motion holds (the corridor wait
+                return None                                  # still times out on the last observation)
         if self.frame is not None and self._judged_t != self.depth_t:
             self._judged_t = self.depth_t
             cov, _ = self.frame.corridor_coverage(bearing, p.corridor_half_m, p.band_m, self._stop_m(self.s) + p.lead_max_m)
@@ -1119,7 +1154,7 @@ class Mission:
         # stop_min here would strand a valid endpoint 0.4 m before a wall. The
         # existing _blocks check still enforces its larger on-route threshold.
         front = braking_cap(clr, max(p.corridor_half_m, p.side_near_m), decel, p.response_delay_s)
-        sides = side_cap(self.depth_pts, _wrap(self.leg_heading - v.heading), p.speed_mps,
+        sides = side_cap(self.depth_pts, self._travel_bearing(v), p.speed_mps,
                          p.side_near_m, p.side_extra_m, p.side_min_mps, p.side_reach_m,
                          p.band_m, max(3, round(p.min_obstacle_px / p.depth_stride ** 2)))
         return min(self._leg_speed(), front, sides)
@@ -1138,7 +1173,7 @@ class Mission:
     def _go(self, now, dt, out, v):
         p = self.p
         if p.track_mode == "path" and self._path_leg():
-            return self._go_path(now, dt, out, v)
+            return (self._go_timed(now, dt, out, v) if self.p.path_timed else self._go_path(now, dt, out, v))
         if p.track_mode in ("pose", "path"):
             return self._go_pose(now, dt, out, v)
         n0, e0 = self.leg_start
@@ -1215,6 +1250,36 @@ class Mission:
         dh = math.atan2(P["pts"][i + 1][1] - P["pts"][i][1], P["pts"][i + 1][0] - P["pts"][i][0])
         return (float(pt[0]), float(pt[1])), dh, float(P["kappa"][i]), float(P["v"][i] + f * (P["v"][i + 1] - P["v"][i]))
 
+    def _path_yaw(self, s_q):
+        """The heading to hold at arc length s_q: CRAB paths carry it (fixed through a run, changing only at
+        the run's in-place turn stop; just past a stop it is the NEXT run's), else the path tangent there."""
+        import numpy as _np
+        P = self.path
+        if P.get("yaw") is None:
+            return self._path_at(s_q)[1]
+        s = P["s"]
+        s_q = min(max(s_q, 0.0), float(s[-1]))
+        i = min(max(int(_np.searchsorted(s, s_q, side="right")) - 1, 0), len(s) - 2)
+        return float(P["yaw"][i + 1])                          # the segment i -> i+1 is flown at its end's run
+
+    def _crab(self):
+        return self.path is not None and self.path.get("yaw") is not None
+
+    def _crabbing(self):
+        """Flying this leg's CRAB path now (go, or the check before going on)?"""
+        return (self._path_leg() and self._crab() and self.path["leg"] == self.leg
+                and self.phase in ("go", "check"))
+
+    def _travel_bearing(self, v):
+        """Direction of travel relative to the nose (rad, + = right). Normally the leg's heading; on a CRAB
+        path the aircraft moves sideways of its nose: in go the tangent _go_path set at the aircraft's
+        projection (leg_dir), in the check at a stop the outgoing tangent."""
+        if self._crabbing():
+            travel = (math.atan2(self.leg_dir[1], self.leg_dir[0]) if self.phase == "go"
+                      else self._path_at(self.path_s + 1e-4)[1])
+            return _wrap(travel - v.heading)
+        return _wrap(self.leg_heading - v.heading)
+
     def _path_ahead_level(self, v):
         """The path ahead of the aircraft (stop distance + lead) in the levelled body frame (x forward,
         y right) with its arc lengths from the aircraft, for the along-path obstacle check."""
@@ -1260,13 +1325,20 @@ class Mission:
         nxt = [i for i in P["stops"] if i > self.path_stop_done]
         if nxt:
             self.path_s = min(self.path_s, float(P["s"][nxt[0]]))
+        if 0 <= self.path_stop_done < len(P["s"]) - 1:
+            # Gazebo 2026-11-07 (flow-corners): after the turn at a corner stop the aircraft sat 1.5 cm short of
+            # the vertex, progress slipped back onto the INCOMING segment, and its tangent sent the aircraft on
+            # along the old heading into the wall. A corner already turned at is behind: start past it.
+            self.path_s = max(self.path_s, float(P["s"][self.path_stop_done]) + 1e-6)
         s_stop = float(P["s"][nxt[0]]) if nxt else L            # brake to the next interior stop, else the end
         remaining = s_stop - self.path_s
         look = self.path_s + p.path_lookahead_m + 0.5 * self.v_cmd
         _, head_ahead, _, _ = self._path_at(min(look, s_stop))
         pt, tang, kap, _ = self._path_at(self.path_s)
         lead = math.radians(p.path_heading_lead_deg)
-        if lead < math.pi:                                      # the heading may not run ahead of the motion
+        if self._crab():
+            head_ahead = self._path_yaw(self.path_s)            # CRAB: hold the run's heading, slide sideways
+        elif lead < math.pi:                                    # the heading may not run ahead of the motion
             head_ahead = tang + max(-lead, min(lead, _wrap(head_ahead - tang)))
         # the profile's limit just ahead (curves, clearance, stops coming up), not at the aircraft: the
         # profile starts at 0 from rest, and reading it here would hold the aircraft there for ever; the
@@ -1349,13 +1421,172 @@ class Mission:
             if nxt:                                             # an interior sharp corner: turn in place, check, go
                 self.path_stop_done = nxt[0]
                 self.path_s = float(P["s"][nxt[0]])
-                _, h_next, _, _ = self._path_at(self.path_s + p.path_lookahead_m)
+                h_next = (self._path_yaw(self.path_s) if self._crab()    # CRAB: the next run's heading
+                          else self._path_at(self.path_s + p.path_lookahead_m)[1])
                 self.leg_heading = h_next
                 self.clr_hist, self.corr_t = [], None
                 self.turn_start_heading = self.sp[3]
                 self._set("turn", now, out, f"path corner on leg {self.leg + 1}: stop and turn")
             else:
                 self.sp[0], self.sp[1] = float(end[0]), float(end[1])
+                self._set("hold", now, out, f"arrived leg {self.leg + 1}")
+
+    def _go_timed(self, now, dt, out, v):
+        """track_mode "path" with path_timed: stream a TIMED trajectory (refnav.timed.TimedTrajectory) along the
+        navigator's path to the next stop: position setpoint = the reference point s(tau), velocity and
+        acceleration feed-forward = v(tau) along the tangent and a(tau) along + v^2 kappa across, heading as
+        _go_path decides it (crab heading or the tangent look-ahead). The aircraft's pose never sets the setpoint;
+        it scales the clock: rate -> 0 without live depth evidence, inside a tube excursion or while the
+        reference leads by more than path_lag_max_m; rate <= live cap / v(tau) under the geometry cap. The rate
+        slews within the accel/brake limits. Every gate of _go_path stays: an obstacle within the stop distance
+        along the path stops, holds, backs off, rechecks; stops end the trajectory at rest and turn in place."""
+        from .timed import TimedTrajectory
+        p = self.p
+        if not self._path_fresh(now):
+            self.counts["path_waits"] += 1
+            self.traj = None
+            self.v_cmd, self.a_cmd = 0.0, 0.0
+            self.v_vec, self.a_vec = (0.0, 0.0), (0.0, 0.0)
+            return
+        P = self.path
+        s_now, seg_i = self._path_project(v.pos)
+        self.path_s = max(self.path_s - 0.05, s_now)
+        L = float(P["s"][-1])
+        nxt = [i for i in P["stops"] if i > self.path_stop_done]
+        if nxt:
+            self.path_s = min(self.path_s, float(P["s"][nxt[0]]))
+        if 0 <= self.path_stop_done < len(P["s"]) - 1:
+            self.path_s = max(self.path_s, float(P["s"][self.path_stop_done]) + 1e-6)
+        s_stop = float(P["s"][nxt[0]]) if nxt else L
+        remaining = s_stop - self.path_s
+        a_b = p.brake_mps2 if p.brake_mps2 > 0 else (p.accel_mps2 if p.accel_mps2 > 0 else 0.5)
+        a_up = p.accel_mps2 if p.accel_mps2 > 0 else a_b
+        key = (P.get("pid"), P.get("leg"), nxt[0] if nxt else -1)
+        pt_air, tang_air, _, _ = self._path_at(self.path_s)
+        v_along = self._along_speed(v, (math.cos(tang_air), math.sin(tang_air)))
+        if self.traj is not None and key != self.traj_key:
+            # a new path (re-plan) or the next stop: continue from the reference's own state when it is close to
+            # the aircraft (no jump in the command), else from the aircraft
+            s_ref_old, v_ref_old, _ = self.traj.at(self.traj_tau)
+            if abs(s_ref_old - self.path_s) <= p.path_resync_m:
+                s0, v0 = min(max(s_ref_old, self.path_s - p.path_resync_m), s_stop), v_ref_old * self.traj_rate
+            else:
+                s0, v0 = self.path_s, max(v_along or 0.0, 0.0)
+            self.traj = None
+        else:
+            s0, v0 = self.path_s, max(v_along or 0.0, 0.0)
+        if self.traj is None:
+            vcap = np.minimum(P["v"], p.speed_mps)
+            self.traj = TimedTrajectory(P["s"], vcap, min(s0, s_stop), min(v0, p.speed_mps), s_stop, a_up, a_b,
+                                        jerk_window_s=p.path_jerk_window_s)
+            self.traj_tau, self.traj_key = 0.0, key
+            self.traj_rate = 1.0 if v0 > 0.02 else 0.0
+            self.traj_lag_hold = False
+        s_ref, v_r, a_r = self.traj.at(self.traj_tau)
+        # heading: as _go_path (crab: the run's heading at the reference; else the tangent a look-ahead ahead)
+        pt, tang, kap, _ = self._path_at(s_ref)
+        if self._crab():
+            head_ahead = self._path_yaw(s_ref)
+        else:
+            look = s_ref + p.path_lookahead_m + 0.5 * v_r
+            _, head_ahead, _, _ = self._path_at(min(look, s_stop))
+            lead = math.radians(p.path_heading_lead_deg)
+            if lead < math.pi:
+                head_ahead = tang + max(-lead, min(lead, _wrap(head_ahead - tang)))
+        self.leg_heading = head_ahead
+        self.leg_dir = (math.cos(tang_air), math.sin(tang_air))
+        err = _wrap(head_ahead - self.sp[3])
+        step = math.radians(p.yaw_rate_dps) * dt
+        self.sp[3] = _wrap(self.sp[3] + max(-step, min(step, err)))
+        # the gates: live depth evidence, obstacle on the path, geometry cap, tube, lag
+        clr = self._clearance(v) if self.depth_fresh(now) else None
+        if clr is not None and not self.corridor_fresh(now):
+            clr = None
+        rate_target = 1.0
+        if clr is not None:
+            cap = self._geometry_cap(clr, v)
+            self.last_clearance = clr
+            if self._blocks(clr, max(L - self.path_s, 0.0)):
+                self._obstacle(now, out, v, clr, "on")
+                self.v_cmd, self.a_cmd = 0.0, 0.0
+                self.v_vec, self.a_vec = (0.0, 0.0), (0.0, 0.0)
+                return
+            if v_r > 1e-3:
+                rate_target = min(rate_target, cap / v_r)
+        else:
+            self.counts["depth_holds"] += 1
+            rate_target = 0.0
+        if p.path_tube_gate and P.get("tube") is not None:
+            tube = float(P["tube"][min(max(seg_i, 0), len(P["tube"]) - 1)])
+            across = math.hypot(v.pos[0] - pt_air[0], v.pos[1] - pt_air[1])
+            if tube <= 0.005:
+                pass
+            elif not self.tube_hold and across > tube:
+                self.tube_hold = True
+                self.counts["tube_holds"] += 1
+                out.events.append(f"tube: {across:.3f} m off the path on leg {self.leg + 1} > {tube:.3f} m: "
+                                  f"holding until back inside {tube / 2:.3f} m")
+            elif self.tube_hold and across <= tube / 2:
+                self.tube_hold = False
+                out.events.append(f"tube: back inside {tube / 2:.3f} m on leg {self.leg + 1}: advancing")
+            if self.tube_hold:
+                self.counts["tube_ticks"] += 1
+                rate_target = 0.0
+        lead_m = s_ref - self.path_s
+        if not self.traj_lag_hold and lead_m > p.path_lag_max_m:
+            self.traj_lag_hold = True
+            self.counts["lag_holds"] += 1
+        elif self.traj_lag_hold and lead_m <= 0.5 * p.path_lag_max_m:
+            self.traj_lag_hold = False
+        if self.traj_lag_hold:
+            rate_target = 0.0
+        # the clock's rate slews so the commanded speed v_r * rate changes within accel / brake
+        v_floor = max(v_r, 0.05)
+        up, down = a_up * dt / v_floor, a_b * dt / v_floor
+        rate_prev = self.traj_rate
+        self.traj_rate = max(0.0, min(1.0, max(rate_prev - down, min(rate_prev + up, rate_target))))
+        rate_dot = (self.traj_rate - rate_prev) / dt if dt > 0 else 0.0
+        self.traj_tau = min(self.traj_tau + self.traj_rate * dt, self.traj.T)
+        s_ref, v_r, a_r = self.traj.at(self.traj_tau)
+        pt, _, _, _ = self._path_at(s_ref)
+        if p.path_lead_s > 0:                                   # feed-forward from the trajectory's future
+            s_ff, v_r, a_r = self.traj.at(self.traj_tau + p.path_lead_s * self.traj_rate)
+        else:
+            s_ff = s_ref
+        _, tang, kap, _ = self._path_at(s_ff)
+        v_cmd = v_r * self.traj_rate
+        a_along = a_r * self.traj_rate ** 2 + v_r * rate_dot
+        a_along = max(-a_b, min(a_up, a_along))
+        a_lat = v_cmd ** 2 * kap
+        if p.path_lat_accel_max_mps2 > 0:
+            a_lat = max(-p.path_lat_accel_max_mps2, min(p.path_lat_accel_max_mps2, a_lat))
+        self.sp[0], self.sp[1] = pt                             # the reference itself: PX4 tracks it
+        self.v_cmd, self.a_cmd = v_cmd, a_along
+        c, sn = math.cos(tang), math.sin(tang)
+        self.v_vec = (c * v_cmd, sn * v_cmd)
+        self.a_vec = (c * a_along - sn * a_lat, sn * a_along + c * a_lat)
+        end = P["pts"][nxt[0]] if nxt else P["pts"][-1]
+        # capture as _go_path does: once the reference is within capture_m of the stop, hold the stop itself and
+        # let the arrival test decide (waiting for the trajectory's slow last centimetres cost ~1.5 s per stop)
+        done = self.traj_tau >= self.traj.T - 1e-6 or s_stop - s_ref <= p.capture_m
+        if done:
+            self.sp[0], self.sp[1] = float(end[0]), float(end[1])
+            self.v_cmd, self.a_cmd = 0.0, 0.0
+            self.v_vec, self.a_vec = (0.0, 0.0), (0.0, 0.0)
+        if done and math.hypot(v.pos[0] - end[0], v.pos[1] - end[1]) < p.arrive_m and self._settled(now, dt, v):
+            self.v_cmd, self.a_cmd = 0.0, 0.0
+            self.v_vec, self.a_vec = (0.0, 0.0), (0.0, 0.0)
+            self.sp[0], self.sp[1] = float(end[0]), float(end[1])
+            if nxt:
+                self.path_stop_done = nxt[0]
+                self.path_s = float(P["s"][nxt[0]])
+                h_next = (self._path_yaw(self.path_s) if self._crab()
+                          else self._path_at(self.path_s + p.path_lookahead_m)[1])
+                self.leg_heading = h_next
+                self.clr_hist, self.corr_t = [], None
+                self.turn_start_heading = self.sp[3]
+                self._set("turn", now, out, f"path corner on leg {self.leg + 1}: stop and turn")
+            else:
                 self._set("hold", now, out, f"arrived leg {self.leg + 1}")
 
     def _speed(self, v, dt):

@@ -29,7 +29,6 @@ class ReturnMission(C.Mission):
         self.no_return = None
         self.samples = {}
         self.source_stamps = {}
-        self.px4_clock_offset = None
         self.frame_fault = None
         self.outbound_legs_done = 0
         self._wall_now = 0.
@@ -39,24 +38,22 @@ class ReturnMission(C.Mission):
         return self.stage == 'outbound'
 
     def observe(self, name, stamp, now, wall_now, **data):
-        """PX4 clocks need not equal ROS time: require advancement and bounded receipt age.
+        """Freshness is judged by RECEIPT time (ROS and wall clocks), not by the source's own clock.
 
-        Localizer additionally carries its ROS capture stamp. Duplicate heartbeats
-        never refresh the data watchdog; regressions invalidate the run's frame.
+        No source-clock requirements (2026-11-07): PX4's timestamps over uXRCE-DDS step back ~1 s every
+        15-30 s in Gazebo (all topics together: the time sync re-aligning a slower-than-real-time sim), and
+        the old rules (a regression invalidates the frame; source capture must be coherent with ROS time)
+        refused every return on the pad and, in the air, would make the return YIELD (stop streaming, PX4's
+        offboard-loss failsafe) wherever it was, over the barrier included. Kept: a re-delivered duplicate
+        does not refresh the watchdog, receipt age limits, and the frame checks that matter, PX4's reset
+        counters and the localizer's reset count.
         """
         if not math.isfinite(stamp) or stamp <= 0:
             self.samples.pop(name, None)
             return False
-        previous = self.source_stamps.get(name)
-        if previous is not None and stamp <= previous:
-            if stamp < previous:
-                self.samples.pop(name, None)
-                self.frame_fault = f'{name} timestamp regressed'
-            return False
+        if self.source_stamps.get(name) == stamp:
+            return False                                 # the same report again: not new data
         self.source_stamps[name] = stamp
-        if name != 'localizer':
-            offset = now-stamp
-            self.px4_clock_offset = offset if self.px4_clock_offset is None else min(self.px4_clock_offset, offset)
         self.samples[name] = dict(stamp=stamp, now=now, wall=wall_now, **data)
         if self.launch_resets is not None and name == 'position' and data.get('resets') != self.launch_resets:
             self.frame_fault = 'PX4 local frame reset since original launch'
@@ -79,10 +76,6 @@ class ReturnMission(C.Mission):
         row = self.samples.get(name)
         if row is None or not 0 <= now-row['now'] <= age or not 0 <= self._wall_now-row['wall'] <= age:
             raise ValueError(f'{name} missing or stale')
-        if name != 'localizer':
-            newest = max(stamp for topic, stamp in self.source_stamps.items() if topic != 'localizer')
-            if newest-row['stamp'] > age or now-row['stamp']-self.px4_clock_offset > age:
-                raise ValueError(f'{name} PX4 capture delayed or incoherent')
         return row
 
     def _check(self, now, v, *, ground):
@@ -116,7 +109,10 @@ class ReturnMission(C.Mission):
                 raise ValueError('aircraft not level on landing pad')
             if v.landed is not True or np.linalg.norm(v.vel) > .08:
                 raise ValueError('pad touchdown not confirmed and settled')
-            allowed = (C.NAV_AUTO_LAND,) if self.stage == 'qualify' else (C.NAV_AUTO_LAND, C.NAV_OFFBOARD)
+            # Gazebo 2026-11-07 (PX4 1.17): after AUTO_LAND disarms, nav_state reports OFFBOARD again (the last
+            # selected mode), no pilot involved. A pilot takeover shows a manual mode (Position/Altitude/Manual)
+            # and is still refused; so is any failsafe mode
+            allowed = (C.NAV_AUTO_LAND, C.NAV_OFFBOARD)
             if v.nav_state not in allowed:
                 raise ValueError('pilot/failsafe changed mode on pad')
             if self.stage == 'qualify' and v.armed is not False:

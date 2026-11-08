@@ -131,6 +131,9 @@ class SimConfig:
                                             # like managed run 1 with the carrot profile)
     px4_tau_s: float = 0.15                 # dynamic model: attitude/thrust lag (GUESS until fitted to a bag)
     px4_delay_s: float = 0.05               # dynamic model: control delay (GUESS)
+    cmd_delay_s: float = 0.0                # refnav's output reaches PX4 this late (the drone: our tick + the flight
+                                            # interface's 10 Hz relay + serial); PX4's own loop stays fast
+    obs_delay_s: float = 0.0                # refnav sees the vehicle this late (the drone: cuVSLAM odometry ~60 ms)
     seed: int = 0
 
 
@@ -206,6 +209,8 @@ class OfflineFlight:
         self.last_cov = np.diag([0.09, 0.09, 0.02])
         self.px4 = dict(armed=False, nav=4, stream_since=None)
         self.px4m = None                    # SimConfig.px4 == "dynamic": coursenav.px4_model.PX4Model
+        from collections import deque
+        self._obs_q, self._cmd_q = deque(), deque()   # SimConfig.obs_delay_s / cmd_delay_s
         self.mission = None
         self.travelled = 0.0
 
@@ -450,9 +455,11 @@ class OfflineFlight:
             except PlanError:
                 self.nav_stats["plan_errors"] += 1
                 return
+        from .navplan import headings_to_frame
         P = self.nav.path
         m.on_path(t, m.leg, self._course_to_ned(P.pts, nb), P.v, P.stops, pid=self.nav_pid,
-                  tubes=None if P.tube is None else P.tube)
+                  tubes=None if P.tube is None else P.tube,
+                  yaws=headings_to_frame(P.pts, P.yaw, lambda q: self._course_to_ned(q, nb)))   # CRAB
 
     # --------------------------------------------------------------- run
     def plan_from(self, est):
@@ -521,6 +528,11 @@ class OfflineFlight:
                     sig = max(0.05, math.sqrt(max(self.last_cov[0, 0], self.last_cov[1, 1])))
                     m.on_correction(t, -lim[1], -lim[0], sig)
                 v = self.vehicle()
+                if c.obs_delay_s > 0:                       # refnav sees an OLD vehicle state
+                    self._obs_q.append((t, v))
+                    while len(self._obs_q) > 1 and self._obs_q[1][0] <= t - c.obs_delay_s:
+                        self._obs_q.popleft()
+                    v = self._obs_q[0][1]
                 if img is not None:
                     m.on_depth(t - c.depth_latency_s, img, self.cam.K, self.cam.R_body_cam(),
                                np.asarray(self.cam.t_body), v.q, now=t)
@@ -528,6 +540,11 @@ class OfflineFlight:
                 for e in out.events:
                     if progress:
                         progress(f"{t:7.2f}s {e}")
+                if c.cmd_delay_s > 0:                       # PX4 receives an OLD output
+                    self._cmd_q.append((t, out))
+                    while len(self._cmd_q) > 1 and self._cmd_q[1][0] <= t - c.cmd_delay_s:
+                        self._cmd_q.popleft()
+                    out = self._cmd_q[0][1]
                 self.px4_step(t, out, c.dt)
                 if m.phase == "done":
                     break

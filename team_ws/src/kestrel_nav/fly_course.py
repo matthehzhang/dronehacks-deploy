@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import math
 import sys
 import time
@@ -102,7 +103,7 @@ def start_own_localizer(run_dir):
         return None
     args = [sys.executable, "-m", "coursenav.loc_node", "--ros-args",
             "--params-file", str(PROJECT / "onboard" / "config" / "common.yaml")]
-    deployment = Path("/etc/flyx/onboard.yaml")           # the deployment's clock selection (sim: use_sim_time)
+    deployment = Path(os.environ.get("DRONEHACKS_ONBOARD_PARAMS", "/etc/flyx/onboard.yaml"))           # the deployment's clock selection (sim: use_sim_time)
     if deployment.is_file():
         args += ["--params-file", str(deployment)]
     # one scan snapshot per second into the run record, so the particle filter can be replayed offline
@@ -123,7 +124,7 @@ def start_navigator(run_dir):
     args = [sys.executable, "-m", "coursenav.nav_node", "--ros-args", "-p", f"route_file:={run_dir / 'route.json'}"]
     if os.environ.get("KESTREL_NICE_NAV"):                 # skybeta: never compete with refnav's setpoint loop
         args = ["nice", "-n", str(int(os.environ["KESTREL_NICE_NAV"]))] + args
-    deployment = Path("/etc/flyx/onboard.yaml")           # sim clock selection, like the localizer
+    deployment = Path(os.environ.get("DRONEHACKS_ONBOARD_PARAMS", "/etc/flyx/onboard.yaml"))           # sim clock selection, like the localizer
     if deployment.is_file():
         args += ["--params-file", str(deployment)]
     if os.environ.get("KESTREL_USE_SIM_TIME") in ("true", "false"):   # skybeta launch (kestral_nav934am)
@@ -364,6 +365,11 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
         params["track_mode"] = "path"
         params["correction_max_m"] = 0.0                # the drift EKF + whole-path conversion replace it
         print(f"navigation: path mode, {len(route)} stops ({sum(L['path'] for L in nav_legs)} navigator legs)")
+    # local test rigs only (gzsim/fly.sh): DRONEHACKS_REFNAV_SET="key=value key=value" overrides refnav params for
+    # THIS run, e.g. the timed trajectory's lead for Gazebo's faster PX4 response; unset everywhere else
+    for kv in os.environ.get("DRONEHACKS_REFNAV_SET", "").split():
+        k, _, val = kv.partition("=")
+        params[k] = json.loads(val) if val[:1] in "-0123456789[{tf" else val
     route_doc = {"route": route, "legs": legs, "params": params,
                  "_note": f"RUN RECORD of fly_course.py at {stamp}: planned from start {source} "
                           f"({sx:.4f}, {sy:.4f}, {syaw:.2f} deg). Rule 6.4: never an input to a later run."}

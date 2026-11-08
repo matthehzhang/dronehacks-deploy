@@ -17,6 +17,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 ROOT = Path(__file__).resolve().parent.parent          # package source root (symlink install): fly_course.py lives here
 
@@ -24,6 +25,7 @@ ARGUMENTS = [
     ('max_altitude_m', '3.0', 'flight interface ceiling above the odometry origin'),
     ('min_altitude_m', '0.3', 'flight interface floor (pose setpoints only)'),
     ('max_speed_mps', '1.5', 'flight interface cap on a twist norm'),
+    ('setpoint_rate_hz', '10.0', 'flight interface relay rate to PX4 (latency: up to 1/rate per command)'),
     ('auto_offboard_on_arm', 'true', 'enter Offboard once when the pilot arms, then switches to Position'),
     ('chicane', 'auto', 'auto | window | gate_b'),
     ('depth_topic', '/kestrel_nav/depth', 'depth image for refnav and the localizer (host_depth)'),
@@ -50,7 +52,7 @@ def generate_launch_description():
         package='skybeta_flight_interface', executable='flight_interface', name='flight_interface',
         output='screen', emulate_tty=True,
         parameters=[{'max_altitude_m': L('max_altitude_m'), 'min_altitude_m': L('min_altitude_m'),
-                     'max_speed_mps': L('max_speed_mps'), 'setpoint_rate_hz': 10.0, 'allow_mode_request': False,
+                     'max_speed_mps': L('max_speed_mps'), 'setpoint_rate_hz': ParameterValue(L('setpoint_rate_hz'), value_type=float), 'allow_mode_request': False,
                      'auto_offboard_on_arm': L('auto_offboard_on_arm'),
                      'odometry_topic': '/visual_slam/tracking/odometry'}])
     host_depth = Node(package='kestrel_nav', executable='host_depth', name='host_depth', output='screen',
