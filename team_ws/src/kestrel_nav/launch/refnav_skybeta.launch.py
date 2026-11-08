@@ -30,7 +30,7 @@ from launch_ros.actions import Node
 ROOT = Path(__file__).resolve().parent.parent          # package source root (symlink install): fly_course.py lives here
 
 ARGUMENTS = [
-    ('return_home', 'true', 'touch pad while armed, climb to 2.5 m, then return on a 2-foot-offset arc'),
+    ('return_home', 'true', 'touch pad while armed, climb to 2.3 m, then return on a 2-foot-offset arc'),
     ('max_altitude_m', '3.0', 'flight interface ceiling above the odometry origin'),
     ('min_altitude_m', '0.3', 'flight interface floor (pose setpoints only)'),
     ('max_speed_mps', '1.5', 'flight interface cap on a twist norm'),

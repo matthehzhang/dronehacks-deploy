@@ -60,7 +60,7 @@ def adapter(m):
 
 
 def pad_descent(spec=None):
-    m = SkybetaReturnMission(params(), spec if spec is not None else dict(height_above_floor_m=2.5))
+    m = SkybetaReturnMission(params(), spec if spec is not None else dict(height_above_floor_m=2.3))
     m.launch_pose = m.home = (0., 0., 0., 0.)
     m.sp, m.targets = [2., 1., -.2, 0.], [(2., 1.)]
     m.phase, m.t_phase, m.land_reason = 'land', 0., 'route complete'
@@ -131,8 +131,8 @@ def test_confirmed_touch_starts_climb_while_armed_without_an_arm_phase():
     out = contact(m, v)
     assert m.return_started and m.pad_touched and v.armed is True
     assert m.phase == out.phase == 'climb' and out.commands == []
-    assert m.home[2]-m.p.height_m == pytest.approx(-2.4)
-    assert m.p.height_m == pytest.approx(2.2)  # raised pad, absolute 2.5 m floor reference
+    assert m.home[2]-m.p.height_m == pytest.approx(-2.2)
+    assert m.p.height_m == pytest.approx(2.0)  # raised pad, absolute 2.3 m floor reference
     assert m.targets == [(0., 0.)]
 
 
@@ -146,14 +146,14 @@ def test_no_horizontal_advance_until_actual_climb_height_settles():
         assert out.phase == 'climb'
         assert out.setpoint[:2] == xy and out.velocity in (None, (0., 0.))
         assert m.leg_start is None
-    v.pos = (*xy, -2.4)
+    v.pos = (*xy, -2.2)
     for t in (12., 12.5, 12.9):
         feed(m, v, t)
         assert m.step(t, v).phase == 'climb'
-    v.pos = (*xy, -2.3)
+    v.pos = (*xy, -2.1)
     feed(m, v, 13.)
     assert m.step(13., v).phase == 'climb'
-    v.pos = (*xy, -2.4)
+    v.pos = (*xy, -2.2)
     for t in (13.1, 13.6, 14.):
         feed(m, v, t)
         assert m.step(t, v).phase == 'climb'
@@ -216,7 +216,7 @@ def test_abort_queued_at_touchdown_cannot_be_overwritten_by_the_handoff():
 @pytest.mark.parametrize('mode', ['pose', 'path'])
 def test_outbound_matches_until_contact_then_curved_return_and_only_final_disarm(mode):
     baseline = C.Mission(params(mode))
-    m = SkybetaReturnMission(params(mode), dict(height_above_floor_m=2.5))
+    m = SkybetaReturnMission(params(mode), dict(height_above_floor_m=2.3))
     normal, _ = adapter(baseline)
     output, commands = adapter(m)
     v = C.Vehicle(pos=(0., 0., 0.), heading=0., vel=(0, 0, 0), pos_ok=True,
@@ -314,10 +314,10 @@ def test_outbound_navigator_stops_after_touch_and_go():
     assert namespace['_tick'](NS(drift=object(), status={'return_started': True})) is None
 
 
-def test_deployed_return_configuration_targets_two_point_five_metres():
+def test_deployed_return_configuration_targets_two_point_three_metres():
     import fly_course
     from coursenav.course import load_course
 
     doc = load_course()
-    assert fly_course.skybeta_return_spec(doc)['height_above_floor_m'] == 2.5
+    assert fly_course.skybeta_return_spec(doc)['height_above_floor_m'] == 2.3
     assert doc['cruise_z_m'] == .8

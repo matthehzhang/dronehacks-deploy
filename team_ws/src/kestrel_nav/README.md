@@ -39,7 +39,7 @@ height also remains active across the return mission's route replacement.
 This change has CPU regression coverage, but has not been flight validated.
 
 The skybeta launch enables `return_home:=true`: finish the outbound route, descend
-onto the pad, **touch while still armed**, climb vertically to **2.50 m above the
+onto the pad, **touch while still armed**, climb vertically to **2.30 m above the
 original floor reference**, follow a circular return, then land and disarm at
 this run's remembered launch position. The earlier pad-disarm/rearm/mode-request
 implementation has been removed. The adapter can only publish normal disarm
@@ -58,7 +58,7 @@ and measured altitude stays within **5 cm for one second**. The return follows
 sampled points along a circular arc with a **0.6096 m (2 ft) midpoint offset**
 from the direct pad-to-launch chord, bending toward the course's interior.
 The curve ends exactly at the remembered launch XY. Horizontal return speed is
-capped at 0.30 m/s; the commanded height stays 2.50 m until final landing.
+capped at 0.30 m/s; the commanded height stays 2.30 m until final landing.
 Late outbound paths/corrections cannot replace this locally generated curve.
 
 Final touchdown sends normal `VEHICLE_CMD_COMPONENT_ARM_DISARM` (`param1=0`,
