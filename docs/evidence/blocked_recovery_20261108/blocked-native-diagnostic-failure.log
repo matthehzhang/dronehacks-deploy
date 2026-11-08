@@ -1,0 +1,35 @@
+F
+=================================== FAILURES ===================================
+_ test_velocity_only_native_command_cannot_enable_position_or_acceleration_control _
+
+diagnostic_node = <refnav.node.RefNav object at 0x7f847e61d940>
+
+    def test_velocity_only_native_command_cannot_enable_position_or_acceleration_control(diagnostic_node):
+        n = diagnostic_node
+        # Even a stale finite position on the output cannot take priority over velocity-only mode.
+        n.output.setpoint = (99., 98., -97., .3)
+        n.output.velocity_only = (.1, -.02, .03, -.15)
+>       n._tick()
+
+tests/test_diagnostic_node.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <refnav.node.RefNav object at 0x7f847e61d940>
+
+    def _tick(self):
+        now = self._now()
+        if now <= 0.0:
+            return                                   # sim time before the first /clock
+        diagnostic = getattr(self, 'diagnostic_enabled', False)
+        if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+            self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
+>       if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
+            ^^^^^^^^
+                and self.mission.phase == "land"):
+E               AttributeError: 'RefNav' object has no attribute 'sky'
+
+refnav/node.py:496: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_diagnostic_node.py::test_velocity_only_native_command_cannot_enable_position_or_acceleration_control
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed in 0.34s

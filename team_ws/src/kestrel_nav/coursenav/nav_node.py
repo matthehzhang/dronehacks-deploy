@@ -3,6 +3,12 @@
     in   /coursenav/drift      std_msgs/String JSON  the localizer's drift EKF: delta (dx, dy, dth), the
                                                      nominal body pose it is anchored at (coursenav.loc_node)
          /coursenav/occupancy  nav_msgs/OccupancyGrid the live map (landmarks become obstacles)
+         /coursenav/local_occupancy nav_msgs/OccupancyGrid the LOCAL grid, nominal frame, never gated
+                                                     (coursenav.localgrid): its obstacles are added to the
+                                                     path map every tick, converted with the same drift
+                                                     state as the aircraft's believed pose
+         /coursenav/prior_state std_msgs/String JSON  placed / dropped (coursenav.priorstate): while
+                                                     dropped, prior surfaces explain no local obstacle
          /refnav/status        std_msgs/String JSON  the mission's leg and phase
     out  /coursenav/path       std_msgs/String JSON  {stamp, leg, pid, pts_ne, v, stops, targets_ne}
 
@@ -32,6 +38,7 @@ from .drift import DriftEKF
 from .navigator import Navigator
 from .navplan import course_to_ned, smooth_params_for
 from .objmap import CourseMap
+from .localgrid import course_mask, occupied_points_from_grid
 from .planner import PlanError
 
 AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "align")
@@ -84,18 +91,25 @@ class NavNode(Node):
         sg = scan_grid(cmap)
         self.live = LiveLandmarks(sg) if sg.occ.shape == obst.occ.shape else None
         self.nav = Navigator(obst, blocked, clearance, need, sp, live=self.live, gate_lines=rd.get("gate_lines"))
+        self.obst = obst
+        self.surf_dist = sg.distance() if sg.occ.shape == obst.occ.shape else obst.distance()
+        self.local_pts = None                      # (k, 2) nominal-frame obstacle points from the local grid
+        self.local_explain_m = float(dp("local_explain_m", 0.15).value)
+        self.prior_state = "placed"
         # the flight frame's heading relative to the VIO origin: 90 deg in the simulator (vision bridge
         # heading_enu_rad), 0 on the skybeta drone (the flight interface permutes odometry ENU directly)
         self.decl = math.radians(float(dp("declared_heading_deg", 90.0).value))
         self.drift = None
         self.status = None
         self.nav_leg, self.pid = None, 0
-        self.stats = dict(plans=0, replans=0, plan_errors=0)
+        self.stats = dict(plans=0, replans=0, plan_errors=0, local_cells=0)
         latched = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                              history=HistoryPolicy.KEEP_LAST, depth=1)
         self.create_subscription(String, dp("drift_topic", "/coursenav/drift").value, self._on_drift, 10)
         self.create_subscription(String, dp("status_topic", "/refnav/status").value, self._on_status, 10)
         self.create_subscription(OccupancyGrid, "/coursenav/occupancy", self._on_occ, latched)
+        self.create_subscription(OccupancyGrid, "/coursenav/local_occupancy", self._on_local, 10)
+        self.create_subscription(String, "/coursenav/prior_state", self._on_prior, latched)
         self.pub = self.create_publisher(String, dp("path_topic", "/coursenav/path").value, 10)
         self.create_timer(1.0 / float(dp("rate_hz", 10.0).value), self._tick)
         self.get_logger().info(f"navigator: {len(self.nav_legs)} legs ({sum(L['path'] for L in self.nav_legs)} "
@@ -143,6 +157,20 @@ class NavNode(Node):
         if self.live is not None:
             self.live.on_grid(m)
 
+    def _on_local(self, m):
+        o = m.info.origin.position
+        self.local_pts = occupied_points_from_grid((o.x, o.y), m.info.resolution, m.info.width, m.info.height, m.data)
+
+    def _on_prior(self, m):
+        try:
+            st = json.loads(m.data).get("state", "placed")
+        except ValueError:
+            return
+        if st != self.prior_state:
+            self.get_logger().warning(f"prior map {st}: local obstacles near prior surfaces "
+                                      f"{'are no longer' if st == 'dropped' else 'are again'} treated as mapped")
+        self.prior_state = st
+
     def _tick(self):
         if self.drift is None or self.status is None:
             return
@@ -150,6 +178,14 @@ class NavNode(Node):
         ekf = DriftEKF.from_state(d["delta"], d["nominal"])
         nb = np.array(d["nominal"], float)
         believed = ekf.body_course(nb)
+        if self.local_pts is not None:
+            # local obstacles: nominal -> course with the SAME state as the believed pose (relative geometry
+            # right even when the course pose is not); prior surfaces explain nearby cells only while placed
+            explain = 0.0 if self.prior_state == "dropped" else self.local_explain_m
+            mask = course_mask(ekf.to_course(self.local_pts, nb) if len(self.local_pts) else self.local_pts,
+                               self.obst, self.surf_dist, explain)
+            self.nav.set_local(mask)
+            self.stats["local_cells"] = int(mask.sum())
         leg, phase = int(self.status.get("leg", 0)), self.status.get("phase")
 
         def to_ned(pts):
@@ -180,7 +216,8 @@ class NavNode(Node):
                     self.pid += 1
                     self.nav_leg = leg
                     self.get_logger().info(f"leg {leg + 1}: path {self.nav.path.length:.2f} m, "
-                                           f"{len(self.nav.path.stops)} stop corners, est {self.nav.path.duration():.1f} s")
+                                           f"{len(self.nav.path.stops)} stop corners, est {self.nav.path.duration():.1f} s, "
+                                           f"{self.stats['local_cells']} local obstacle cells, prior {self.prior_state}")
                 except PlanError as e:
                     self.stats["plan_errors"] += 1
                     self.get_logger().warning(f"leg {leg + 1}: no path ({e}); refnav holds without one")

@@ -17,10 +17,18 @@ Out: /coursenav/pose      geometry_msgs/PoseWithCovarianceStamped, frame "course
      /coursenav/status    std_msgs/String JSON (2 Hz)
      /coursenav/occupancy nav_msgs/OccupancyGrid, frame "course" (1 Hz, latched): the LIVE map of this
                           run (coursenav.occgrid), -1 unknown, 0..100 occupancy probability
+     /coursenav/local_occupancy nav_msgs/OccupancyGrid, frame "coursenav_nominal" (2 Hz): the LOCAL
+                          obstacle grid (coursenav.localgrid), every scan at the raw odometry pose, never
+                          gated on the localizer; the navigator adds its obstacles to the path map
+     /coursenav/prior_state std_msgs/String JSON (2 Hz): does the prior map describe the view
+                          (coursenav.priorstate: placed / dropped, from the scan fit)
      logs/coursenav_<stamp>.csv (one row per scan update)
      logs/occ_<stamp>.npz      the live map at shutdown: a RUN RECORD. Rule 6.4: never loaded by a later run.
 
 Live map params: live_map (true) fills it; use_landmarks (false) also lets the PF match its landmarks.
+Local grid params: local_map (true), local_size_m (8), local_decay_s (30), local_max_range_m (3),
+local_band_m (0.35: obstacles within this height of the aircraft). Prior monitor: prior_drop_fit (0.30),
+prior_drop_s (3), prior_restore_s (2); restore at min_fit_frac.
 
 Run:  python3 -m coursenav.loc_node --ros-args -p use_sim_time:=true
 """
@@ -47,9 +55,11 @@ from std_msgs.msg import String
 from refnav.depth import decode_depth, quat_to_mat
 
 from .drift import DriftEKF
-from .course import PROJECT, load_course, resolve, scan_field, scan_grid, see_through_grid
+from .course import PROJECT, default_course_path, load_course, resolve, scan_field, scan_grid, see_through_grid
 from .objmap import CourseMap
+from .localgrid import LocalGrid, LocalParams
 from .occgrid import LiveGrid, OccParams
+from .priorstate import PriorMonitor, PriorParams
 from .pf import CorrectionLimiter, CorrectionPF, PFParams, compose, inverse, project_correction
 from .scan import depth_points_level, level_from_px4_q, scan_from_points
 
@@ -70,7 +80,7 @@ class LocNode(Node):
     def __init__(self):
         super().__init__("coursenav_loc")
         dp = self.declare_parameter
-        doc = load_course(dp("course_file", str(PROJECT / "course" / "course_v3.json")).value)
+        doc = load_course(dp("course_file", str(default_course_path())).value)
         cmap = CourseMap.load(resolve(doc, "map"))
         self.field_zlo, self.field_zhi = float(dp("scan_zlo", 0.3).value), float(dp("scan_zhi", 1.6).value)
         self.field = scan_grid(cmap, self.field_zlo, self.field_zhi)
@@ -105,6 +115,16 @@ class LocNode(Node):
                                                        gate_sigma_yaw_deg=float(dp("live_gate_sigma_yaw_deg", 2.0).value)),
                                  see_through=see_through_grid(cmap, self.field_zlo, self.field_zhi))
         self.prior_dist = self.pf.dist
+        self.local = None
+        if bool(dp("local_map", True).value):
+            self.local = LocalGrid(LocalParams(size_m=float(dp("local_size_m", 8.0).value),
+                                               decay_s=float(dp("local_decay_s", 30.0).value),
+                                               max_range_m=float(dp("local_max_range_m", 3.0).value)))
+        self.local_band = float(dp("local_band_m", 0.35).value)
+        self.prior_mon = PriorMonitor(PriorParams(drop_fit=float(dp("prior_drop_fit", 0.30).value),
+                                                  drop_s=float(dp("prior_drop_s", 3.0).value),
+                                                  restore_fit=float(dp("min_fit_frac", 0.35).value),
+                                                  restore_s=float(dp("prior_restore_s", 2.0).value)))
 
         from tf2_ros import Buffer, TransformListener
         self.tf_buffer = Buffer()
@@ -144,6 +164,8 @@ class LocNode(Node):
         latched = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                              history=HistoryPolicy.KEEP_LAST, depth=1)
         self.pub_occ = self.create_publisher(OccupancyGrid, "/coursenav/occupancy", latched)
+        self.pub_local = self.create_publisher(OccupancyGrid, "/coursenav/local_occupancy", 10)
+        self.pub_prior = self.create_publisher(String, "/coursenav/prior_state", latched)
         self.create_subscription(Odometry, dp("odom_topic", "/visual_slam/tracking/odometry").value,
                                  self._on_odom, qos_profile_sensor_data)
         try:
@@ -187,6 +209,8 @@ class LocNode(Node):
         self.create_timer(0.5, self._status)
         if self.live is not None:
             self.create_timer(1.0, self._publish_occ)
+        if self.local is not None:
+            self.create_timer(0.5, self._publish_local)
         self.get_logger().info(f"shadow localizer: prior {np.round(self.prior, 3)} sigma {self.prior_sigma}; "
                                f"depth {depth_topic}; log {self.log_path}")
 
@@ -248,6 +272,15 @@ class LocNode(Node):
         best = min(cands, key=lambda h: abs(h[0] - t))
         return best if abs(best[0] - t) <= 0.1 else None
 
+    def _scan_rate_now(self):
+        if self.get_parameter('use_sim_time').value:
+            return self.get_clock().now().nanoseconds * 1e-9
+        return time.monotonic()
+
+    def _scan_rate_limited(self):
+        elapsed = self._scan_rate_now() - self._t_proc
+        return 0 <= elapsed < 1.0 / self.adaptive_hz
+
     def _on_depth(self, m):
         if self.K is None or self.att is None or not self.pf.ready:
             return
@@ -256,7 +289,7 @@ class LocNode(Node):
         if self.adaptive_hz > 0 and self.last_est is not None:
             cov = self.last_est[2]
             confident = math.sqrt(max(cov[0, 0], cov[1, 1])) < 0.05 and math.degrees(math.sqrt(cov[2, 2])) < 2.0
-            if confident and time.monotonic() - self._t_proc < 1.0 / self.adaptive_hz:
+            if confident and self._scan_rate_limited():
                 return
         t_cpu = time.process_time()
         if self.cam_cal is None:
@@ -285,8 +318,21 @@ class LocNode(Node):
         self.pf.predict(pose, dt, self.vio_ok)
         if len(scan) == 0:
             self.counts["empty_scans"] += 1
-        elif self.pf.update(pose, scan):
-            self.counts["updates"] += 1
+        else:
+            if self.pf.update(pose, scan):
+                self.counts["updates"] += 1
+            if self.pf.last_fit is not None:
+                was = self.prior_mon.state
+                if self.prior_mon.on_fit(t, *self.pf.last_fit) != was:
+                    self.get_logger().warning(f"prior map {self.prior_mon.state}: scan fit {self.pf.last_fit[1]:.0%} "
+                                              f"(drop below {self.prior_mon.p.drop_fit:.0%}, restore at "
+                                              f"{self.prior_mon.p.restore_fit:.0%})")
+                    self._publish_prior()
+        if self.local is not None:
+            # the aircraft's own height band, at the RAW odometry pose (nominal frame): never gated
+            lscan = scan_from_points(pts, h, max(0.15, h - self.local_band), h + self.local_band,
+                                     rmax=self.local.p.max_range_m)
+            self.local.integrate(t, compose(self.nominal, pose), lscan)
         self.last_update_t = t
         mean, cov = self.pf.estimate(pose)
         self.T_mean = compose(mean, inverse(pose))
@@ -296,7 +342,7 @@ class LocNode(Node):
                 f = self.live.landmark_field()
                 self.pf.set_distance(self.prior_dist if f is None else f)
         self.last_est = (t, mean, cov, pose, h, n_depth)
-        self._t_proc = time.monotonic()
+        self._t_proc = self._scan_rate_now()
         self._cost.append(time.process_time() - t_cpu)
         if len(self._cost) >= 50:                  # measured per-frame CPU cost, for the drone's first runs
             self.get_logger().info(f"scan cost: mean {1000 * np.mean(self._cost):.1f} ms CPU/frame "
@@ -412,13 +458,32 @@ class LocNode(Node):
         msg.data = prob.T.ravel().tolist()                    # row-major, x fastest
         self.pub_occ.publish(msg)
 
+    def _publish_local(self):
+        if self.local.origin is None:
+            return
+        (ox, oy), res, w, hgt, data = self.local.grid_fields()
+        msg = OccupancyGrid()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = "coursenav_nominal"
+        msg.info.resolution = float(res)
+        msg.info.width, msg.info.height = int(w), int(hgt)
+        msg.info.origin.position.x, msg.info.origin.position.y = float(ox), float(oy)
+        msg.info.origin.orientation.w = 1.0
+        msg.data = data.tolist()
+        self.pub_local.publish(msg)
+
+    def _publish_prior(self):
+        self.pub_prior.publish(String(data=json.dumps(self.prior_mon.as_dict())))
+
     def _status(self):
         st = dict(self.counts, resets=self.resets, vio_ok=self.vio_ok, ready=self.pf.ready,
                   height_m=None if self.height is None else round(self.height[1], 3),
                   ess=round(self.pf.ess()) if self.pf.ready else None,
                   scans_skipped=self.pf.skipped, scan_fit=self.pf.last_fit,
                   cluster_frac=round(self.pf.last_cluster_frac, 2),
-                  live_map=self.live.stats() if self.live is not None else None)
+                  live_map=self.live.stats() if self.live is not None else None,
+                  local_map=self.local.stats() if self.local is not None else None,
+                  prior=self.prior_mon.as_dict())
         if self.last_est is not None:
             t, mean, cov, pose, *_ = self.last_est
             st.update(t=round(t, 3), x=round(float(mean[0]), 3), y=round(float(mean[1]), 3),
@@ -426,6 +491,7 @@ class LocNode(Node):
                       sigma_xy=round(float(math.sqrt(max(cov[0, 0], cov[1, 1]))), 3),
                       sigma_yaw_deg=round(math.degrees(math.sqrt(cov[2, 2])), 2))
         self.pub_status.publish(String(data=json.dumps(st)))
+        self._publish_prior()
         self.log_f.flush()
 
     def destroy_node(self):

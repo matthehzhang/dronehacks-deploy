@@ -39,7 +39,9 @@ course file's refnav_params turns them on; each has its own tests):
   in-place turn); gate, alignment and passage legs always stop-turn-check-go;
 * blocked_hold_s > 0: a confirmed obstacle inside the stop distance HOVERS first (a transient
   return clears), then backs off blocked_backoff_m along the path just flown, rechecks for
-  blocked_recheck_s, and only then lands;
+  blocked_recheck_s, and only then lands. Recovery judges the corridor with the same check as go (along
+  the path on path legs) and only when every confirm frame reads clear; a path re-planned while blocked
+  is followed (turn to it, check, go); blocked_max_per_leg > 0 lands on the (N+1)-th block of one leg;
 * depth_lost_pause_static: depth silence is not counted during an in-place turn or a hold (no
   translation); while moving it still stops translation at once;
 * stop_per_mps > 0: the stop distance follows the planned speed, max(stop_min_m, stop_base_m +
@@ -147,6 +149,7 @@ class Params:
     path_lookahead_m: float = 0.35              # path mode: heading looks this far (+ 0.5 s of speed) ahead
     path_heading_lead_deg: float = 180.0        # path mode: the heading never leads the current tangent by more
                                                 # (run010: 50 deg of heading preview into a corner; 180 = off)
+    path_lat_accel_max_mps2: float = 0.0        # > 0: path mode lateral feed-forward v^2*kappa clamped to this
     path_tube_gate: bool = False                # path mode: outside the path's tube (navigator, per point) forward
                                                 # motion holds and the setpoint is the path point beside the
                                                 # aircraft; it advances again inside half the tube
@@ -168,6 +171,10 @@ class Params:
     blocked_backoff_m: float = 0.2              # ... then back off this far along the path just flown ...
     blocked_recheck_s: float = 2.0              # ... and recheck this long before landing
     blocked_clear_margin_m: float = 0.15        # resume only once the clearance exceeds the stop distance by this
+    prior_required: bool = False                # the course map must describe the view (coursenav.priorstate):
+                                                # no arming until a "placed" report, land when it reports "dropped"
+    blocked_max_per_leg: int = 0                # > 0: the (N+1)-th confirmed block on one leg lands instead of another
+                                                # hold-and-recheck (bag 20261107-201744: 18 blocks on leg 1, never landed)
     depth_lost_pause_static: bool = False       # depth silence is not counted while turning in place or holding
     stop_per_mps: float = 0.0                   # > 0: stop distance = max(stop_min_m, stop_base_m + this * v)
     stop_base_m: float = 0.45
@@ -340,7 +347,7 @@ class Mission:
         self.v_cmd = 0.0              # the carrot's commanded speed this tick (velocity feed-forward)
         self.counts = {"depth_frames": 0, "obstacle_stops": 0, "depth_holds": 0, "unconfirmed_obstacles": 0,
                        "depth_unusable": 0, "depth_future": 0, "depth_stale": 0, "depth_out_of_order": 0,
-                       "corridor_unobserved": 0, "corrections": 0, "recoveries": 0, "blended_turns": 0, "path_waits": 0,
+                       "corridor_unobserved": 0, "corrections": 0, "recoveries": 0, "replan_resumes": 0, "blended_turns": 0, "path_waits": 0,
                        "alignments": 0, "tunnel_ticks": 0, "tube_holds": 0, "tube_ticks": 0, "retreats": 0}
         self.tube_hold = False        # tube_gate: forward motion held until back inside half the tube
         self.last_v = None            # the latest Vehicle seen by step (for the safe-landing decision)
@@ -367,6 +374,9 @@ class Mission:
         self.corr_applied = (0.0, 0.0)
         self.silence_from = None      # when depth silence started counting (depth_lost_pause_static)
         self.recover = None           # hold-and-recheck state: {"kind", "stage", "t0", "why", ...}
+        self.leg_blocks = 0           # confirmed blocks on the current leg (blocked_max_per_leg)
+        self.prior = None             # latest prior-map report (t, state, fit) from the localizer
+        self.clr_min = None           # the SMALLEST clearance of the confirm frames (recovery needs every one clear)
         self.align_hist = []          # gate alignment measurements for the current leg
         self._align_judged_t = None
         self.align_ok_t = None        # when the current leg's gate alignment succeeded (and for which leg)
@@ -452,6 +462,11 @@ class Mission:
         heading = _np.arctan2(d[:, 1], d[:, 0])
         dh = _np.angle(_np.exp(1j * _np.diff(heading)))
         kappa = _np.concatenate([dh / _np.maximum(seg, 1e-6), [0.0]])
+        # a stop-and-turn corner is turned in place, not flown as an arc: its heading kink is not curvature
+        # (run024: kappa ~13 1/m there gave a 0.54 m/s^2 lateral feed-forward leaving the corner, which
+        # pushed the aircraft 0.2 m toward M1)
+        for i in stops:
+            kappa[max(int(i) - 2, 0):int(i) + 3] = 0.0
         if self.path is None or self.path.get("pid") != pid or self.path.get("leg") != leg:
             self.path_s, self.path_stop_done = 0.0, -1
         tb = None
@@ -478,6 +493,15 @@ class Mission:
     def _path_fresh(self, now):
         P = self.path
         return P is not None and P["leg"] == self.leg and now - P["t"] <= self.p.path_stale_s
+
+    def on_prior_state(self, t, state, fit=None):
+        """The localizer's prior-map state (coursenav.priorstate): "placed" or "dropped"."""
+        self.prior = (t, str(state), fit)
+
+    def _prior_dropped_why(self):
+        t, state, fit = self.prior
+        return (f"prior map dropped: the course map does not describe what the camera sees "
+                f"(scan fit {fit:.0%})" if fit is not None else "prior map dropped")
 
     def request_land(self, why="requested"):
         """An outside request to end the flight through the mission's own landing (no second controller)."""
@@ -779,6 +803,8 @@ class Mission:
                 self._land(now, out, "PX4 position or heading invalid", immediate=True)
             elif self.depth_t is None or (self._depth_silent_s(now) > p.depth_lost_land_s and not tunnel_dark):
                 self._land(now, out, f"depth silent for more than {p.depth_lost_land_s:.0f} s")
+            elif p.prior_required and self.prior is not None and self.prior[1] == "dropped":
+                self._land(now, out, self._prior_dropped_why())
             elif p.corridor_wait_land_s >= 0 and self.phase in ("check", "go") and self.t_check is not None \
                     and not tunnel_dark:
                 seen = self.t_check if self.corr_t is None else max(self.t_check, self.corr_t)
@@ -805,6 +831,10 @@ class Mission:
                     f"the latest usable frame is {now - self.depth_t:.1f} s old")
             elif not self.depth_ready_for_arm(now):
                 self.why = f"waiting for {p.health_quiet_s:g} s of continuously usable depth"
+            elif p.prior_required and self.prior is None:
+                self.why = "waiting for the localizer's prior-map state (prior_required)"
+            elif p.prior_required and self.prior[1] != "placed":
+                self.why = "waiting: " + self._prior_dropped_why()
             else:
                 n, e, d = v.pos
                 self.home = (n, e, d, v.heading)
@@ -1000,6 +1030,7 @@ class Mission:
         self.tunnel_active = bool(self.p.tunnel_mode and self._leg_meta().get("tunnel"))
         self.path_s, self.path_stop_done = 0.0, -1
         self.capture_t, self.tight_since = None, None
+        self.leg_blocks = 0
         if self._path_leg() and self.path is not None and self.path["leg"] == self.leg:
             self.leg_heading = float(self.path["heading"][0])
         self.leg_v_end = 0.0 if (self._stops_at_end(self.leg) or self.p.track_mode == "path") else self.p.speed_mps
@@ -1078,7 +1109,10 @@ class Mission:
             self.last_coverage = cov
             if cov >= p.min_corridor_coverage:
                 hits = max(3, round(p.min_obstacle_px / p.depth_stride ** 2))
-                ahead = (self._path_ahead_level(v) if self.phase in ("go", "check") and self._path_leg()
+                # the same along-path check in go, check AND the recovery: judging recovery on the straight
+                # leg heading while go judged the curved path flapped blocked <-> go 18 times (bag 20261107-201744)
+                ahead = (self._path_ahead_level(v) if self.phase in ("go", "check", "blocked", "backoff", "recheck")
+                         and self._path_leg()
                          and self.path is not None and self.path["leg"] == self.leg else None)
                 if ahead is not None:
                     c = D.path_clearance(self.depth_pts, ahead[0], ahead[1], p.corridor_half_m, p.band_m, hits)
@@ -1091,6 +1125,7 @@ class Mission:
         if len(self.clr_hist) < self.p.confirm_frames:
             return None
         confirmed = max(c for _, c in self.clr_hist)
+        self.clr_min = min(c for _, c in self.clr_hist)
         if min(c for _, c in self.clr_hist) < self._stop_m(self.s) <= confirmed:
             self.counts["unconfirmed_obstacles"] += 1
         return confirmed
@@ -1123,8 +1158,13 @@ class Mission:
         original rule) or hold-and-recheck (blocked_hold_s > 0)."""
         self.sp[0], self.sp[1] = v.pos[0], v.pos[1]
         self.counts["obstacle_stops"] += 1
+        self.leg_blocks += 1
         why = f"route blocked: obstacle {clr:.2f} m ahead {where} leg {self.leg + 1}"
-        if self.p.blocked_hold_s > 0:
+        if self.p.blocked_max_per_leg > 0 and self.leg_blocks > self.p.blocked_max_per_leg:
+            self.recover = None
+            self._land(now, out, f"{why}; blocked {self.leg_blocks} times on this leg "
+                                 f"(blocked_max_per_leg {self.p.blocked_max_per_leg})")
+        elif self.p.blocked_hold_s > 0:
             self._start_recover(now, out, "blocked", why, v)
         else:
             self._land(now, out, why)
@@ -1247,7 +1287,19 @@ class Mission:
         s_now, seg_i = self._path_project(v.pos)
         self.path_s = max(self.path_s - 0.05, s_now)            # progress: no jumping back along the path
         L = float(P["s"][-1])
-        nxt = [i for i in P["stops"] if i > self.path_stop_done and P["s"][i] > self.path_s - 0.05]
+        # every interior stop not yet executed stays ahead: progress may not run past it. run026 (and run022)
+        # skipped 7 of 12 maze corner stops: near a U-turn the projection jumped onto the segment beyond the
+        # corner, the old filter (s[i] > path_s - 0.05) dropped the stop, and the corner was flown yawing
+        # while moving (run026's M3 minimum, 0.268 m)
+        nxt = [i for i in P["stops"] if i > self.path_stop_done]
+        if self.path_stop_done >= 0:
+            # ... and never back behind a corner already turned at: arriving up to arrive_m short of the corner,
+            # the projection falls on the segment BEFORE it, and the 0.05 m/tick allowance walked progress back
+            # there, commanding along the old tangent (sideways after the turn) at a creep for ever
+            # (+1 mm: _path_at at exactly a vertex returns the INCOMING segment's tangent)
+            self.path_s = max(self.path_s, float(P["s"][self.path_stop_done]) + 1e-3)
+        if nxt:
+            self.path_s = min(self.path_s, float(P["s"][nxt[0]]))
         s_stop = float(P["s"][nxt[0]]) if nxt else L            # brake to the next interior stop, else the end
         remaining = s_stop - self.path_s
         look = self.path_s + p.path_lookahead_m + 0.5 * self.v_cmd
@@ -1283,7 +1335,9 @@ class Mission:
         if p.path_tube_gate and P.get("tube") is not None:
             tube = float(P["tube"][min(max(seg_i, 0), len(P["tube"]) - 1)])
             across = math.hypot(v.pos[0] - pt[0], v.pos[1] - pt[1])
-            if not self.tube_hold and across > tube:
+            if tube <= 0.005:
+                pass        # no slack known at this point (run024: a 0.000 m tube right after the climb): no gate
+            elif not self.tube_hold and across > tube:
                 self.tube_hold = True
                 self.counts["tube_holds"] += 1
                 out.events.append(f"tube: {across:.3f} m off the path on leg {self.leg + 1} > {tube:.3f} m: "
@@ -1315,6 +1369,8 @@ class Mission:
             a_along = 0.0
         a_along = self._consistent_accel(max(-a_b, min(a_up, a_along)), v_ref, v_along, dt, a_b)
         a_lat = v_ref ** 2 * kap
+        if p.path_lat_accel_max_mps2 > 0:                       # never more than the navigator planned arcs for
+            a_lat = max(-p.path_lat_accel_max_mps2, min(p.path_lat_accel_max_mps2, a_lat))
         captured = remaining <= p.capture_m
         if captured:
             end = P["pts"][nxt[0]] if nxt else P["pts"][-1]
@@ -1383,13 +1439,12 @@ class Mission:
         return max(self.v_cmd, v_along) if v_along is not None else self.v_cmd
 
     def _consistent_accel(self, a, v_ref, v_along, dt, a_b):
-        """Acceleration feed-forward consistent with the velocity command: never more than the command's
-        actual growth this tick ((v_ref - last command) / dt), and never positive while the aircraft is
-        already more than 0.03 m/s faster than the command."""
+        """Acceleration feed-forward consistent with the velocity command: never positive while the
+        aircraft is already more than 0.03 m/s faster than the command. (Also capping it at the command's
+        growth per tick was tried and dropped: offline on the reference course at 0.6 m/s it removed the
+        profile's planned shaping and produced a contact, 0.279 m vs 0.325 m without the cap.)"""
         if v_ref <= 0.0:
             return 0.0
-        if dt > 0:
-            a = min(a, max((v_ref - self.v_cmd) / dt, -a_b))
         if v_along is not None and v_along > v_ref + 0.03:
             a = min(a, 0.0)
         return a
@@ -1627,7 +1682,9 @@ class Mission:
 
     # ------------------------------------------------------------------ hold-and-recheck
     def _start_recover(self, now, out, kind, why, v):
-        self.recover = {"kind": kind, "t0": now, "why": why, "target": None, "t_back": None, "t_re": None}
+        self.recover = {"kind": kind, "t0": now, "why": why, "target": None, "t_back": None, "t_re": None,
+                        "pid": self.path.get("pid") if (self.path is not None and self._path_leg()) else None,
+                        "pos": (v.pos[0], v.pos[1])}
         self._set("blocked", now, out, f"{why}; holding up to {self.p.blocked_hold_s:g} s")
 
     def _recover_clear(self, now, v):
@@ -1641,10 +1698,21 @@ class Mission:
             if clr is None or not self.corridor_fresh(now):
                 return False
             self.last_clearance = clr
+            # hysteresis: the obstacle must have clearly gone in EVERY confirm frame (one clear frame is
+            # not evidence that a wall left), not just hover at the stop distance
+            worst = clr if self.clr_min is None else self.clr_min
+            # judged from where the block happened: backing off adds clearance without the obstacle moving
+            # (bag 20261107-201744: blocked at 0.85-0.95 m, backed off 0.2 m, 'recovered', blocked again
+            # 0.1-1.5 s later, 18 times). Only an obstacle that actually left clears.
+            bp = r.get("pos")
+            if bp is not None and math.isfinite(worst):
+                worst -= math.hypot(v.pos[0] - bp[0], v.pos[1] - bp[1])
+            if self._path_leg() and self.path is not None and self.path["leg"] == self.leg:
+                L = float(self.path["s"][-1])
+                return not self._blocks(worst - self.p.blocked_clear_margin_m, max(L - self.path_s, 0.0), self.path_s)
             n0, e0 = self.leg_start
             proj = (v.pos[0] - n0) * self.leg_dir[0] + (v.pos[1] - e0) * self.leg_dir[1]
-            # hysteresis: the obstacle must have clearly gone, not just hover at the stop distance
-            return not self._blocks(clr - self.p.blocked_clear_margin_m, self.leg_len - max(proj, 0.0), max(proj, 0.0))
+            return not self._blocks(worst - self.p.blocked_clear_margin_m, self.leg_len - max(proj, 0.0), max(proj, 0.0))
         if r["kind"] == "align":
             if self.frame is not None and self._align_judged_t != self.depth_t and self.depth_fresh(now):
                 self._align_judged_t = self.depth_t
@@ -1661,10 +1729,15 @@ class Mission:
             self._apply_alignment(now, out, G.combine(self.align_hist[-self.p.align_frames:]))
             self._set("check", now, out, "recovered: gate found")
             return
-        n0, e0 = self.leg_start
-        proj = (v.pos[0] - n0) * self.leg_dir[0] + (v.pos[1] - e0) * self.leg_dir[1]
-        self.s = min(max(proj, 0.0), self.leg_len)
-        self.sp[0], self.sp[1] = n0 + self.leg_dir[0] * self.s, e0 + self.leg_dir[1] * self.s
+        if self._path_leg():
+            # path legs: _go_path sets the setpoint from the path beside the aircraft; the straight-leg
+            # geometry (leg_start + leg_dir * s) is not where the aircraft is
+            self.sp[0], self.sp[1] = v.pos[0], v.pos[1]
+        else:
+            n0, e0 = self.leg_start
+            proj = (v.pos[0] - n0) * self.leg_dir[0] + (v.pos[1] - e0) * self.leg_dir[1]
+            self.s = min(max(proj, 0.0), self.leg_len)
+            self.sp[0], self.sp[1] = n0 + self.leg_dir[0] * self.s, e0 + self.leg_dir[1] * self.s
         self.t_check = now
         self._set("go", now, out, "recovered: corridor clear again")
 
@@ -1677,12 +1750,26 @@ class Mission:
         if self._recover_clear(now, v):
             self._resume(now, out, v)
             return
+        if (r["kind"] == "blocked" and self._path_leg() and self._path_fresh(now)
+                and r.get("pid") is not None and self.path.get("pid") != r["pid"]):
+            # the navigator re-planned while we were blocked: turn to face the new path, check it, go. Waiting
+            # for the OLD corridor to clear never turns the camera away from the obstacle
+            self.recover = None
+            self.counts["replan_resumes"] += 1
+            self.sp[0], self.sp[1] = v.pos[0], v.pos[1]
+            self.clr_hist, self.corr_t = [], None
+            self.leg_heading = self._path_at(p.path_lookahead_m)[1]
+            self.turn_start_heading = self.sp[3]
+            self._set("turn", now, out, f"re-planned while blocked on leg {self.leg + 1}: turning to the new path")
+            return
         if self.phase == "blocked":
             if now - r["t0"] > p.blocked_hold_s:
                 # back off along the path just flown (known free): the leg behind, or the previous leg
                 back = self.leg_dir if r["kind"] == "blocked" or self.prev_leg_dir is None else self.prev_leg_dir
                 n0, e0 = self.leg_start
-                if r["kind"] == "blocked":
+                if r["kind"] == "blocked" and self._path_leg():
+                    d = min(p.blocked_backoff_m, max(self.path_s, 0.0))     # never behind the path's start
+                elif r["kind"] == "blocked":
                     proj = (v.pos[0] - n0) * back[0] + (v.pos[1] - e0) * back[1]
                     d = min(p.blocked_backoff_m, max(proj, 0.0))
                 else:
@@ -1717,5 +1804,6 @@ class Mission:
                 "depth_reject": None if self.depth_reject is None else self.depth_reject[1],
                 "health_bad_s": (None if math.isinf(self.health.bad_for(now)) else round(self.health.bad_for(now), 2)),
                 "recover": None if self.recover is None else {"kind": self.recover["kind"], "stage": self.phase},
+                "leg_blocks": self.leg_blocks,
                 "tunnel": self.tunnel_active, "align": self.align_result,
                 **self.counts}

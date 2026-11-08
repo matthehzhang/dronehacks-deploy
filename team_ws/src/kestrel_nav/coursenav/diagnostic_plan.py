@@ -57,6 +57,10 @@ def _settings(doc, landed_z):
     nav = {k: copy.deepcopy(v) for k, v in doc.get("navigation", {}).items() if not k.startswith("_")}
     params.update({k: v for k, v in nav.pop("refnav", {}).items() if not k.startswith("_")})
     nav.pop("mode", None)
+    # The diagnostic's single slow transit keeps flow-corners' angle-only arc selection: arc_min_tube_m
+    # (course mission, group154) turns its maze bends into stops, which this planner's one-stop transit
+    # contract does not accept. The diagnostic mission is not what main.py flies on this branch.
+    nav.pop("arc_min_tube_m", None)
     speed = min(float(params.get("speed_mps", TRANSIT_CEILING_MPS)), TRANSIT_CEILING_MPS)
     if not math.isfinite(speed) or speed <= 0:
         raise planner.PlanError("diagnostic transit speed must be positive")

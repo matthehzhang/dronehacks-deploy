@@ -20,6 +20,7 @@ rather than queues.
 """
 from __future__ import annotations
 
+import array
 import math
 import threading
 import time
@@ -181,6 +182,27 @@ class HostDepth(Node):
         return True
 
     # ------------------------------------------------------------------ worker
+    def _rate_now(self):
+        if self.get_parameter('use_sim_time').value:
+            return self.get_clock().now().nanoseconds * 1e-9
+        return time.time()
+
+    def _wait_for_rate(self, last):
+        period = 1.0 / max(self.max_hz, 0.5)
+        if not self.get_parameter('use_sim_time').value:
+            # Preserve the physical-drone scheduling path.
+            wait = period - (time.time() - last)
+            if wait > 0:
+                time.sleep(wait)
+            return
+        # A sleep is in wall seconds; repeatedly check /clock rather than
+        # treating a simulation interval as a wall interval at low RTF.
+        while rclpy.ok():
+            elapsed = self._rate_now() - last
+            if elapsed < 0 or elapsed >= period:
+                return
+            time.sleep(max(0.005, min(0.05, period - elapsed)))
+
     def worker(self):
         last = 0.0
         while rclpy.ok():
@@ -189,14 +211,14 @@ class HostDepth(Node):
             if self.rect is None and not self.build_rect():
                 time.sleep(0.5)
                 continue
-            wait = 1.0 / max(self.max_hz, 0.5) - (time.time() - last)
-            if wait > 0:
-                time.sleep(wait)
+            self._wait_for_rate(last)
+            if not rclpy.ok():
+                break
             with self.lock:
                 pair, self.pair = self.pair, None
             if pair is None:
                 continue
-            last = time.time()
+            last = self._rate_now()
             try:
                 self.process(*pair)
             except Exception as e:  # noqa: BLE001
@@ -222,7 +244,8 @@ class HostDepth(Node):
         out.encoding = '16UC1'
         out.is_bigendian = 0
         out.step = out.width * 2
-        out.data = depth_mm.tobytes()
+        # The ROS setter accepts a uint8 array directly; bytes triggers a Python loop.
+        out.data = array.array('B', depth_mm.tobytes())
         info = rc['info']
         info.header.stamp = out.header.stamp
         self.pub_depth.publish(out)

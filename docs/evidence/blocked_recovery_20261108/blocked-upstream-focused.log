@@ -1,0 +1,48 @@
+.....F....F                                                              [100%]
+=================================== FAILURES ===================================
+_____ test_the_flight_stack_default_is_the_new_course_and_the_tests_pin_v3 _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f95f6dfec40>
+
+    def test_the_flight_stack_default_is_the_new_course_and_the_tests_pin_v3(monkeypatch):
+        monkeypatch.delenv("COURSENAV_COURSE", raising=False)
+>       assert CO.default_course_path() == NEW
+E       AssertionError: assert PosixPath('/home/matthew/projects/hackathon/dronehacks/deploy-blocked-recovery/team_ws/src/kestrel_nav/course/course_new_origin.json') == PosixPath('/tmp/blocked-recovery-validation/course/course_new_origin.json')
+E        +  where PosixPath('/home/matthew/projects/hackathon/dronehacks/deploy-blocked-recovery/team_ws/src/kestrel_nav/course/course_new_origin.json') = <function default_course_path at 0x7f95f73bd7a0>()
+E        +    where <function default_course_path at 0x7f95f73bd7a0> = CO.default_course_path
+
+tests/test_new_origin_course.py:34: AssertionError
+______ test_the_navigator_path_out_of_the_buffer_has_an_executable_speed _______
+
+new = ({'schema': 'coursenav-course/1', 'frame': 'course ENU = published OBJ source frame (metres, x east, y north, z up, or...449],
+       [0.170738  , 0.13970449, 0.12126469, ..., 0.12126469, 0.13970449,
+        0.170738  ]], shape=(128, 128)))
+
+    def test_the_navigator_path_out_of_the_buffer_has_an_executable_speed(new):
+        doc, cm, obst, blocked, clearance = new
+        need = doc["vehicle"]["radius_m"] + doc["vehicle"]["margin_m"]
+        navcfg = doc["navigation"]
+        ep = dict(doc["refnav_params"])
+        ep.update({k: v for k, v in navcfg.get("refnav", {}).items() if not k.startswith("_")})
+        nav = Navigator(obst, blocked, clearance, need, smooth_params_for(navcfg, ep, need))
+        P = nav.plan(np.array(doc["start"]["xy"]), [np.array(doc["derived"]["tunnel"]["entry"])])
+        assert P.v[0] == 0.0
+        s0 = nav._free_start(np.array(doc["start"]["xy"]), *nav.fuse()[1:])
+        esc = float(np.linalg.norm(s0 - doc["start"]["xy"]))
+        assert 0 < esc <= nav.p.escape_m
+        inside = P.v[(P.s > 1e-9) & (P.s <= esc + 1e-9)]                    # the escape step, start excluded
+>       assert len(inside) and np.all(inside > 0) and np.all(inside <= nav.p.escape_creep_mps + 1e-9)
+E       assert (1 and np.True_ and np.False_)
+E        +  where 1 = len(array([0.18690921]))
+E        +  and   np.True_ = <function all at 0x7f95f99df270>(array([0.18690921]) > 0)
+E        +    where <function all at 0x7f95f99df270> = np.all
+E        +  and   np.False_ = <function all at 0x7f95f99df270>(array([0.18690921]) <= (0.1 + 1e-09))
+E        +    where <function all at 0x7f95f99df270> = np.all
+E        +    and   0.1 = NavParams(replan_every_s=1.0, prefer_m=0.6, crowd_weight=4.0, escape_m=0.6, escape_creep_mps=0.1).escape_creep_mps
+E        +      where NavParams(replan_every_s=1.0, prefer_m=0.6, crowd_weight=4.0, escape_m=0.6, escape_creep_mps=0.1) = <coursenav.navigator.Navigator object at 0x7f95f9ade7b0>.p
+
+tests/test_new_origin_course.py:93: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_new_origin_course.py::test_the_flight_stack_default_is_the_new_course_and_the_tests_pin_v3
+FAILED tests/test_new_origin_course.py::test_the_navigator_path_out_of_the_buffer_has_an_executable_speed
+2 failed, 9 passed in 13.64s

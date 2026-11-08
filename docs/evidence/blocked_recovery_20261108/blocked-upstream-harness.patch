@@ -1,0 +1,12 @@
+--- /tmp/blocked-return-node-original.py	2026-11-08 02:29:52.411822936 -0600
++++ /tmp/blocked-recovery-validation/tests/test_return_node.py	2026-11-08 02:29:52.432849175 -0600
+@@ -27,6 +27,9 @@
+     monkeypatch.delitem(sys.modules,'refnav.node',raising=False)
+     mod=importlib.import_module('refnav.node')
+     n=object.__new__(mod.RefNav)
++    # Direct-mode adapter state normally initialized by RefNav.__init__.
++    n.sky = None
++    n.px4_output = "direct"
+     n.mission,n.v=at_pad()
+     n.return_enabled=True
+     n.now=50.

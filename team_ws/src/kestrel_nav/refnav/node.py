@@ -173,6 +173,11 @@ class RefNav(Node):
         self._ev_yaw = (False, None)
         self.create_subscription(EstimatorStatusFlags, "/fmu/out/estimator_status_flags", self._on_est_flags, PX4_QOS)
         self.create_subscription(Bool, self.health_topic, self._on_health, 10)
+        if self.mission.p.prior_required:
+            # latched on the localizer side: the last state arrives even if refnav starts later
+            from rclpy.qos import DurabilityPolicy as _D, QoSProfile as _Q, ReliabilityPolicy as _R
+            self.create_subscription(String, "/coursenav/prior_state", self._on_prior,
+                                     _Q(depth=1, reliability=_R.RELIABLE, durability=_D.TRANSIENT_LOCAL))
         if self.diagnostic_enabled:
             from sensor_msgs.msg import Imu
             imu_topic = self.declare_parameter('diagnostic_imu_topic', '/stereo/imu').value
@@ -373,6 +378,13 @@ class RefNav(Node):
         except (ValueError, TypeError, KeyError):
             self.mission.samples.pop('localizer', None)
 
+    def _on_prior(self, m):
+        try:
+            d = json.loads(m.data)
+            self.mission.on_prior_state(self._now(), d["state"], d.get("fit"))
+        except (ValueError, TypeError, KeyError):
+            pass
+
     def _on_health(self, m):
         self.mission.on_health(self._now(), m.data)
 
@@ -453,7 +465,7 @@ class RefNav(Node):
         if self.v.q is None:
             return self._reject("no_attitude", "no PX4 attitude yet")
         try:
-            d = D.decode_depth(m.encoding, m.height, m.width, m.step, bytes(m.data))
+            d = D.decode_depth(m.encoding, m.height, m.width, m.step, m.data)
         except ValueError as e:
             return self._reject("undecodable", str(e))
         stamp = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9

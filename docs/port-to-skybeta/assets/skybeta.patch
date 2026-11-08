@@ -1,0 +1,447 @@
+diff -ruN a2/course/course_v3.json b/course/course_v3.json
+--- a/course/course_v3.json	2026-11-08 02:29:46.622268184 -0600
++++ b/course/course_v3.json	2026-11-08 02:29:46.618948118 -0600
+@@ -282,10 +282,7 @@
+     "_keep_path_clearance_note": "planner._simplify_idx: shortcuts keep the clearance of the A* sub-path they replace, capped at 0.6 m = the A* prefer_m (beyond it A* itself does not centre), less half a cell. 0 restores greedy shortcuts."
+   },
+   "sim_profile": {
+-    "fixture_offset_m": [
+-      0.0,
+-      0.2
+-    ],
++    "fixture_offset_m": [0.0, 0.0], "_fixture_skybeta_note": "kestral_nav934am (skybeta): the drone starts ON the launch mark (rule 7.4; the FlyX training spawn was [0.0, 0.2])",
+     "_note": "SIMULATION / TRAINING ONLY. The prepared-training world spawns the aircraft 20 cm north of the launch mark (environment.json); this declared offset gives the localizer's prior and the offline tools their start. It is not competition configuration: at the venue the start is the mark itself and fly_course.py takes the start pose from the localizer.",
+     "refnav": {
+       "sim_stuck_land_disarm_s": 0.0
+diff -ruN a2/coursenav/loc_node.py b/coursenav/loc_node.py
+--- a/coursenav/loc_node.py	2026-11-08 02:29:46.599091565 -0600
++++ b/coursenav/loc_node.py	2026-11-08 02:29:46.596169205 -0600
+@@ -154,6 +154,9 @@
+                                  math.radians(float(dp("nominal_yaw_deg", float(st["yaw_deg"])).value))])
+         self.pub_corr = self.create_publisher(Vector3Stamped, dp("correction_topic", "/coursenav/px4_correction").value, 10)
+         self.min_updates_for_corr = int(dp("min_updates_for_correction", 30).value)
++        self.publish_zero_drift = bool(dp("publish_zero_drift", False).value)   # skybeta launch: true
++        self.adaptive_hz = float(dp("adaptive_hz", 0.0).value)                   # skybeta launch: 4; 0 = every frame
++        self._t_proc, self._cost = 0.0, []
+         # the odometry -> course correction as an EKF state (coursenav.drift): published for the navigator
+         # (coursenav.nav_node), which converts its course-frame paths into PX4's frame with it every tick
+         self.ekf = DriftEKF()
+@@ -179,6 +182,20 @@
+         self.create_subscription(VehicleAttitude, "/fmu/out/vehicle_attitude",
+                                  lambda m: setattr(self, "att", tuple(float(c) for c in m.q)), PX4_QOS)
+         self.create_subscription(DistanceSensor, "/fmu/out/distance_sensor", self._on_rangefinder, PX4_QOS)
++        # kestral_nav934am (skybeta): the drone publishes no distance_sensor; its rangefinder reaches ROS only
++        # as vehicle_local_position.dist_bottom. height_source "local_position" uses that (default unchanged).
++        self.height_source = str(dp("height_source", "rangefinder").value)
++        self.landed_z = float(dp("landed_z_m", 0.10).value)
++        if self.height_source == "local_position":
++            from px4_msgs.msg import VehicleLocalPosition
++            topic = "/fmu/out/vehicle_local_position_v1"
++            try:
++                from skybeta_flight_interface.topics import resolve_endpoints
++                topic = resolve_endpoints()["vehicle_local_position"]
++            except Exception:                               # noqa: BLE001
++                pass
++            self.create_subscription(VehicleLocalPosition, topic, self._on_lpos_height, PX4_QOS)
++            self.get_logger().info(f"height from {topic} dist_bottom (fallback landed_z_m - z)")
+ 
+         logdir = Path(dp("log_dir", str(PROJECT / "logs")).value)
+         logdir.mkdir(parents=True, exist_ok=True)
+@@ -208,6 +225,18 @@
+         r, t = tf.transform.rotation, tf.transform.translation
+         return quat_to_mat(r.w, r.x, r.y, r.z), np.array([t.x, t.y, t.z])
+ 
++    def _on_lpos_height(self, m):
++        """dist_bottom while plausible (0.02-3 m; PX4 1.16 with range as the height reference may leave
++        dist_bottom_valid false although it carries the range), else landed_z_m minus NED z."""
++        d = float(m.dist_bottom)
++        if math.isfinite(d) and 0.02 < d < 3.0:
++            h = d                    # PX4's height of the body above the ground (sim: 0.0999 landed = landed_z)
++        elif m.z_valid and math.isfinite(m.z):
++            h = self.landed_z - float(m.z)
++        else:
++            return
++        self.height = (time.monotonic(), h)
++
+     def _on_rangefinder(self, m):
+         if m.current_distance <= 0 or m.current_distance > m.max_distance:
+             return
+@@ -243,9 +272,26 @@
+         best = min(cands, key=lambda h: abs(h[0] - t))
+         return best if abs(best[0] - t) <= 0.1 else None
+ 
++    def _scan_rate_now(self):
++        if self.get_parameter('use_sim_time').value:
++            return self.get_clock().now().nanoseconds * 1e-9
++        return time.monotonic()
++
++    def _scan_rate_limited(self):
++        elapsed = self._scan_rate_now() - self._t_proc
++        return 0 <= elapsed < 1.0 / self.adaptive_hz
++
+     def _on_depth(self, m):
+         if self.K is None or self.att is None or not self.pf.ready:
+             return
++        # kestral_nav934am (skybeta) adaptive rate: once confident (sigma_xy < 0.05 m, sigma_yaw < 2 deg), process
++        # at most adaptive_hz scans/s; full rate when confidence drops. Corrections are rate-limited anyway.
++        if self.adaptive_hz > 0 and self.last_est is not None:
++            cov = self.last_est[2]
++            confident = math.sqrt(max(cov[0, 0], cov[1, 1])) < 0.05 and math.degrees(math.sqrt(cov[2, 2])) < 2.0
++            if confident and self._scan_rate_limited():
++                return
++        t_cpu = time.process_time()
+         if self.cam_cal is None:
+             try:
+                 self.cam_cal = (m.header.frame_id, *self._tf(m.header.frame_id))
+@@ -296,6 +342,12 @@
+                 f = self.live.landmark_field()
+                 self.pf.set_distance(self.prior_dist if f is None else f)
+         self.last_est = (t, mean, cov, pose, h, n_depth)
++        self._t_proc = self._scan_rate_now()
++        self._cost.append(time.process_time() - t_cpu)
++        if len(self._cost) >= 50:                  # measured per-frame CPU cost, for the drone's first runs
++            self.get_logger().info(f"scan cost: mean {1000 * np.mean(self._cost):.1f} ms CPU/frame "
++                                   f"(p90 {1000 * np.percentile(self._cost, 90):.1f} ms) over {len(self._cost)} frames")
++            self._cost = []
+         self._publish_pose(m.header.stamp, mean, cov, od[2])
+         nominal_body = compose(self.nominal, pose)
+         self.ekf.predict(nominal_body, dt)
+@@ -306,6 +358,15 @@
+                 "stamp": t, "delta": [float(v) for v in self.ekf.x], "nominal": [float(v) for v in nominal_body],
+                 "fixture": [float(v) for v in self.nominal], "sigma_xy": self.ekf.sigma_xy(),
+                 "accepted": self.ekf.accepted, "rejected": self.ekf.rejected, "resets": self.ekf.resets})))
++        elif self.publish_zero_drift:
++            # kestral_nav934am (skybeta): no correction yet (the EKF starts after min_updates_for_correction PF
++            # updates; on the ground the fit gate can refuse every scan). Publish ZERO drift: VIO + the start
++            # fixture is the estimate, as the flight already uses. The navigator plans nothing without a drift
++            # message (Gazebo: no leg-1 path for > 40 s on a Jetson-sized CPU budget).
++            self.pub_drift.publish(String(data=json.dumps({
++                "stamp": t, "delta": [0.0, 0.0, 0.0], "nominal": [float(v) for v in nominal_body],
++                "fixture": [float(v) for v in self.nominal], "sigma_xy": None,
++                "accepted": 0, "rejected": 0, "resets": 0, "uncorrected": True})))
+         if self.counts["updates"] >= self.min_updates_for_corr:
+             nominal = compose(self.nominal, pose)                     # where VIO + fixture put the body
+             raw = np.array([mean[0] - nominal[0], mean[1] - nominal[1]])   # course ENU drift of that belief
+diff -ruN a2/coursenav/nav_node.py b/coursenav/nav_node.py
+--- a/coursenav/nav_node.py	2026-11-08 02:29:46.590313700 -0600
++++ b/coursenav/nav_node.py	2026-11-08 02:29:46.587271255 -0600
+@@ -114,6 +114,32 @@
+         self.create_timer(1.0 / float(dp("rate_hz", 10.0).value), self._tick)
+         self.get_logger().info(f"navigator: {len(self.nav_legs)} legs ({sum(L['path'] for L in self.nav_legs)} "
+                                f"path legs), cruise {sp.cruise_mps:.2f} m/s, buffer {need:.2f} m")
++        self.cache = self._preplan(rd, route_file)
++
++    def _preplan(self, rd, route_file):
++        """kestral_nav934am (skybeta): plan every path leg BEFORE take-off, each from its leg's start (the start
++        pose, then the previous stop), and write <run>/navigator_ready. On a Jetson-sized CPU budget (Gazebo,
++        cgroup 1.4 cores) the in-flight leg-1 plan never arrived in 40 s; unbudgeted it took 14-24 s."""
++        from pathlib import Path
++        cache = {}
++        start = rd.get("start_xy")
++        if start is not None:
++            t0 = time.monotonic()
++            prev = np.asarray(start, float)
++            for j, L in enumerate(self.nav_legs):
++                if L["path"]:
++                    goals = [np.array(g, float) for g in L["goals"]]
++                    try:
++                        P = self.nav.plan(prev, goals, t=time.monotonic())
++                        cache[j] = (prev.copy(), goals, P)
++                        self.get_logger().info(f"pre-planned leg {j + 1}: {P.length:.2f} m, {len(P.stops)} stop corners")
++                    except PlanError as e:
++                        self.get_logger().warning(f"pre-plan leg {j + 1} failed ({e}); it will be planned in flight")
++                prev = np.asarray(L["stop"], float)
++            self.nav.path = None
++            self.get_logger().info(f"pre-planned {len(cache)} path legs in {time.monotonic() - t0:.1f} s")
++        Path(route_file).with_name("navigator_ready").write_text(json.dumps({"legs": sorted(cache)}))
++        return cache
+ 
+     def _on_drift(self, m):
+         try:
+@@ -173,6 +199,13 @@
+             want = self.nav_leg != leg
+             if not want and self.nav.path is not None:
+                 want = self.nav.needs_replan(time.monotonic(), 0.0)
++            c = self.cache.pop(leg, None) if self.nav_leg != leg else None
++            if want and c is not None and np.hypot(*(c[0] - believed[:2])) <= 0.5:
++                self.nav.path, self.nav.goals, self.nav.t_plan = c[2], c[1], time.monotonic()
++                self.pid += 1
++                self.nav_leg = leg
++                want = False
++                self.get_logger().info(f"leg {leg + 1}: pre-planned path {self.nav.path.length:.2f} m")
+             if want:
+                 goals = [np.array(g, float) for g in L["goals"]]
+                 goals = [g for g in goals[:-1] if np.hypot(*(g - believed[:2])) > 0.3] + [goals[-1]]
+diff -ruN a2/fly_course.py b/fly_course.py
+--- a/fly_course.py	2026-11-08 02:29:46.559691371 -0600
++++ b/fly_course.py	2026-11-08 02:29:46.556368723 -0600
+@@ -30,6 +30,7 @@
+ import argparse
+ import json
+ import math
++import os
+ import sys
+ import time
+ from pathlib import Path
+@@ -121,9 +122,15 @@
+     import os
+     import subprocess
+     args = [sys.executable, "-m", "coursenav.nav_node", "--ros-args", "-p", f"route_file:={run_dir / 'route.json'}"]
++    if os.environ.get("KESTREL_NICE_NAV"):                 # skybeta: never compete with refnav's setpoint loop
++        args = ["nice", "-n", str(int(os.environ["KESTREL_NICE_NAV"]))] + args
+     deployment = Path("/etc/flyx/onboard.yaml")           # sim clock selection, like the localizer
+     if deployment.is_file():
+         args += ["--params-file", str(deployment)]
++    if os.environ.get("KESTREL_USE_SIM_TIME") in ("true", "false"):   # skybeta launch (kestral_nav934am)
++        args += ["-p", f"use_sim_time:={os.environ['KESTREL_USE_SIM_TIME']}"]
++    if os.environ.get("KESTREL_DECLARED_HEADING_DEG"):            # skybeta: 0 (the interface permutes odometry ENU)
++        args += ["-p", f"declared_heading_deg:={float(os.environ['KESTREL_DECLARED_HEADING_DEG'])}"]
+     env = dict(os.environ, PYTHONPATH=f"{PROJECT}:{os.environ.get('PYTHONPATH', '')}")
+     log = open(run_dir / "navigator.log", "w")
+     print(f"navigator: starting (log {run_dir / 'navigator.log'})", flush=True)
+@@ -221,6 +228,11 @@
+     ap.add_argument("--no-own-localizer", action="store_true",
+                     help="never start a localizer here (default: start one when none is publishing)")
+     ap.add_argument("--skip-preflight", action="store_true", help="tests only: do not gate arming on preflight")
++    ap.add_argument("--start-from-mark", action="store_true",
++                    help="skybeta: the start pose is the course file's launch mark and guideline heading (rule 7.4: "
++                         "the drone is placed on the mark); the localizer still corrects in flight")
++    ap.add_argument("--no-return", action="store_true",
++                    help="never fly the automatic return after the pad landing (skybeta: the pilot arms, not refnav)")
+     ap.add_argument("--nav", choices=["path", "legs", "steady"], default=None,
+                     help="path: stops only, cruise legs along the navigator's smoothed paths on the fused map "
+                          "(coursenav.nav_node + the localizer's drift EKF); legs: the planner's waypoint route with "
+@@ -255,11 +267,30 @@
+                 own_loc.kill()
+ 
+ 
++def require_sim_plan_ready(ready, process):
++    """A capped simulation must not silently fall back to planning in flight."""
++    if os.environ.get('KESTREL_USE_SIM_TIME') != 'true' or ready.exists():
++        return
++    import subprocess
++    if process.poll() is None:
++        process.terminate()
++        try:
++            process.wait(timeout=5)
++        except subprocess.TimeoutExpired:
++            process.kill()
++            process.wait(timeout=5)
++    raise SystemExit('Navigator did not finish preplanning within the 300 wall-second watchdog; simulation flight not started')
++
++
+ def _fly(a, t0, doc, prepared, run_dir, stamp):
+     height = a.landed_z
+     source = "command line"
+     if a.start:
+         sx, sy, syaw = a.start
++    elif getattr(a, "start_from_mark", False):
++        sx, sy = doc["start"]["xy"]
++        syaw = doc["start"]["yaw_deg"]
++        source = "launch mark (course file)"
+     else:
+         got = None
+         try:
+@@ -326,13 +357,14 @@
+                           f"({sx:.4f}, {sy:.4f}, {syaw:.2f} deg). Rule 6.4: never an input to a later run."}
+     from coursenav.course import land_columns
+     route_doc["land_columns"] = land_columns(doc, prepared[1], (sx, sy), syaw)
+-    if doc.get("return", {}).get("enabled", True):
++    if doc.get("return", {}).get("enabled", True) and not getattr(a, "no_return", False):
+         from coursenav.return_plan import route_spec
+         route_doc["automatic_return"] = route_spec(doc, (sx, sy, syaw), height)
+         print(f"automatic return after pad landing/disarm: candidate height {doc['return']['cruise_z_m']:.2f} m; "
+               "only after readiness, time and clearance checks; otherwise remain landed", flush=True)
+     if nav_legs is not None:
+         route_doc["nav_legs"] = nav_legs
++        route_doc["start_xy"] = [float(sx), float(sy)]   # skybeta: the navigator pre-plans each leg from its start
+         route_doc["gate_lines"] = p.get("gate_lines", [])
+         route_doc["navigation"] = {k: v for k, v in navcfg.items() if k not in ("mode", "refnav")}
+     (run_dir / "route.json").write_text(json.dumps(route_doc, indent=1))
+@@ -359,6 +391,15 @@
+     extra = ["-p", "correction_topic:=/coursenav/px4_correction"] if nav_mode != "path" else []
+     extra += ["-p", f"trace_file:={run_dir / 'flight_trace.jsonl'}"]
+     nav_proc = start_navigator(run_dir) if nav_mode == "path" else None
++    if nav_proc is not None:                    # skybeta: refnav (and so arming) only after the paths exist
++        ready, t_wait = run_dir / "navigator_ready", time.monotonic()
++        while not ready.exists() and nav_proc.poll() is None and time.monotonic() - t_wait < 300.0:
++            if int(time.monotonic() - t_wait) % 10 == 0:
++                print(f"waiting for the navigator to pre-plan the legs ({time.monotonic() - t_wait:.0f} s)", flush=True)
++            time.sleep(1.0)
++        require_sim_plan_ready(ready, nav_proc)
++        print(f"navigator: {'ready' if ready.exists() else 'NOT ready (planning in flight)'} after "
++              f"{time.monotonic() - t_wait:.0f} s", flush=True)
+     if a.event_start:
+         extra += ["-p", "accept_armed_start:=true"]
+     extra += [x for x in a.ros_args if x != "--"]
+diff -ruN a2/refnav/core.py b/refnav/core.py
+--- a/refnav/core.py	2026-11-08 02:29:46.545512668 -0600
++++ b/refnav/core.py	2026-11-08 02:29:46.542123464 -0600
+@@ -154,6 +154,11 @@
+                                                 # motion holds and the setpoint is the path point beside the
+                                                 # aircraft; it advances again inside half the tube
+     path_stale_s: float = 1.0                   # path mode: a path older than this stops forward motion
++    path_turn_hold: bool = False                # path mode: a path leg's turn with no path yet keeps the current
++                                                # heading instead of the straight bearing to the leg's STOP; check and
++                                                # go then wait for the path as they always do (kestral_nav934am: the
++                                                # first maze path arrived after the turn, which faced a divider).
++                                                # A blocking wait in the turn deadlocked with the navigator. False = old
+     capture_m: float = 0.10                     # pose mode: closer than this to a stopping leg's end -> hold the end
+     arrive_speed_mps: float = 0.0               # > 0: arrival ALSO needs the measured speed below this ...
+     arrive_settle_s: float = 0.3                # ... for this long (no arriving while still moving: run 1 overshoot)
+@@ -890,6 +895,11 @@
+         elif ph == "turn":
+             if (self._path_leg() and self._path_fresh(now) and self.path_stop_done < 0 and self.path_s == 0.0):
+                 self.leg_heading = self._path_at(p.path_lookahead_m)[1]   # face where the path first goes
++            elif (p.path_turn_hold and self._path_leg() and self.path_stop_done < 0 and self.path_s == 0.0):
++                if self.leg_heading != self.sp[3]:
++                    out.events.append(f"turn: no path yet for leg {self.leg + 1}: keeping the heading "
++                                      "(not the straight bearing to the stop); go waits for the path")
++                self.leg_heading = self.sp[3]
+             err = _wrap(self.leg_heading - self.sp[3])
+             if p.yaw_accel_dps2 > 0:
+                 out.yawspeed = self._slew_yaw(err, dt)
+diff -ruN a2/refnav/node.py b/refnav/node.py
+--- a/refnav/node.py	2026-11-08 02:29:46.530255057 -0600
++++ b/refnav/node.py	2026-11-08 02:29:46.526830414 -0600
+@@ -129,17 +129,40 @@
+         from px4_msgs.msg import (BatteryStatus, EstimatorStatusFlags, OffboardControlMode, TrajectorySetpoint, VehicleAttitude,
+                                   VehicleCommand, VehicleLandDetected, VehicleLocalPosition, VehicleStatus)
+         self._OCM, self._TSP, self._CMD = OffboardControlMode, TrajectorySetpoint, VehicleCommand
+-        self.pub_ocm = self.create_publisher(OffboardControlMode, "/fmu/in/offboard_control_mode", PX4_QOS)
+-        self.pub_sp = self.create_publisher(TrajectorySetpoint, "/fmu/in/trajectory_setpoint", PX4_QOS)
+-        self.pub_cmd = self.create_publisher(VehicleCommand, "/fmu/in/vehicle_command", PX4_QOS)
++        # px4_output: "direct" (FlyX lab: this node owns /fmu/in, arms and sets Offboard) or "skybeta" (the
++        # drone: /fmu/in is the organizer flight interface's; the pilot arms, the interface enters Offboard,
++        # setpoints go to /skybeta/setpoint/twist; see SkybetaOutput). Default unchanged.
++        self.px4_output = str(self.declare_parameter("px4_output", "direct").value)
++        if self.px4_output not in ("direct", "skybeta"):
++            raise ValueError("px4_output must be direct or skybeta")
++        lpos_topic, status_topic_px4, land_topic = ("/fmu/out/vehicle_local_position_v1", "/fmu/out/vehicle_status_v1",
++                                                    "/fmu/out/vehicle_land_detected")
++        if self.px4_output == "skybeta":
++            from .skybeta import SkybetaOutput
++            self.sky = SkybetaOutput(self)
++            self.pub_ocm = self.pub_sp = self.pub_cmd = None
++            try:                                            # the organizer's version-aware topic names
++                from skybeta_flight_interface.topics import resolve_endpoints
++                ep = resolve_endpoints()
++                lpos_topic, status_topic_px4, land_topic = (ep["vehicle_local_position"], ep["vehicle_status"],
++                                                            ep["vehicle_land_detected"])
++            except Exception as e:                          # noqa: BLE001
++                self.get_logger().warning(f"skybeta topic resolver unavailable ({e}); using _v1 names")
++            self.get_logger().info(f"skybeta output: twist only, no /fmu/in; PX4 topics {lpos_topic}, "
++                                   f"{status_topic_px4}, {land_topic}")
++        else:
++            self.sky = None
++            self.pub_ocm = self.create_publisher(OffboardControlMode, "/fmu/in/offboard_control_mode", PX4_QOS)
++            self.pub_sp = self.create_publisher(TrajectorySetpoint, "/fmu/in/trajectory_setpoint", PX4_QOS)
++            self.pub_cmd = self.create_publisher(VehicleCommand, "/fmu/in/vehicle_command", PX4_QOS)
+         status_topic = self.declare_parameter("status_topic", "/refnav/status").value
+         self.pub_status = self.create_publisher(String, status_topic, 10)
+ 
+         self.v = C.Vehicle()
+-        self.create_subscription(VehicleLocalPosition, "/fmu/out/vehicle_local_position_v1", self._on_lpos, PX4_QOS)
++        self.create_subscription(VehicleLocalPosition, lpos_topic, self._on_lpos, PX4_QOS)
+         self.create_subscription(VehicleAttitude, "/fmu/out/vehicle_attitude", self._on_att, PX4_QOS)
+-        self.create_subscription(VehicleStatus, "/fmu/out/vehicle_status_v1", self._on_status, PX4_QOS)
+-        self.create_subscription(VehicleLandDetected, "/fmu/out/vehicle_land_detected", self._on_land, PX4_QOS)
++        self.create_subscription(VehicleStatus, status_topic_px4, self._on_status, PX4_QOS)
++        self.create_subscription(VehicleLandDetected, land_topic, self._on_land, PX4_QOS)
+         if self.return_enabled:
+             # this PX4 image publishes battery_status_v1 (run015 topic list); subscribe to both names so
+             # the return's battery check sees whichever exists (run015: "battery missing or stale")
+@@ -147,6 +170,7 @@
+                 self.create_subscription(BatteryStatus, topic, self._on_battery, PX4_QOS)
+             self.create_subscription(String, "/coursenav/status", self._on_localizer, 10)
+         self._yaw_align = (False, None)
++        self._ev_yaw = (False, None)
+         self.create_subscription(EstimatorStatusFlags, "/fmu/out/estimator_status_flags", self._on_est_flags, PX4_QOS)
+         self.create_subscription(Bool, self.health_topic, self._on_health, 10)
+         if self.mission.p.prior_required:
+@@ -195,8 +219,34 @@
+     def _now(self):
+         return self.get_clock().now().nanoseconds * 1e-9
+ 
++    EV_YAW_GRACE_S = 2.0
++    RESET_MAX_HEADING = math.radians(10.0)      # larger EKF resets in flight: refnav's NED targets are no longer trusted
++    RESET_MAX_XY_M = 0.30
++
++    def _check_reset(self, m):
++        """skybeta: refnav keeps targets, home and path in PX4's local frame and has no reset handling (the lab's
++        NED vision rarely resets). A small reset is absorbed by the position/heading loops; a LARGE one (Gazebo
++        REALISM, after a 330 ms EV freeze: heading_reset 2->3 with 1.570 -> -2.029 rad) means the frame no longer
++        describes the world: land in place through refnav's own landing rather than fly on stale targets."""
++        cur = (getattr(m, 'xy_reset_counter', None), getattr(m, 'heading_reset_counter', None))
++        prev = getattr(self, '_reset_counters', None)
++        self._reset_counters = cur
++        if prev is None or cur == prev or self.mission.phase not in C.AIRBORNE:
++            return
++        dh = float(getattr(m, 'delta_heading', 0.0)) if cur[1] != prev[1] else 0.0
++        dxy = (math.hypot(*[float(c) for c in getattr(m, 'delta_xy', (0.0, 0.0))[:2]]) if cur[0] != prev[0] else 0.0)
++        msg = f"EKF reset in flight: heading {math.degrees(dh):+.1f} deg, xy {dxy:.2f} m (counters {prev} -> {cur})"
++        if abs(dh) > self.RESET_MAX_HEADING or dxy > self.RESET_MAX_XY_M:
++            self.get_logger().warning(msg + ": frame no longer trusted, landing in place")
++            self.mission.request_land(msg)
++        else:
++            self.get_logger().info(msg + ": small, continuing")
++
+     def _on_est_flags(self, m):
+         self._yaw_align = (bool(m.cs_yaw_align), self._now())
++        self._ev_yaw = (bool(getattr(m, 'cs_ev_yaw', False)), self._now())
++        if self._ev_yaw[0]:
++            self._ev_yaw_true_t = self._now()
+ 
+     def _on_lpos(self, m):
+         accepted = self._return_observe('position', m.timestamp * 1e-6,
+@@ -240,6 +290,17 @@
+         # controller flies on. A vision heading sets heading_good_for_control on the ground.
+         ya, ya_t = self._yaw_align
+         heading_ok = bool(m.heading_good_for_control) or (ya and ya_t is not None and self._now() - ya_t <= 3.0)
++        if self.px4_output == "skybeta" and not heading_ok:
++            # skybeta (kestral_nav934am): vision arrives in an FRD frame (pose_frame 2, EKF2_EV_CTRL 9). PX4 1.16
++            # ev_yaw_control resets yaw to EV and leaves yaw_align FALSE for FRD, so heading_good_for_control
++            # never sets (deploy CLAUDE.md, drone 16 bench: "it does not gate Position mode"). The heading is
++            # the fused vision yaw: accept it while EKF2 reports cs_ev_yaw (fresh) and the heading is finite.
++            # grace: a brief EV gap (cuVSLAM stalls 150-430 ms on drone 14) clears cs_ev_yaw for a moment; PX4 keeps
++            # fusing on its own timeout, as heading_good_for_control does not flicker on the lab
++            ev_true_t = getattr(self, '_ev_yaw_true_t', None)
++            heading_ok = bool(ev_true_t is not None and self._now() - ev_true_t <= self.EV_YAW_GRACE_S)
++        if self.px4_output == "skybeta":
++            self._check_reset(m)
+         self.v.pos_ok = bool(m.xy_valid and m.z_valid and heading_ok
+                              and all(math.isfinite(c) for c in (m.x, m.y, m.z, m.heading)))
+ 
+@@ -432,6 +493,11 @@
+         diagnostic = getattr(self, 'diagnostic_enabled', False)
+         if diagnostic and (not self.trace.enabled or self.trace.failed or self.trace.dropped):
+             self.mission.abort_diagnostic('diagnostic recording unavailable, failed or dropped events', now)
++        if (self.sky is not None and self.sky.land_xy is not None and self.v.armed is False
++                and self.mission.phase == "land"):
++            # skybeta: no AUTO_LAND exists; the interface descent + PX4's auto-disarm (COM_DISARM_LAND) IS the
++            # landing, so the disarm after it confirms touchdown like AUTO_LAND -> disarmed does on the lab
++            self.mission.land_auto_seen = True
+         out = (self.mission.step(now, self.v, wall_now=time.monotonic()) if self.return_enabled or diagnostic
+                else self.mission.step(now, self.v))
+         if diagnostic and getattr(self.mission, 'protocol_tick', None) is not None:
+@@ -450,7 +516,10 @@
+         if out.events:
+             self._publish_status()
+         published = None
+-        velocity_only = getattr(out, 'velocity_only', None)
++        if self.sky is not None:                            # the drone: everything goes through the interface
++            published = self.sky.publish(now, out, self.v)
++            out.commands = []
++        velocity_only = getattr(out, 'velocity_only', None) if self.sky is None else None
+         position_hold = getattr(out, 'position_hold', None)
+         if out.stream and (velocity_only is not None or position_hold is not None):
+             command = position_hold if position_hold is not None else velocity_only
+@@ -481,7 +550,7 @@
+                 offboard_active=self.v.nav_state == C.NAV_OFFBOARD, armed=self.v.armed,
+                 health=bool(self.mission.health.arm_ok(now)[0]), clamped=[],
+                 safety='run', fault=None)
+-        elif out.stream and out.setpoint is not None:
++        elif self.sky is None and out.stream and out.setpoint is not None:
+             o = self._OCM()
+             o.timestamp = self._sys_us()
+             o.position = True

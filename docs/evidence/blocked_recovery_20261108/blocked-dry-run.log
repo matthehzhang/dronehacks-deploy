@@ -1,0 +1,20 @@
+course and map ready in 4.5 s
+run record: /home/matthew/projects/hackathon/dronehacks/deploy-blocked-recovery/team_ws/src/kestrel_nav/logs/run_20261108T022847
+start launch mark (course file): (-2.515, 0.914) yaw 90.0 deg; landed body height 0.100 m -> height_m 0.700 (body at 0.8 m above the floor)
+planned in 0.30 s: chicane window: window: score -1.05 (points 5, time 81 s, min clearance 0.41 m); gate_b: NO PLAN (gate_b_pre is reachable only through gate_b: the ungated path crosses those opening lines outside their crossing legs. No gated approach at 0.41 m clearance)
+  12 legs, 14.65 m, min clearance 0.41 m, estimated 81 s; leg-end violations []; predicted false blocks []
+navigation: path mode, 5 stops (3 navigator legs)
+   start          ( -2.52,  0.91)  clear 0.41
+   via_start_escape ( -2.52,  0.97)  clear 0.46
+   via2           ( -2.48,  1.48)  clear 0.57
+   via3           ( -2.27,  1.68)  clear 0.63
+   via4           ( -0.68,  2.27)  clear 0.62
+   tunnel_entry   (  2.31,  2.37)  clear 0.67
+   tunnel_exit    (  2.31, -0.85)  clear 0.72
+   via7           (  1.23, -1.77)  clear 0.65
+   via8           (  0.53, -1.88)  clear 0.74
+   via9           (  0.33, -2.12)  clear 0.64
+   window_pre     (  0.28, -2.55)  clear 0.52
+   window         ( -0.47, -2.27)  clear 0.45
+   window_post    ( -0.94, -2.10)  clear 0.60
+   pad            ( -2.04, -0.79)  clear 1.00

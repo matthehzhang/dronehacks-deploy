@@ -310,6 +310,46 @@ def expand_goals(doc, chicane, obst=None, clearance=None):
 
 
 # ---------------------------------------------------------------------------- the plan
+def start_escape(start, blocked: Grid2D, obst: Grid2D, clearance, max_m):
+    """A launch point inside the planning buffer (the drone starts where it is placed): the nearest
+    unblocked cell within max_m reachable by a straight step that never comes closer to anything than
+    the launch point itself is. -> xy, or None when the start is free. Raises PlanError when there is
+    none within max_m. New origin map (2026-11-07): the launch mark has 0.400 m of clearance (Barrier 1
+    0.39 m south, M2 0.45 m) against the 0.414 m requirement; the nearest plannable point is 6 cm north."""
+    s = np.asarray(start, float)
+    ij = blocked.ij(s)
+    if not blocked.inside(ij):
+        raise PlanError(f"start {tuple(np.round(s, 3))} is off the map")
+    if not blocked.occ[tuple(ij)]:
+        return None
+    c0 = float(_clear_pts(obst, clearance, [s])[0])
+    r = int(math.ceil(max_m / blocked.res))
+    i0, j0 = ij
+    cands = []
+    for i in range(max(0, i0 - r), min(blocked.occ.shape[0], i0 + r + 1)):
+        for j in range(max(0, j0 - r), min(blocked.occ.shape[1], j0 + r + 1)):
+            if not blocked.occ[i, j]:
+                q = blocked.xy(np.array([i, j]))
+                d = float(np.linalg.norm(q - s))
+                if d <= max_m:
+                    cands.append((d, q))
+    for d, q in sorted(cands, key=lambda t: t[0]):
+        if segment_clearance(obst, clearance, s, q) >= c0 - 1e-6 and segment_free(
+                Grid2D(blocked.occ & ~_disc(blocked, s, d + blocked.res), blocked.origin, blocked.res), s, q):
+            return q
+    raise PlanError(f"start {tuple(np.round(s, 3))} is inside the {c0:.3f} m buffer with no way out within "
+                    f"{max_m:.2f} m (leg_policy start_escape_m)")
+
+
+def _disc(grid: Grid2D, c, r):
+    """Cells within r of c (the buffer the escape step starts inside, which it may leave through)."""
+    nx, ny = grid.occ.shape
+    xs = grid.origin[0] + (np.arange(nx) + 0.5) * grid.res
+    ys = grid.origin[1] + (np.arange(ny) + 0.5) * grid.res
+    X, Y = np.meshgrid(xs, ys, indexing="ij")
+    return (X - c[0]) ** 2 + (Y - c[1]) ** 2 <= r * r
+
+
 def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=None, goals=None, cmap=None):
     """-> dict(waypoints=[{name, xy, mode, clearance_m, facing_m, ...}], length_m, min_clearance_m, ...).
     chicane None: every option is planned and the best is chosen (plan_options); the result carries
@@ -327,6 +367,11 @@ def plan(doc, obst: Grid2D, blocked: Grid2D, clearance, start_xy=None, chicane=N
     path = [np.asarray(start, float)]
     names = [{"name": "start", "mode": "takeoff"}]
     keep = [0]
+    esc = start_escape(start, blocked, obst, clearance, float(doc.get("leg_policy", {}).get("start_escape_m", 0.15)))
+    if esc is not None:                              # step out of the buffer first, away from everything
+        path.append(np.asarray(esc, float))
+        names.append({"name": "via_start_escape", "mode": "cruise"})   # path mode: the navigator steps out itself
+        keep.append(1)
     for i, g in enumerate(goals):
         p = path[-1]
         q = np.asarray(g["xy"], float)

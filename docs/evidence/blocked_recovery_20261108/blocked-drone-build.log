@@ -1,0 +1,8 @@
+Starting >>> kestrel_nav
+Finished <<< kestrel_nav [5.35s]
+--- stderr: kestrel_nav
+listing git files failed - pretending there aren't any
+---
+
+Summary: 1 package finished [6.15s]
+  1 package had stderr output: kestrel_nav

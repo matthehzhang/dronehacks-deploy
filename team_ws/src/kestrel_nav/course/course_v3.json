@@ -158,8 +158,9 @@
       "arrive_speed_mps": 0.08,
       "arrive_settle_s": 0.3,
       "hold_s": 0.25,
-      "yaw_accel_dps2": 90.0,
-      "first_turn_gate_s": 4.5
+      "yaw_accel_dps2": 0.0,
+      "first_turn_gate_s": 4.5,
+      "path_lat_accel_max_mps2": 0.3
     },
     "steady": {
       "track_mode": "pose",
@@ -187,7 +188,7 @@
       "_excite_note": "OFF. run017 (b783000) flew excite_yaw 90 at the take-off point: the camera faced the west net at 0.50 m (92 % open, depth sees through it to unmapped space; OAK minimum range 0.4 m) and the estimate failed: the body slid 0.357 m, PX4 local position moved ~1.4 m, xy_valid went false 5.2 s into the yaw and refnav landed (Program FAILED, 7.2 s airborne). From the take-off point every heading except the start one faces a surface at 0.50-0.55 m, which breaks leg_policy face_min_m 0.8 (the rule every in-place turn on the route obeys). A first-yaw excitation needs a place whose whole yaw arc keeps that facing distance; there is none at this start, so it stays off.",
       "first_turn_gate_s": 4.5,
       "_first_turn_note": "first_turn_gate_s 4.5: after the first >= 20 deg in-place turn only, go once |PX4 - setpoint| < 0.03 m and speed < 0.02 m/s (timeout 4.5 s: run014's 60 deg turn recovered to < 0.03 m at +4.3 s). PX4's post-yaw velocity error: first yaw 0.085 (run015) / 0.091 (run016) m/s, later yaws <= 0.021 / 0.033. Leg 2 (after that turn) was every steady run's minimum leg (0.299, 0.299, 0.277 m) and in run016 spent 6.5 of its 8.1 s creeping on tube holds after a 0.173 m set-off drift.",
-      "yaw_accel_dps2": 90.0,
+      "yaw_accel_dps2": 0.0,
       "_yaw_profile_note": "Before: the turn slewed the yaw setpoint at a constant 35 deg/s from the first tick to the last (yaw acceleration steps) while publishing trajectory_setpoint.yawspeed 0.0 (the message default; run021 published_trajectory), so PX4 followed on feedback alone: ~1.35 s of heading lag per turn (run016). yaw_accel_dps2 90: trapezoidal yaw-rate profile with the rate published as yawspeed feed-forward. 90 deg/s^2 = 35 deg/s over ~one yaw time constant of PX4's default attitude loop (MC_YAW_P 2.8 -> 0.36 s), so the loop can follow the ramp. Whether the abrupt profile drove part of the 5-20 cm in-place slide is the next run's question; the profile is standard multirotor practice either way.",
       "arrive_tight_m": 0.0,
       "arrive_tight_mps": 0.03,
@@ -196,7 +197,11 @@
     },
     "_group119_note": "group119 = matthew930am (cf48cd8) + flow-corners (32b6d7f). Path mode as flow-corners flew it in run022 (148.2 s sim, Flight PASS 0.281 m), plus matthew930am's: yawspeed feed-forward of the yaw setpoint's rate with a trapezoidal in-place turn (yaw_accel_dps2 90; run021 showed refnav publishing yawspeed 0.0 while slewing, PX4 lagging ~1.4 s), first-turn gate, safe fault landing (refnav_params), and the SIM-ONLY stuck-landing forced disarm (sim_profile).",
     "arc_min_tube_m": 0.16,
-    "_arc_tube_note": "arc_min_tube_m 0.16: a bend is an arc only where the arc's tube (clearance - reach)/2 is >= 0.16 m everywhere; else stop-and-turn in place. run022 (flow-corners, path mode): PX4 cross-track p95 in 'go' was 0.039-0.099 m without recent yaw but 0.122-0.159 m within 2 s of yawing while moving, at every speed band (0.08-0.6 m/s): the arc's yaw adds error that speed does not scale away. 7 of the 10 leg-1 tube holds followed 30 deg/s arc yaw. Maze tubes are 0.07-0.09 m, so maze bends become stop-and-turns (in-place turns after the first show <= 0.028 m/s velocity error); open floor keeps its arcs."
+    "_arc_tube_note": "arc_min_tube_m 0.16: a bend is an arc only where the arc's tube (clearance - reach)/2 is >= 0.16 m everywhere; else stop-and-turn in place. run022 (flow-corners, path mode): PX4 cross-track p95 in 'go' was 0.039-0.099 m without recent yaw but 0.122-0.159 m within 2 s of yawing while moving, at every speed band (0.08-0.6 m/s): the arc's yaw adds error that speed does not scale away. 7 of the 10 leg-1 tube holds followed 30 deg/s arc yaw. Maze tubes are 0.07-0.09 m, so maze bends become stop-and-turns (in-place turns after the first show <= 0.028 m/s velocity error); open floor keeps its arcs.",
+    "_group154_note": "group154 (from group119 749bca0): yaw feed-forward OFF (yaw_accel_dps2 0): heading overshoot after in-place turns p50 2.0/1.1 deg without it (run021/run022) vs 19.7/19.1 deg with it (run023/run024, max 52.7), with 0.1-0.2 m body swings (run024 first turn: setpoint 74.3 deg, heading to 94.5 then 68). Path lateral feed-forward clamped to lat_accel_mps2 and zero at stop-and-turn corners (run024 contact at M1: 0.54 m/s^2 lateral feed-forward from the corner's heading kink). Zero-width tubes do not gate.",
+    "center_stops": true,
+    "center_face_min_m": 0.8,
+    "_center_note": "center_stops: each stop-and-turn vertex moves to the highest-clearance point of its corner region (within half the shorter adjacent segment), keeping both adjacent segments at the requirement and the depth camera's facing rule (leg_policy face_min_m, or the original vertex's room if less). run029's minimum (0.320 m, M1) was the first in-place turn's ~0.25 m estimator drift at a turn point with 0.516 m clearance where its corner offers 0.566 m."
   },
   "refnav_params": {
     "corridor_half_m": 0.32,
@@ -218,6 +223,7 @@
     "blocked_backoff_m": 0.2,
     "blocked_recheck_s": 2.0,
     "blocked_clear_margin_m": 0.15,
+    "blocked_max_per_leg": 3,
     "depth_lost_pause_static": true,
     "depth_lost_land_s": 5.0,
     "stop_per_mps": 1.0,

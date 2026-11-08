@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
 import time
 from pathlib import Path
@@ -188,29 +189,6 @@ def wait_for_start(timeout_s, min_updates=30, max_sigma=0.15, want_height=True):
     return out
 
 
-def _free_start(blocked, start_xy, max_m=0.3):
-    """start_xy, or the nearest unblocked cell centre within max_m of it (None-safe: start_xy if none)."""
-    import numpy as np
-    xy = np.asarray(start_xy, float)
-    ij = blocked.ij(xy)
-    if not blocked.inside(ij) or not blocked.occ[ij[0], ij[1]]:
-        return tuple(start_xy)
-    n = int(math.ceil(max_m / blocked.res))
-    best, bd = None, math.inf
-    for di in range(-n, n + 1):
-        for dj in range(-n, n + 1):
-            c = np.array([ij[0] + di, ij[1] + dj])
-            if blocked.inside(c) and not blocked.occ[c[0], c[1]]:
-                d = math.dist(blocked.xy(c), xy)
-                if d < bd:
-                    best, bd = blocked.xy(c), d
-    if best is None or bd > max_m:
-        return tuple(start_xy)
-    print(f"start ({xy[0]:.3f}, {xy[1]:.3f}) is inside the planning margin: planning from the nearest free point "
-          f"({best[0]:.3f}, {best[1]:.3f}), {bd:.3f} m away", flush=True)
-    return (float(best[0]), float(best[1]))
-
-
 def plan_now(start_xy, start_yaw_deg, chicane="auto", prepared=None):
     """Goals from the OBJ, every option planned and scored, the best chosen. -> (plan, route, legs, doc)."""
     from coursenav import planner
@@ -224,16 +202,11 @@ def plan_now(start_xy, start_yaw_deg, chicane="auto", prepared=None):
         doc, cmap, grids = prepared
     obst, blocked, clearance = grids
     reach = float(doc["vehicle"]["radius_m"])
-    # kestral_nav934am (skybeta), the one planning change to group119: the venue launch mark is ~0.40 m from
-    # the barrier, inside the 0.414 m planning margin, so planning from it fails ("start is blocked"; the
-    # FlyX spawn was 0.2 m north). Plan from the nearest free cell within 0.3 m; the route stays relative
-    # to the REAL start, so the first leg simply leaves the margin.
-    plan_xy = _free_start(blocked, start_xy)
     if chicane == "auto":
-        res = planner.plan_options(doc, obst, blocked, clearance, start_xy=plan_xy, cmap=cmap)
+        res = planner.plan_options(doc, obst, blocked, clearance, start_xy=start_xy, cmap=cmap)
         p = res["plan"]
     else:
-        p = planner.plan(doc, obst, blocked, clearance, start_xy=plan_xy, chicane=chicane, cmap=cmap)
+        p = planner.plan(doc, obst, blocked, clearance, start_xy=start_xy, chicane=chicane, cmap=cmap)
     yaw = math.radians(start_yaw_deg)
     route = planner.to_route(p["waypoints"], start_xy, yaw)
     legs = planner.to_legs(p["waypoints"], obst, clearance, reach)
@@ -292,6 +265,21 @@ def main(argv=None):
                 own_loc.wait(timeout=5)
             except Exception:
                 own_loc.kill()
+
+
+def require_sim_plan_ready(ready, process):
+    """A capped simulation must not silently fall back to planning in flight."""
+    if os.environ.get('KESTREL_USE_SIM_TIME') != 'true' or ready.exists():
+        return
+    import subprocess
+    if process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+    raise SystemExit('Navigator did not finish preplanning within the 300 wall-second watchdog; simulation flight not started')
 
 
 def _fly(a, t0, doc, prepared, run_dir, stamp):
@@ -409,6 +397,7 @@ def _fly(a, t0, doc, prepared, run_dir, stamp):
             if int(time.monotonic() - t_wait) % 10 == 0:
                 print(f"waiting for the navigator to pre-plan the legs ({time.monotonic() - t_wait:.0f} s)", flush=True)
             time.sleep(1.0)
+        require_sim_plan_ready(ready, nav_proc)
         print(f"navigator: {'ready' if ready.exists() else 'NOT ready (planning in flight)'} after "
               f"{time.monotonic() - t_wait:.0f} s", flush=True)
     if a.event_start:

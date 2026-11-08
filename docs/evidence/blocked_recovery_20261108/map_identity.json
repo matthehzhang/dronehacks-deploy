@@ -1,0 +1,10 @@
+{
+  "workspace_commit": "ed2271bd49c34bf5fd77cbd5d5124e28be778905",
+  "download_sha256": "d2ca9380c800ff6207f4974ff117a306318bb139b4b0f3a98cc280b7c5db8d45",
+  "obj_sha256": "ef86d5ea34edb7d655551ad2faf5bedff6c916425013aeb4e03e927e0b46809b",
+  "obj_exact_match": true,
+  "materials_exact_match": true,
+  "occupied_exact_match": true,
+  "labels_exact_match": true,
+  "metadata_note": "Upstream retains its generated published OBJ metadata; archive labels source local scenario OBJ. No cell, label, algorithm or threshold changes were made for this port."
+}

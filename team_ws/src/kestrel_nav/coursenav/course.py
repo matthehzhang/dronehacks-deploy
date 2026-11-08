@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,10 +19,24 @@ PROJECT = Path(__file__).resolve().parent.parent
 _RESOLVED = {}
 
 
-def load_course(path=PROJECT / "course" / "course_v3.json", derive=True):
-    """Course file -> dict. With derive (default), every goal position is measured from the published
-    OBJ by coursenav.semantics (the file itself stores none: rule 9.5); cached per file version."""
-    path = Path(path)
+# The course the stack flies by default: the team's reconstructed origin map (2026-11-07). Override with
+# COURSENAV_COURSE=<course file> (the regression tests pin course/course_v3.json in tests/conftest.py).
+DEFAULT_COURSE = PROJECT / "course" / "course_new_origin.json"
+
+
+def default_course_path():
+    env = os.environ.get("COURSENAV_COURSE")
+    if not env:
+        return DEFAULT_COURSE
+    p = Path(env)
+    return p if p.is_absolute() else PROJECT / p
+
+
+def load_course(path=None, derive=True):
+    """Course file -> dict (default: default_course_path()). With derive (default), every goal position is
+    measured from the published OBJ by coursenav.semantics (the file itself stores none: rule 9.5);
+    cached per file version."""
+    path = Path(path) if path is not None else default_course_path()
     doc = json.loads(path.read_text())
     doc['vehicle'] = vehicle_geometry(doc['vehicle'])
     doc["_dir"] = str(PROJECT)

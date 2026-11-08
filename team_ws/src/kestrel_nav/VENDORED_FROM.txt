@@ -1,1 +1,1 @@
-749bca0cd50cc673ed4a0f431e9bd63b9a6fbef3  origin/group119  (first port, kestral_nav934am)
+ed2271bd49c34bf5fd77cbd5d5124e28be778905  origin/refnav/blocked-recovery  (vendored by port-to-skybeta 2026-11-08T02:26:16-06:00)
