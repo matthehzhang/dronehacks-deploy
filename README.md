@@ -13,6 +13,18 @@ everything below your setpoints is already built, measured and documented.
 
 **Need help?** Message Kelvin on Slack (`kelvinkn@stanford.edu`).
 
+> **Drone 14 team navigation: please review → [`docs/team_navigation.md`](docs/team_navigation.md)**
+>
+> Two candidate navigation packages for the course, both run as `kestrel_nav` in `~/team_ws/src`:
+>
+> | | Branch | Approach | Status |
+> |---|---|---|---|
+> | **Exploratory / generalizable** | [`package_mcp_hopecore`](https://github.com/matthehzhang/dronehacks-deploy/tree/package_mcp_hopecore) | No map walls. Plans only through space the depth camera has seen free, toward 7 named targets, replanning every 0.5 s (FASTER-style) | Full course in Gazebo (0 touches); **not flown on hardware** |
+> | **Hardcoded route** | [`groupbad218`](https://github.com/matthehzhang/dronehacks-deploy/tree/groupbad218) | Route planned on the reconstructed course map with fixed stops; venue-measured launch, pad and window height | Offline only; **not flown on hardware** |
+>
+> The guide covers how each works, the real-drone flight history, the known risks, how to run, record and
+> replay, and the specific questions we want reviewers to answer.
+
 ---
 
 ## Rules
