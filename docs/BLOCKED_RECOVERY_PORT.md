@@ -308,7 +308,11 @@ caged or tethered, pilot on the kill switch. `docs/port-to-skybeta/assets/skybet
 `scripts/refresh_patch.sh` on the machine that has the workspace checkout.
 
 
-## Continuous exploration for unobserved corridors (cram615)
+## Continuous exploration for unobserved corridors (cram615) — SUPERSEDED
+
+*Superseded 2026-11-08 by the bounded `unobserved_explore` below (team decision): an unobserved
+corridor is explored, then lands if it stays unobserved; `corridor_wait_land_s` 10 s is restored as
+the per-leg fallback. The text below records what cram615 did.*
 
 The legacy `corridor_wait_land_s` is ignored and removed from the course profiles.
 With recovery enabled on a path leg, healthy depth but no observed corridor for
@@ -323,3 +327,30 @@ request IDs. Short pauses needed to settle or collect depth still occur; transla
 into unobserved space is not permitted. Genuine obstacle/block limits, no-route
 recovery, depth/estimator/position supervision, operator requests, and route-complete
 landing are unchanged. This change has controller/regression coverage, not flight qualification.
+## Unobserved-corridor exploration (2026-11-08, `unobserved_explore`, launch default ON)
+
+**Why.** `corridor_wait_land_s` (10 s in the course profile) landed any `check`/`go` leg whose corridor no depth
+frame observed: fewer than `min_corridor_coverage` 45 % of the rays through a ±0.32 m × ±0.25 m window one stop
+distance + 0.25 m ahead returned any depth. Likely causes on this airframe: textureless panel faces (the
+OAK-D S2 has no IR projector), the 92 %-open net with a dark/distant hall behind it, a surface inside the
+~0.5 m blind range, dark areas, glare. None of the creep/evidence work changes this rule.
+
+**What it does** (`refnav/core.py`, phases `explore_scan` → `explore_back` → `explore_check`, then
+`explore_face` on success):
+- trigger: `check`/`go`, no observing frame for `unobserved_trigger_s` 4 s, outside tunnel-dark mode;
+- sweep ±`unobserved_scan_deg` 20° about the heading (≤ 20°/s, settled, a new frame per stop; never next to a
+  surface within 0.45 m);
+- back off ≤ `unobserved_backoff_m` 0.4 m **along the path already flown** at ≤ 0.15 m/s, facing the leg;
+- recheck `unobserved_recheck_s` 3 s;
+- the moment a frame captured after exploring began observes the leg's corridor: turn back to the leg heading
+  and resume `go` from the current position (go's obstacle rule then applies unchanged; nothing resumes on
+  "clear", only on "observed");
+- land after `unobserved_budget_s` 25 s; at most `unobserved_max_per_leg` 2 explorations per leg, then the
+  original `corridor_wait_land_s` rule. Never translates forward into unobserved space; depth silence and
+  estimator rules are unchanged.
+
+**Validation.** `tests/test_unobserved_explore.py` (7, closed loop): a 6 s blind spell mid-leg lands without it
+and completes with it; a 10 s spell on a navigator path leg backs off along the path and completes; with no view
+ever it backs off, never moves forward of where it started, and lands inside the budget; a permanent ±13° blind
+patch (course corridor profile) is bounded at 2 explorations, then lands; back-off ≤ 0.15 m/s; bounds checked.
+Not yet run in Gazebo or on the drone.

@@ -41,6 +41,9 @@ ARGUMENTS = [
                                     'rejoin (bearing over this many metres past max(1 m, stop distance)), ending facing it; '
                                     'turn capped at 90 deg from the heading at the block. 0.0 = sweep centred on the nose (previous behaviour); '
                                     'write 0.0, not 0: ROS rejects an integer for this float and refnav would not start'),
+    ('unobserved_explore', 'true', 'a leg whose corridor no depth frame observes for 4 s: sweep +-20 deg, back off 0.4 m '
+                                   'along the path already flown, recheck, resume as soon as it is observed (25 s, 2 per '
+                                   'leg) instead of landing after corridor_wait_land_s. false = the previous behaviour'),
     ('arm_wait_s', '600.0', 'refnav: how long the arm phase waits for the pilot to arm and switch to Position'),
     ('wait_s', '900.0', 'refnav: how long it waits for readiness before giving up'),
     ('landed_z', '0.10', 'landed body-origin height above the floor: PX4 dist_bottom 0.100 m on skybeta-14 (no distance_sensor topic there)'),
@@ -82,7 +85,8 @@ def generate_launch_description():
              '-p', ['depth_info_topic:=', L('depth_info_topic')],
              '-p', ['arm_wait_s:=', L('arm_wait_s')], '-p', ['wait_s:=', L('wait_s')],
              '-p', ['use_sim_time:=', L('use_sim_time')], '-p', 'path_turn_hold:=true', '-p', 'recovery_replan:=true',
-             '-p', 'recovery_scan_deg:=25.0', '-p', ['recovery_scan_route_m:=', L('recovery_scan_route_m')], '-p', ['recovery_creep:=', L('recovery_creep')]],
+             '-p', 'recovery_scan_deg:=25.0', '-p', ['recovery_scan_route_m:=', L('recovery_scan_route_m')], '-p', ['recovery_creep:=', L('recovery_creep')],
+             '-p', ['unobserved_explore:=', L('unobserved_explore')]],
         cwd=str(ROOT), additional_env={**fly_env, 'KESTREL_USE_SIM_TIME': L('use_sim_time'),
                                        'KESTREL_DECLARED_HEADING_DEG': L('declared_heading_deg'),
                                        'KESTREL_NICE_NAV': '5', 'KESTREL_RECOVERY_CREEP': L('recovery_creep')},

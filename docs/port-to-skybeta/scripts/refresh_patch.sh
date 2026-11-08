@@ -33,7 +33,7 @@ for f in coursenav/observed_free.py tests/test_observed_recovery.py tests/test_n
          tests/test_recovery_controller.py tests/test_priorstate.py tests/test_local_free_age.py tests/test_package_install.py \
          tests/test_no_route_recovery.py tests/test_course_clearing_masks.py tests/test_free_grid_reader.py \
          tests/test_prior_correction.py tests/test_prior_correction_node.py tests/test_local_ray_horizon.py \
-         tests/test_recovery_creep.py; do
+         tests/test_recovery_creep.py tests/test_unobserved_explore.py; do
   mkdir -p "$SK/assets/new/$(dirname "$f")"
   cp "$PKG/$f" "$SK/assets/new/$f"
 done

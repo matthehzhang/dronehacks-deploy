@@ -16,8 +16,10 @@ Safety behaviour (each one is a test in tests/test_refnav_core.py):
   than depth_stale_s returned depth on at least min_corridor_coverage of the rays crossing the
   corridor ahead (no return is unknown space, never free space); a blank, sparse (valid fraction
   < min_valid_frac), future-stamped, stale-on-arrival or out-of-order frame refreshes nothing; no
-  usable depth for depth_lost_land_s lands. Insufficient corridor coverage alone starts scan/replan/creep exploration on recovery-enabled
-  path legs, with further exploration rounds instead of a landing deadline or terminal hold;
+  usable depth for depth_lost_land_s lands; with unobserved_explore, a leg whose corridor no frame has
+  observed for unobserved_trigger_s is explored (sweep, back-off along the flown path, recheck) and resumed
+  once observed, bounded per exploration and per leg; with corridor_wait_land_s >= 0, a leg whose corridor
+  no frame has observed for that long (e.g. depth sees nothing through a net) lands instead of hovering;
 * an obstacle closer than stop_m ahead stops the aircraft and ends the route (it lands where it
   is: route blocked; planning around obstacles is the student's job); with leg_end_margin_m >= 0 only
   an obstacle inside the remaining leg (+ that margin) counts, so a mapped wall beyond a planned leg
@@ -66,8 +68,9 @@ from .speed import braking_cap, side_cap
 
 NAV_OFFBOARD = 14
 NAV_AUTO_LAND = 18
+EXPLORE = ("explore_scan", "explore_back", "explore_check", "explore_face")   # unobserved-corridor exploration
 AIRBORNE = ("climb", "excite", "hover", "turn", "align", "check", "go", "hold", "blocked", "backoff", "recheck", "recovery_scan",
-            "creep", "retreat")
+            "creep", "retreat") + EXPLORE
 TRANSLATING = ("go", "backoff", "climb")           # phases in which the aircraft is commanded to move
 SILENCE_PAUSED = ("turn", "hold", "excite")                # no translation: depth silence is not counted here
 
@@ -116,8 +119,20 @@ class Params:
                                                 # the REST OF THE LEG + this margin. A course wall planned beyond a
                                                 # leg's end (maze corridors) is then expected, not a blockage.
                                                 # < 0 (default): any obstacle closer than stop_m blocks (original rule)
-    corridor_wait_land_s: float = -1.0          # ignored legacy parameter: retained for old route/config loading
-    corridor_explore_after_s: float = 4.0      # healthy depth but unobserved path corridor: scan/replan, never a landing deadline
+    corridor_wait_land_s: float = -1.0          # >= 0: land when the current leg's corridor has gone this long
+                                                # without an observing frame (in check or go). < 0 (default): hold
+                                                # and wait indefinitely (original rule)
+    corridor_explore_after_s: float = 4.0      # unused (cram615's unbounded exploration, superseded by unobserved_*)
+    unobserved_explore: bool = False            # check/go with an UNOBSERVED corridor: explore before landing. In place
+                                                # of waiting out corridor_wait_land_s: yaw-sweep, back off along the
+                                                # path just flown, recheck; resume as soon as a frame observes it.
+                                                # Never translates into unobserved space.
+    unobserved_trigger_s: float = 4.0           # ... after this long without an observing frame
+    unobserved_scan_deg: float = 20.0           # ... sweep this far each side of the heading
+    unobserved_backoff_m: float = 0.4           # ... then back off at most this far along the path already flown
+    unobserved_recheck_s: float = 3.0           # ... then hold and look this long
+    unobserved_budget_s: float = 25.0           # one exploration's whole budget; then land
+    unobserved_max_per_leg: int = 2             # explorations per leg; then the corridor_wait_land_s rule as before
     corridor_half_m: float = 0.6
     band_m: float = 0.4
     min_obstacle_px: int = 1200                 # an obstacle covers at least this many image pixels (~35 x 35):
@@ -181,7 +196,7 @@ class Params:
                                                # so the newest depth covers the rejoin when the last request goes.
                                                # 0 = the sweep is centred on the heading at the block (legacy)
     recovery_scan_route_max_deg: float = 90.0  # the sweep centre turns at most this far from the heading at the block
-    recovery_timeout_s: float = 20.0           # per-round recovery budget, never reset by planner replies
+    recovery_timeout_s: float = 20.0           # whole recovery budget, never reset by planner replies
                                                # (with recovery_creep: only a hop that made progress extends it,
                                                # and never past creep_max_s after the block)
     recovery_creep: bool = False               # recovery_replan: accept short certified HOPS (navigator
@@ -189,7 +204,7 @@ class Params:
     creep_speed_mps: float = 0.15              # hop speed: the carrot advances no faster than this
     creep_max_hops: int = 6                    # hops per recovery; then only full certified detours are accepted
     creep_max_stalls: int = 2                  # hops in a row that ended early (obstacle, unknown, withdrawn): land
-    creep_max_s: float = 45.0                  # absolute budget per recovery round; unobserved corridors start another round
+    creep_max_s: float = 45.0                  # absolute recovery budget from the block, never extended
     creep_dwell_s: float = 1.0                 # hover after a hop before asking for the next (new depth evidence)
     creep_reply_s: float = 2.0                 # wait this long for that reply before sweeping
     creep_hop_timeout_s: float = 10.0          # a hop not finished in this long ends without progress
@@ -343,6 +358,14 @@ class Mission:
                 value = getattr(params, name)
                 if not math.isfinite(value) or not low <= value <= high:
                     raise ValueError(f"{name} must be finite and within [{low}, {high}]")
+        if params.unobserved_explore:
+            for name, (low, high) in {"unobserved_trigger_s": (0.5, 30.0), "unobserved_scan_deg": (0.0, 45.0),
+                                      "unobserved_backoff_m": (0.0, 1.0), "unobserved_recheck_s": (0.5, 10.0),
+                                      "unobserved_budget_s": (5.0, 60.0),
+                                      "unobserved_max_per_leg": (1, 5)}.items():
+                value = getattr(params, name)
+                if not math.isfinite(value) or not low <= value <= high:
+                    raise ValueError(f"{name} must be finite and within [{low}, {high}]")
         self.health = Health(params.health_quiet_s, params.health_stale_s)
         self.phase = "wait"
         self.why = ""
@@ -389,6 +412,7 @@ class Mission:
                        "depth_unusable": 0, "depth_future": 0, "depth_stale": 0, "depth_out_of_order": 0,
                        "corridor_unobserved": 0, "corrections": 0, "recoveries": 0, "replan_resumes": 0, "blended_turns": 0, "path_waits": 0,
                        "creep_hops": 0, "creep_stalls": 0,
+                       "explores": 0, "explore_resumes": 0,
                        "alignments": 0, "tunnel_ticks": 0, "tube_holds": 0, "tube_ticks": 0, "retreats": 0,
                        "plan_stops": 0}
         self.tube_hold = False        # tube_gate: forward motion held until back inside half the tube
@@ -420,6 +444,8 @@ class Mission:
         self.replan_request = None
         self.plan_reply = None
         self.leg_blocks = 0           # confirmed blocks on the current leg (blocked_max_per_leg)
+        self.explore = None           # unobserved-corridor exploration in progress (unobserved_explore)
+        self.leg_explores = 0         # explorations started on the current leg
         self.prior = None             # latest prior-map report (t, state, fit) from the localizer
         self.clr_min = None           # the SMALLEST clearance of the confirm frames (recovery needs every one clear)
         self.align_hist = []          # gate alignment measurements for the current leg
@@ -703,6 +729,7 @@ class Mission:
         retraces the flown path to the nearest clear column (phase retreat); immediate landings
         (no trustworthy position) and the planned landing ("route complete") descend where they are."""
         self.plan_failure = None
+        self.explore = None
         if self.phase == "retreat" and not immediate:
             return                                   # already on the way to a clear column
         if (not immediate and why != "route complete" and self.p.safe_land and self.p.land_columns
@@ -907,9 +934,18 @@ class Mission:
             elif p.prior_required and self.prior is not None and self.prior[1] == "dropped":
                 self._land(now, out, self._prior_dropped_why())
             elif self._begin_failed_plan_recovery(now, out, v):
-                pass  # no-route recovery owns its existing bounded timer
-            elif not tunnel_dark:
-                self._begin_corridor_exploration(now, out, v)
+                pass  # no-route recovery owns its existing bounded timer, not the stale corridor timer
+            elif (p.unobserved_explore and self.phase in ("check", "go") and self.t_check is not None
+                    and not tunnel_dark and self.leg_explores < p.unobserved_max_per_leg
+                    and now - (self.t_check if self.corr_t is None else max(self.t_check, self.corr_t))
+                    > p.unobserved_trigger_s):
+                self._begin_explore(now, out, v)
+            elif p.corridor_wait_land_s >= 0 and self.phase in ("check", "go") and self.t_check is not None \
+                    and not tunnel_dark:
+                seen = self.t_check if self.corr_t is None else max(self.t_check, self.corr_t)
+                if now - seen > p.corridor_wait_land_s:
+                    self._land(now, out, f"corridor of leg {self.leg + 1} not observed for "
+                                         f"{now - seen:.1f} s (corridor_wait_land_s {p.corridor_wait_land_s:g} s)")
 
         ph = self.phase
         if ph == "wait":
@@ -1049,6 +1085,8 @@ class Mission:
                 self._next_leg(now, out, v)
         elif ph in ("blocked", "backoff", "recheck", "recovery_scan", "creep"):
             self._recover(now, dt, out, v)
+        elif ph in EXPLORE:
+            self._explore_step(now, dt, out, v)
         elif ph == "retreat":
             self._retreat(now, dt, out, v)
 
@@ -1130,6 +1168,7 @@ class Mission:
         self.path_s, self.path_stop_done = 0.0, -1
         self.capture_t, self.tight_since = None, None
         self.leg_blocks = 0
+        self.leg_explores = 0
         self.replan_request = self.plan_reply = None
         self.plan_failure = None
         self.plan_reference = ((self.path, self.path_s)
@@ -1215,6 +1254,7 @@ class Mission:
                 # the same along-path check in go, check AND the recovery: judging recovery on the straight
                 # leg heading while go judged the curved path flapped blocked <-> go 18 times (bag 20261107-201744)
                 ahead = (self._path_ahead_level(v) if self.phase in ("go", "check", "blocked", "backoff", "recheck", "creep")
+                         + EXPLORE
                          and self._path_leg()
                          and self.path is not None and self.path["leg"] == self.leg else None)
                 if ahead is not None:
@@ -1784,23 +1824,6 @@ class Mission:
                           f"(width seen {res.get('width_m', float('nan')):.2f} m, {len(self.align_hist)} frames)")
 
     # ------------------------------------------------------------------ hold-and-recheck
-    def _begin_corridor_exploration(self, now, out, v):
-        """Look for observed space instead of landing or waiting forever on a healthy depth stream."""
-        p = self.p
-        if (not p.recovery_replan or not self._path_leg() or self.phase not in ("check", "go")
-                or self.recover is not None or self.t_check is None or not self.depth_fresh(now)):
-            return
-        seen = self.t_check if self.corr_t is None else max(self.t_check, self.corr_t)
-        if now - seen <= p.corridor_explore_after_s:
-            return
-        why = f"corridor of leg {self.leg + 1} not observed for {now - seen:.1f} s; exploring"
-        reference, progress = (self.path, self.path_s) if self.path is not None else (self.plan_reference or (None, 0.0))
-        self._start_recover(now, out, "blocked", why, v, reference, progress)
-        self.recover["cause"] = "unobserved"
-        self.recover["exploration_round"] = 1
-        self.recover["t0_hold"] = now - p.blocked_hold_s - 1.0
-        self.replan_request["require_detour"] = False
-
     def _finish_recovery(self, now, out, v, why):
         """An unobserved corridor starts another scan/replan round, never a terminal hold or landing."""
         r = self.recover
@@ -1981,6 +2004,136 @@ class Mission:
         if r["scan_i"] == len(r["scan_yaws"]):
             r["scan_done"] = True
             self._begin_backoff(now, out, v)
+
+    # ------------------------------------------------------------------ unobserved corridor (unobserved_explore)
+    def _begin_explore(self, now, out, v):
+        """No frame has observed this leg's corridor for unobserved_trigger_s: look for it instead of waiting to
+        land. Translation only ever goes BACK along the path already flown; forward motion stays with go."""
+        p = self.p
+        self.leg_explores += 1
+        self.counts["explores"] += 1
+        h0 = self.sp[3]
+        a = math.radians(p.unobserved_scan_deg)
+        self.explore = {"t0": now, "h0": h0, "pos": (float(v.pos[0]), float(v.pos[1])), "settled": None,
+                        "settled_depth": None, "yaws": [_wrap(h0 - a), _wrap(h0 + a), h0] if a > 0 else [],
+                        "i": 0, "target": None, "t_stage": now, "carrot": None, "from_phase": self.phase}
+        self.sp[0], self.sp[1] = v.pos[:2]                    # brake where we are: no forward motion
+        self.v_cmd, self.a_cmd = 0.0, 0.0
+        self._set("explore_scan", now, out, f"corridor of leg {self.leg + 1} not observed for "
+                                            f"{p.unobserved_trigger_s:g} s: exploring (try {self.leg_explores}/"
+                                            f"{p.unobserved_max_per_leg})")
+
+    def _explore_observed(self, now, v):
+        """A frame captured after exploring began observed the LEG's corridor (any obstacle is go's business)."""
+        e = self.explore
+        if not self.depth_fresh(now) or self.depth_t is None or self.depth_t < e["t0"]:
+            return False
+        self._clearance(v)                                    # judges the newest frame, updates corr_t
+        return self.corr_t is not None and self.corr_t >= e["t0"] and self.corridor_fresh(now)
+
+    def _explore_step(self, now, dt, out, v):
+        p, e = self.p, self.explore
+        if e is None:
+            self._set("check", now, out)
+            return
+        if now - e["t0"] > p.unobserved_budget_s:
+            self.explore = None
+            self._land(now, out, f"corridor of leg {self.leg + 1} not observed: exploring for "
+                                 f"{p.unobserved_budget_s:g} s (sweep +-{p.unobserved_scan_deg:g} deg, back-off "
+                                 f"{p.unobserved_backoff_m:g} m, recheck) found no view of it")
+            return
+        step = math.radians(min(p.yaw_rate_dps, 20.0)) * dt
+        if self.phase == "explore_face":
+            # observed: face the leg again before handing back to go (go never re-faces a straight leg)
+            err = _wrap(e["h0"] - self.sp[3])
+            self.sp[3] = _wrap(self.sp[3] + max(-step, min(step, err)))
+            if abs(err) < 1e-3 and v.heading is not None and abs(_wrap(e["h0"] - v.heading)) < math.radians(p.face_tol_deg):
+                self._explore_resume(now, out, v)
+            return
+        if self._explore_observed(now, v):
+            self._set("explore_face", now, out, f"corridor of leg {self.leg + 1} observed again")
+            return
+        if self.phase == "explore_scan":
+            # no velocity report: the position test below decides; a reported velocity must be finite and small
+            vel_ok = v.vel is None or (len(v.vel) >= 3 and all(math.isfinite(c) for c in v.vel)
+                                       and math.hypot(*v.vel[:2]) <= 0.08 and abs(v.vel[2]) <= 0.08)
+            settled = (vel_ok and v.heading is not None and math.isfinite(v.heading)
+                       and all(math.isfinite(c) for c in v.pos) and math.dist(v.pos[:3], self.sp[:3]) <= 0.10)
+            if not settled:
+                e["settled"] = None
+                return
+            if self.depth_pts is not None and len(self.depth_pts):
+                import numpy as np
+                near = np.abs(self.depth_pts[:, 2]) < p.band_m
+                if np.any(np.linalg.norm(self.depth_pts[near, :2], axis=1) < max(p.corridor_half_m, 0.45)):
+                    e["i"] = len(e["yaws"])                   # never rotate next to a surface
+            if e["i"] >= len(e["yaws"]):
+                return self._explore_back(now, out, v)
+            target = e["yaws"][e["i"]]
+            self.sp[3] = _wrap(self.sp[3] + max(-step, min(step, _wrap(target - self.sp[3]))))
+            if abs(_wrap(target - v.heading)) > math.radians(3):
+                e["settled"] = None
+                return
+            if e["settled"] is None:
+                e["settled"], e["settled_depth"] = now, self.depth_t
+            if now - e["settled"] >= 0.5 and self.depth_t is not None and self.depth_t > e["settled_depth"]:
+                e["i"] += 1
+                e["settled"] = None
+        elif self.phase == "explore_back":
+            tn, te = e["target"]
+            d = math.hypot(tn - v.pos[0], te - v.pos[1])
+            if d < 0.08 or now - e["t_stage"] > 6.0:
+                self.sp[0], self.sp[1] = v.pos[:2] if d >= 0.08 else (tn, te)
+                e["t_stage"] = now
+                self._set("explore_check", now, out, f"rechecking for {p.unobserved_recheck_s:g} s")
+                return
+            # carrot toward the back-off target at <= 0.15 m/s; heading stays on the leg (the camera looks ahead)
+            c = e["carrot"] or (float(v.pos[0]), float(v.pos[1]))
+            dn, de = tn - c[0], te - c[1]
+            L = math.hypot(dn, de)
+            k = min(1.0, 0.15 * dt / L) if L > 1e-9 else 1.0
+            e["carrot"] = (c[0] + dn * k, c[1] + de * k)
+            self.sp[0], self.sp[1] = e["carrot"]
+        elif self.phase == "explore_check":
+            if now - e["t_stage"] > p.unobserved_recheck_s:
+                self.explore = None
+                self._land(now, out, f"corridor of leg {self.leg + 1} not observed after a sweep, a back-off and "
+                                     f"{p.unobserved_recheck_s:g} s of rechecking")
+
+    def _explore_back(self, now, out, v):
+        """Back off along the path already flown (seen and flown through, so not unknown), facing the leg."""
+        p, e = self.p, self.explore
+        d = p.unobserved_backoff_m
+        target = (float(v.pos[0]), float(v.pos[1]))
+        if d > 0:
+            if self._path_leg() and self.path is not None and self.path.get("leg") == self.leg and self.path_s > 0:
+                q = max(0.0, self.path_s - d)
+                pt = self._path_at(q)[0]
+                if math.hypot(pt[0] - v.pos[0], pt[1] - v.pos[1]) <= d + 0.05:
+                    target = pt
+            elif not self._path_leg() and self.leg_dir is not None:
+                n0, e0 = self.leg_start
+                proj = (v.pos[0] - n0) * self.leg_dir[0] + (v.pos[1] - e0) * self.leg_dir[1]
+                dd = min(d, max(proj, 0.0))
+                target = (v.pos[0] - self.leg_dir[0] * dd, v.pos[1] - self.leg_dir[1] * dd)
+        self.sp[3] = e["h0"]
+        e.update(target=target, t_stage=now, carrot=None)
+        moved = math.hypot(target[0] - v.pos[0], target[1] - v.pos[1])
+        self._set("explore_back", now, out, f"backing off {moved:.2f} m along the path already flown")
+
+    def _explore_resume(self, now, out, v):
+        """The corridor is observed again: back to go from where we are (go judges obstacles as always)."""
+        self.explore = None
+        self.counts["explore_resumes"] += 1
+        if self._path_leg():
+            self.sp[0], self.sp[1] = v.pos[0], v.pos[1]
+        else:
+            n0, e0 = self.leg_start
+            proj = (v.pos[0] - n0) * self.leg_dir[0] + (v.pos[1] - e0) * self.leg_dir[1]
+            self.s = min(max(proj, 0.0), self.leg_len)
+            self.sp[0], self.sp[1] = n0 + self.leg_dir[0] * self.s, e0 + self.leg_dir[1] * self.s
+        self.t_check = now                                    # the corridor timer starts again from here
+        self._set("go", now, out, f"corridor of leg {self.leg + 1} observed again: resuming")
 
     # ------------------------------------------------------------------ creep hops (recovery_creep)
     def _creep_stop_m(self):
@@ -2254,4 +2407,6 @@ class Mission:
                 "prior_state": None if self.prior is None else self.prior[1],
                 "leg_blocks": self.leg_blocks,
                 "tunnel": self.tunnel_active, "align": self.align_result,
+                "explore": None if self.explore is None else {"stage": self.phase, "try": self.leg_explores,
+                                                               "t": round(now - self.explore["t0"], 2)},
                 **self.counts}

@@ -43,7 +43,7 @@ from .planner import PlanError
 from .observed_free import ObservedFree
 
 AIRBORNE = ("hold", "turn", "check", "go", "blocked", "backoff", "recheck", "align", "scan", "replan", "recovery_scan",
-            "creep")
+            "creep", "explore_scan", "explore_back", "explore_check", "explore_face")
 
 
 class LiveLandmarks:
