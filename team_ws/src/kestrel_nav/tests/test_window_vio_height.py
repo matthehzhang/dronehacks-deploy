@@ -64,6 +64,18 @@ def test_no_vio_or_no_calibration_does_not_block_mission():
     assert not h.active
 
 
+def test_return_route_replacement_retains_vio_coordinate_frame():
+    h, m, v, _ = setup()
+    m.leg = 1
+    h.vehicle(3, m, v, 3)
+    m.p = NS(legs=[{'name': 'original_launch', 'mode': 'return'}])
+    m.leg = 0
+    h.observe(3.1, 3.1, 2.6)
+    raw = replace(v, pos=(1, 2, -1.55))
+    assert h.vehicle(3.1, m, raw, 3.1).pos[2] == pytest.approx(-1.3)
+    assert h.active and h.source == 'vio'
+
+
 def test_dropout_bridges_px4_changes_without_absolute_height_jump_and_resumes():
     h, m, v, warnings = setup()
     m.leg = 1

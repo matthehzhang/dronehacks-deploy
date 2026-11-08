@@ -34,6 +34,8 @@ Neither case adds a mission hold or landing trigger. Status/trace records includ
 the height source and offset; raw PX4 local-position trace records are retained.
 Native PX4 output, automatic return, and diagnostics do not use this handoff.
 PX4 estimator parameters and its inner velocity controller are unchanged.
+On the skybeta disarm/rearm and touch-and-go branches, once activated, VIO
+height also remains active across the return mission's route replacement.
 This change has CPU regression coverage, but has not been flight validated.
 
 At the end, the skybeta launch disables the mission's landing timeout: the existing
